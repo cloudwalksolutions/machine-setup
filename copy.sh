@@ -1,5 +1,13 @@
 #!/bin/zsh
 
+echo "⚠️  WARNING: copy.sh is deprecated"
+echo "   Use 'make' commands instead:"
+echo "     make pull  (instead of ./copy.sh pull)"
+echo "     make push  (instead of ./copy.sh push)"
+echo "     make init  (instead of ./copy.sh init)"
+echo ""
+sleep 2
+
 MONOKAI_DIR=~/.local/share/nvim/site/pack/packer/start/monokai.nvim/lua
 
 pull () {

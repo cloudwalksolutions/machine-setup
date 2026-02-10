@@ -50,3 +50,11 @@ envs/gcp.sh
 **/Icon
 **/.dropbox*
 
+# Machine setup backups
+backups/
+!backups/.gitkeep
+
+# Personal zsh secret files (not synced, user-specific)
+zsh/zshrc_secret
+.zshrc_secret
+

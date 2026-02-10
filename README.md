@@ -1,114 +1,154 @@
-<p align="center">
-  <a href="" rel="noopener">
- <img width=200px height=200px src="https://storage.googleapis.com/lg-static-prod/tbl.png" alt="Lake Games Logo"></a>
-</p>
+# Machine Setup
 
-<h3 align="center">Lake Games Web App</h3>
+One-command macOS machine setup for provisioning a fully configured development environment.
 
-<div align="center">
+## Quick Start
 
-[![Status](https://img.shields.io/badge/status-active-success.svg)]()
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](/LICENSE)
+```bash
+# Fresh machine setup
+make init
 
+# Pull latest configs
+make pull
 
-</div>
-
----
-
-<p align="center"> Lake Games web application built with ReactJS and Django and deployed to Kubernetes using Helm
-    <br> 
-</p>
-
-## 📝 Table of Contents
-
-- [About](#about)
-- [Getting Started](#getting_started)
-- [Script Usage](#usage)
-- [Built Using](#built_using)
-- [CI/CD](#cicd)
-- [Authors](#authors)
-
-## 🧐 About <a name = "about"></a>
-
-Lake Games is a website built to promote water sports like wakeboarding and wakesurfing in a certain community. Originated in Sister Lakes, Michigan
-
-## 🏁 Getting Started <a name = "getting_started"></a>
-
-Set environment variables
-
-Backend - get secret variables from admin
-```
-source ./envs/dev.sh
+# Push local changes
+make push
 ```
 
-Run frontend server
-```
-cd nginx/gui
-yarn install
-yarn start
-```
+## Overview
 
-Run backend server
+This repository manages dotfiles and development environment configurations with:
 
-```
-# Set environment vars
-source ./env/dev.sh 
+- **One-command setup**: Go from fresh MacBook to production-ready in minutes
+- **Automatic backups**: Semantic versioning (v1, v2, v3...) before any changes
+- **Modular design**: Pull/push individual components or all at once
+- **Easy to customize**: Personal overrides with `.zshrc_secret` and `.zshrc_funcs`
 
-# Initialize python virtual env
-cd django
-python3 -m venv env
-source env/bin/activate
-pip3 install -r requirements.txt
+## What's Included
 
-# Initialize database
-./init_db.sh
-python3 manage.py runserver
-```
+- **Neovim**: IDE-quality configuration with LSP, debugging, AI integrations
+- **Zsh**: oh-my-zsh with Powerlevel10k theme, extensive aliases
+- **Byobu/tmux**: Terminal multiplexer with custom status bar
+- **Vim**: Fallback configuration with Monokai theme
+- **Fonts**: Hack Nerd Fonts for proper icon display
 
-## 🎈 Script Usage <a name="usage"></a>
+## Usage
 
-```
-# Authenticate with GKE cluster
-./bin/auth.sh 
+### Main Commands
 
-# Ensure env variables are set
-./bin/check_env.sh
-
-# Helm script
-./bin/helm.sh install|upgrade|delete dev|stage|prod
-
-# Init/get/push/delete secrets to GCP
-./bin/secrets.sh init|get|push|delete
-
-# Create/delete CI/CD triggers
-./bin/triggers.sh create|delete|reset
+```bash
+make help        # Show all available commands
+make init        # Fresh machine setup (install deps + pull configs)
+make pull        # Pull all configs from repo → local
+make push        # Push all configs from local → repo
 ```
 
-## ⛏️ Built Using <a name = "built_using"></a>
+### Component-Specific Commands
 
-- [Django Rest Framework](https://www.django-rest-framework.org/) - Python Rest API framework
-- [ReactJS](https://reactjs.org/) - Typescript Frontend library
-- [Cloud SQL](https://https://cloud.google.com/sql) - Google Managed Database
-- [Docker](https://www.docker.com/) - Build Container Images
-- [Kubernetes](https://kubernetes.io/) - Cloud Environment
-- [Helm](https://helm..sh/) - Kubernetes Deployment
-- [Terraform](https://terraform.io/) - Cloud IAC -> repo found [here](https://github.com/walkerobrien/lakegames-infra.git/)
-- [Google Cloud Platform](https://www.cloud.google.com/) - Public Cloud
+```bash
+make pull-nvim   # Pull only Neovim config
+make pull-zsh    # Pull only Zsh config
+make pull-byobu  # Pull only Byobu config
+make pull-vim    # Pull only Vim config
+make pull-fonts  # Install fonts only
 
-## 🚀 CI/CD <a name = "cicd"></a>
-The following branches are connected to [Google Cloud Build](https://console.cloud.google.com/cloud-build/builds?project=lakegames-gke-prod) CI/CD pipelines 
-- `dev`
-- `stage`
-- `master`
+make push-nvim   # Push only Neovim config
+make push-zsh    # Push only Zsh config
+make push-byobu  # Push only Byobu config
+make push-vim    # Push only Vim config
+```
 
-## ✍️ Authors <a name = "authors"></a>
+### Backup Management
 
-- [@walkerobrien](https://github.com/walkerobrien) 
-  - Project Manager
-  - Lead Developer
-  - Cloud Architect
-- [@meredithkeesling](https://github.com/meredithkeesling) 
-  - Frontend Web Designer
+```bash
+make backup        # Create manual backup of all configs
+make backups-list  # List all backup versions
+```
 
+Backups are versioned semantically (v1, v2, v3...) and stored in `backups/<component>/vN/`.
 
+## Fresh Machine Setup
 
+On a new MacBook:
+
+```bash
+# Clone this repository
+git clone <repo-url> ~/machine-setup
+cd ~/machine-setup
+
+# Run setup (installs brew packages + applies all configs)
+make init
+
+# Edit your personal secrets
+vim ~/.zshrc_secret
+
+# Restart terminal
+```
+
+## Customization
+
+### Personal Files (Git-Ignored)
+
+- `~/.zshrc_secret` - API keys, tokens, private env vars
+- `~/.zshrc_funcs` - Personal shell functions (synced if you want)
+
+### Synced Files
+
+All configuration files in this repo are synced bidirectionally:
+- Neovim: `~/.config/nvim/`
+- Zsh: `~/.zshrc`, `~/.zshrc_aliases`, `~/.zshrc_funcs`, `~/.profile`
+- Byobu: `~/.byobu/`
+- Vim: `~/.vimrc`, `~/.vim/colors/`
+
+## Development Workflow
+
+1. **Make changes locally**: Edit files in `~/.config/nvim`, `~/.zshrc`, etc.
+2. **Test your changes**: Restart terminal, open nvim, verify everything works
+3. **Push to repo**: `make push` (automatically commits and pushes)
+4. **Sync to other machines**: `git pull && make pull`
+
+## Architecture
+
+```
+machine-setup/
+├── Makefile                    # User interface
+├── scripts/
+│   ├── lib/                    # Shared utilities
+│   ├── components/             # Component-specific scripts
+│   ├── pull.sh                 # Pull orchestrator
+│   ├── push.sh                 # Push orchestrator
+│   └── init.sh                 # Init orchestrator
+├── backups/                    # Versioned backups (git-ignored)
+├── nvim/                       # Neovim configuration
+├── zsh/                        # Zsh configuration
+├── byobu/                      # Byobu configuration
+├── vim/                        # Vim configuration
+└── fonts/                      # Hack Nerd Fonts
+```
+
+## Migration from copy.sh
+
+If you were using the old `copy.sh` script:
+
+```bash
+# Old way (deprecated)
+./copy.sh pull
+./copy.sh push
+
+# New way
+make pull
+make push
+```
+
+The old script still works but shows a deprecation warning.
+
+## Requirements
+
+- macOS (tested on macOS 11+)
+- Homebrew (installed by init script if needed)
+- Git
+
+## See Also
+
+- [CLAUDE.md](CLAUDE.md) - Detailed architecture documentation for Claude Code
+- [nvim/CLAUDE.md](nvim/CLAUDE.md) - Neovim-specific documentation
