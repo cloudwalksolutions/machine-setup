@@ -1,0 +1,73 @@
+# Inserts a blank line between shell prompts
+add_newline = false
+
+# Replace the "❯" symbol in the prompt with "➜"
+[character]                            # The name of the module we are configuring is "character"
+success_symbol = "[➜](bold green)"     # The "success_symbol" segment is being set to "➜" with the color "bold green"
+
+# Disable the package module, hiding it from the prompt completely
+[helm]
+disabled = false
+
+# docker
+[docker_context]
+symbol = "🐋 "
+disabled = false
+
+# env variable
+[env_var]
+variable = "SHELL"
+default = "unknown shell"
+disabled = true
+
+[git_status]
+disabled = false
+conflicted = "🏳"
+ahead = "🏎💨"
+behind = "😰"
+diverged = "😵"
+untracked = "🤷‍"
+stashed = "📦"
+modified = "📝"
+staged.value = "++"
+staged.style = "green"
+#staged_count.enabled = true
+#staged_count.style = "green"
+renamed = "👅"
+deleted = "🗑"
+
+[gcloud]
+disabled = true
+format = '[($domain)(\($project\))]($style) '
+#format = 'on [$symbol$account(@$domain)(\($project\))]($style) '
+
+
+# kubernetes
+[kubernetes]
+symbol = "⛵ "
+style = "green"
+disabled = false
+[[kubernetes.contexts]]
+context_pattern =  "gke_d-platform-gke-project-hsw_us-central1-a_central-cluster"
+context_alias   = "d-platform"
+
+[[kubernetes.contexts]]
+context_alias = "p-platform"
+context_pattern = "gke_p-platform-gke-project-qjo_us-central1-a_central-cluster"
+
+[golang]
+disabled = false
+
+[terraform]
+format = "[🏎💨 $workspace]($style) "
+disabled = true
+
+[python]
+disabled = true
+
+[nodejs]
+disabled = true
+
+[custom]
+disabled = false
+

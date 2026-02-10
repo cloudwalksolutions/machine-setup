@@ -1,0 +1,34 @@
+
+syntax on
+set number
+set expandtab
+set tabstop=2
+set sw=2
+set backspace=indent,eol,start
+set laststatus=2
+set showmatch
+set history=100
+
+colo sublimemonokai
+
+inoremap jk <ESC>
+inoremap ;; <C-n>
+
+nnoremap zz :w<CR>
+nnoremap - :w<CR>:E<CR> :set number<CR>
+
+nnoremap L :bn<CR>
+nnoremap H :bp<CR>
+
+nnoremap gcc 0i#<ESC>
+
+vnoremap gc 0<C-v>I#<ESC>
+nnoremap "" gg0<C-v>Gx
+
+nnoremap <CR> A<CR><ESC>
+
+vnoremap qq :w !pbcopy<CR><CR>
+
+
+autocmd BufWritePre *.go :silent! lua require('go.format').gofmt()
+

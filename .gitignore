@@ -1,0 +1,52 @@
+**/*.sqlite3
+**/source.sh
+**/var/
+**/.terraform*
+**/build/
+**/secrets/
+**/cloud_sql_proxy
+**/service-accounts/
+**/.DS_Store
+
+**/.undo
+
+envs/gcp.sh
+
+**/Chart.lock
+
+
+**/*.csv
+**/media/
+**/js/
+**/yarn-error.log
+**/react-devtools/
+
+# Python
+**/*.pyc
+**/__pycache__
+**/*.egg-info*
+**/dist/
+**/env/
+**/venv/
+**/venv3/
+**/.pytest_cache
+**/.idea/
+
+# JavaScript
+**/node_modules/
+
+
+# Virtual Machine
+**/.vagrant/
+
+# Text editors and IDEs
+**/*~
+**/*.swp
+**/.vscode
+**/.ropeproject/
+**/.vscode/
+
+# Google drive and dropbox
+**/Icon
+**/.dropbox*
+
