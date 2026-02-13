@@ -126,7 +126,9 @@ machine-setup/
 └── fonts/                      # Hack Nerd Fonts
 ```
 
-## Migration from copy.sh
+## Migration from Old Version
+
+### Migrating from copy.sh
 
 If you were using the old `copy.sh` script:
 
@@ -141,6 +143,20 @@ make push
 ```
 
 The old script still works but shows a deprecation warning.
+
+### Migrating File Names
+
+If you have old dot-based naming (`.zshrc.aliases`, `.zshrc.funcs`, `.zshrc.secret`):
+
+```bash
+make migrate
+```
+
+This will:
+- Copy `.zshrc.aliases` → `.zshrc_aliases`
+- Copy `.zshrc.funcs` → `.zshrc_funcs`
+- Copy `.zshrc.secret` → `.zshrc_secret`
+- Optionally remove old files after successful migration
 
 ## Requirements
 

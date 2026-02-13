@@ -41,6 +41,11 @@ backups-list:                   ## List all backup versions
 	@echo ''
 	@. ./scripts/lib/common.sh && list_all_backups
 
+.PHONY: migrate
+migrate:                        ## Migrate old dot-based filenames to underscore naming
+	@echo '🔄 Migrating to new naming convention...'
+	@./scripts/migrate.sh
+
 .PHONY: pull-nvim
 pull-nvim:                      ## Pull only Neovim config
 	@echo '⬇️  Pulling Neovim config...'

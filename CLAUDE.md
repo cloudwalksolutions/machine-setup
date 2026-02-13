@@ -136,4 +136,5 @@ During `make init`, a template is copied to `~/.zshrc_secret` for easy setup.
 - **Neovim dependencies**: Neovim configuration requires Python3, Node.js, and various language servers (auto-installed via Mason)
 - **macOS specific**: This configuration is tailored for macOS (Homebrew, paths, BetterTouchTool, etc.)
 - **Old copy.sh deprecated**: Use `make` commands instead - `copy.sh` shows deprecation warning but still works
+- **Migration available**: Run `make migrate` to migrate old dot-based filenames (`.zshrc.aliases` → `.zshrc_aliases`)
 - **Neovim as primary editor**: Main development focus is Neovim; vim config is minimal fallback
