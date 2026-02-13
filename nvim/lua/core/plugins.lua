@@ -188,7 +188,7 @@ local plugin_specs = {
   {
     'mfussenegger/nvim-dap-python',
     config = function()
-      require('dap-python').setup('~/.virtualenvs/debugpy/bin/python')
+      require('config.dap-python')
     end,
   },
 
@@ -554,8 +554,8 @@ local plugin_specs = {
     config = function()
       require("rust-tools").setup({
         server = {
-          on_attach = require("core.config.lsp").on_attach,
-          capabilities = require("core.config.lsp").capabilities,
+          on_attach = require("config.lsp").on_attach,
+          capabilities = require("config.lsp").capabilities,
           settings = {
             ["rust-analyzer"] = {
               assist = {

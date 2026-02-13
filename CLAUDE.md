@@ -138,3 +138,4 @@ During `make init`, a template is copied to `~/.zshrc_secret` for easy setup.
 - **Old copy.sh deprecated**: Use `make` commands instead - `copy.sh` shows deprecation warning but still works
 - **Migration available**: Run `make migrate` to migrate old dot-based filenames (`.zshrc.aliases` → `.zshrc_aliases`)
 - **Neovim as primary editor**: Main development focus is Neovim; vim config is minimal fallback
+- **ALWAYS RUN TESTS**: After making any changes to Neovim config, ALWAYS run `make test-nvim` to validate changes - do not ask permission, just run them automatically

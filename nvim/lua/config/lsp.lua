@@ -36,7 +36,25 @@ if cmp_ok then
   M.capabilities = cmp_nvim_lsp.default_capabilities(M.capabilities)
 end
 
--- List of LSP servers to set up
+-- Set global defaults for all LSP servers
+vim.lsp.config('*', {
+  capabilities = M.capabilities,
+  flags = {
+    debounce_text_changes = 150,
+  },
+})
+
+-- Move on_attach logic to LspAttach autocmd (new nvim 0.11 pattern)
+vim.api.nvim_create_autocmd('LspAttach', {
+  callback = function(ev)
+    local client = vim.lsp.get_client_by_id(ev.data.client_id)
+    if client then
+      M.on_attach(client, ev.buf)
+    end
+  end,
+})
+
+-- List of LSP servers to enable
 local servers = {
   "pyright",
   "gopls",
@@ -50,30 +68,14 @@ local servers = {
   "clangd",
 }
 
+-- Enable all servers with global defaults
 for _, lsp in ipairs(servers) do
-  require("lspconfig")[lsp].setup({
-    on_attach = M.on_attach,
-    capabilities = M.capabilities,
-    flags = {
-      debounce_text_changes = 150,
-    },
-    -- Optional: Server-specific settings
-    -- settings = {
-    --   pyright = { ... },
-    --   gopls = { ... },
-    --   rust_analyzer = { ... },
-    --   -- etc.
-    -- },
-  })
+  vim.lsp.enable(lsp)
 end
 
-require("lspconfig").terraformls.setup({
-  on_attach = M.on_attach,
-  capabilities = M.capabilities,
-  flags = {
-    debounce_text_changes = 150,
-  },
-  filetypes = { "terraform", "tf", "hcl", "tfvars" },  -- ensure these are recognized
+-- Configure terraformls with custom settings
+vim.lsp.config('terraformls', {
+  filetypes = { "terraform", "tf", "hcl", "tfvars" },
   settings = {
     terraformls = {
       experimentalFeatures = {
@@ -82,6 +84,7 @@ require("lspconfig").terraformls.setup({
     }
   }
 })
+vim.lsp.enable('terraformls')
 
 -- Define diagnostic signs with icons
 local signs = {

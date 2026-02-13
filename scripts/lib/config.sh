@@ -3,8 +3,9 @@
 # Configuration constants for machine-setup scripts
 # Defines all file paths and component mappings
 
-# Repo root directory (auto-detected)
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# Repo root directory (auto-detected from scripts/lib/)
+# scripts/lib/ -> scripts/ -> repo root
+REPO_ROOT="$(cd "$(dirname "${(%):-%x}")/../.." && pwd)"
 
 # Backup configuration
 export BACKUP_DIR="${REPO_ROOT}/backups"

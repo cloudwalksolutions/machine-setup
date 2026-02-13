@@ -62,3 +62,12 @@ map({ "n", "v" }, "<leader>sv", function()
   vim.notify("Nvim config successfully reloaded!", vim.log.levels.INFO, { title = "nvim-config" })
 end, opts("reload init.lua"))
 
+-- Log access commands
+local logs = require('core.logs')
+
+vim.api.nvim_create_user_command('NvimLog', logs.open_nvim_log, { desc = 'Open Neovim messages log' })
+vim.api.nvim_create_user_command('LspLog', logs.open_lsp_log, { desc = 'Open LSP log for current buffer' })
+vim.api.nvim_create_user_command('MasonLog', logs.open_mason_log, { desc = 'Open Mason installation log' })
+vim.api.nvim_create_user_command('PluginErrors', logs.show_plugin_errors, { desc = 'Show plugin loading errors' })
+vim.api.nvim_create_user_command('LogInfo', logs.show_log_locations, { desc = 'Show all log file locations' })
+

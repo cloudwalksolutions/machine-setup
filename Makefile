@@ -46,6 +46,16 @@ migrate:                        ## Migrate old dot-based filenames to underscore
 	@echo '🔄 Migrating to new naming convention...'
 	@./scripts/migrate.sh
 
+.PHONY: test-nvim
+test-nvim:                      ## Run Neovim configuration tests
+	@echo '🧪 Running Neovim smoke tests...'
+	@nvim -u nvim/init.lua --headless -l nvim/tests/smoke_test.lua
+
+.PHONY: health-nvim
+health-nvim:                    ## Run Neovim health checks
+	@echo '🏥 Running Neovim health checks...'
+	@nvim --headless -c "checkhealth nvim_config" -c "quit"
+
 .PHONY: pull-nvim
 pull-nvim:                      ## Pull only Neovim config
 	@echo '⬇️  Pulling Neovim config...'
