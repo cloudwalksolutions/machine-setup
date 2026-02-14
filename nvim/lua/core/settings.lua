@@ -1,8 +1,8 @@
 local utils = require('core.utils')
 
--- Leader Key
-vim.g.mapleader = " "
-vim.g.maplocalleader = " "
+-- Leader Keys
+vim.g.mapleader = " "       -- Space for text editing, LSP, debug (core native)
+vim.g.maplocalleader = ","  -- Comma for plugin commands
 
 
 -- General Options
