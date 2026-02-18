@@ -23,31 +23,30 @@ This is a comprehensive Neovim configuration built around the Lazy.nvim plugin m
 
 ### which-key Configuration Pattern
 
-**CRITICAL:** which-key v3 syntax requires `wk.register()` calls OUTSIDE `wk.setup()`:
+**CRITICAL:** which-key v3 uses `wk.add()` (NOT the deprecated `wk.register()`). Calls must be OUTSIDE `wk.setup()`:
 
 ```lua
 -- CORRECT:
-wk.setup {
-  triggers = {" ", ","},
-  -- ... other options
-}  -- Close setup here
+wk.setup({
+  -- ... options (no triggers/replace/defer)
+})
 
--- THEN register keybindings
-wk.register({ ... }, { prefix = " " })
-wk.register({ ... }, { prefix = "," })
+-- THEN add keybindings with full key paths
+wk.add({
+  { "<leader>l", group = "LSP" },
+  { "<leader>lr", "<cmd>lua vim.lsp.buf.rename()<cr>", desc = "Rename" },
+})
 
--- INCORRECT (will cause syntax error):
-wk.setup {
-  triggers = {","},
-  wk.register({ ... })  -- ❌ INSIDE setup - BREAKS!
-}
+-- INCORRECT:
+wk.setup({
+  wk.add({ ... })  -- ❌ INSIDE setup - BREAKS!
+})
 ```
 
-**Dual Registration Pattern:**
-- Two separate `wk.register()` calls for two prefixes
-- Space prefix for core native (LSP, debug, text editing)
-- Comma prefix for plugin commands
-- Both prefixes registered in triggers array
+**Dual Add Pattern:**
+- Two separate `wk.add()` calls for two prefixes
+- Space prefix (`<leader>`) for core native (LSP, debug, text editing)
+- Comma prefix (`,`) for plugin commands
 
 ### Plugin Management
 - Uses Lazy.nvim with sophisticated loading strategies (event-based, filetype-based, command-based)

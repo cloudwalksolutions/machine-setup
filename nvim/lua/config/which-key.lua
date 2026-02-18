@@ -1,200 +1,144 @@
 local wk = require("which-key")
 
-wk.setup {
+wk.setup({
   plugins = {
-    marks = true, -- shows a list of your marks on ' and `
-    registers = true, -- shows your registers on " in NORMAL or <C-r> in INSERT mode
+    marks = true,
+    registers = true,
     spelling = {
-      enabled = true, -- enabling this will show WhichKey when pressing z= to select spelling suggestions
-      suggestions = 9, -- how many suggestions should be shown in the list?
+      enabled = true,
+      suggestions = 9,
     },
-    -- the presets plugin, adds help for a bunch of default keybindings in Neovim
-    -- No actual key bindings are created
     presets = {
-      operators = true, -- adds help for operators like d, y, ... and registers them for motion / text object completion
-      motions = true, -- adds help for motions
-      text_objects = true, -- help for text objects triggered after entering an operator
-      windows = true, -- default bindings on <c-w>
-      nav = true, -- misc bindings to work with windows
-      z = true, -- bindings for folds, spelling and others prefixed with z
-      g = true, -- bindings for prefixed with g
+      operators = true,
+      motions = true,
+      text_objects = true,
+      windows = true,
+      nav = true,
+      z = true,
+      g = true,
     },
-  },
-  -- add operators that will trigger motion and text object completion
-  -- to enable all native operators, set the preset / operators plugin above
-  defer = { gc = "Comments" },
-  replace = {
-    -- override the label used to display some keys. It doesn't effect WK in any other way.
-    -- For example:
-    ["<space>"] = "SPACE",
-    ["<cr>"] = "ENTER",
-    ["<tab>"] = "TAB",
   },
   icons = {
-    breadcrumb = "»", -- symbol used in the command line area that shows your active key combo
-    separator = "➜", -- symbol used between a key and it's label
-    group = "+", -- symbol prepended to a group
+    breadcrumb = "»",
+    separator = "➜",
+    group = "+",
   },
-  -- win = {
-  --   border = "none", -- none, single, double, shadow
-  --   position = "bottom", -- bottom, top
-  --   margin = { 0, 0, 0, 0 }, -- extra window margin [top, right, bottom, left]
-  --   padding = { 1, 0, 1, 0 }, -- extra window padding [top, right, bottom, left]
-  -- },
   layout = {
-    height = { min = 1, max = 25 }, -- min and max height of the columns
-    width = { min = 20, max = 50 }, -- min and max width of the columns
-    spacing = 1, -- spacing between columns
-    align = "center", -- align columns left, center or right
+    width = { min = 20 },
+    spacing = 3,
   },
-  show_help = true, -- show help message on the command line when the popup is visible
-  triggers = {" ", ","}, -- Both space and comma
-}
+  show_help = true,
+})
 
 -- SPACE PREFIX: Text Editing, LSP, File Ops, Debug (Core Native)
-wk.register({
-  l = {
-    name = "LSP",
-    r = { "<cmd>lua vim.lsp.buf.rename()<cr>", "Rename" },
-    a = { "<cmd>lua vim.lsp.buf.code_action()<cr>", "Code Action" },
-    k = { "<cmd>lua vim.lsp.buf.signature_help()<cr>", "Signature Help" },
-    o = { "<cmd>lua vim.diagnostic.open_float()<cr>", "Open Diagnostics" },
-    l = { "<cmd>lua vim.diagnostic.setloclist()<cr>", "Location List" },
-    D = { "<cmd>lua vim.lsp.buf.type_definition()<cr>", "Type Definition" },
-    f = { "<cmd>lua vim.lsp.buf.format({ async = true })<cr>", "Format", mode = { "n", "v" } },
-    d = { "<cmd>lua vim.lsp.buf.definition()<cr>", "Go to Definition" },
-    i = { "<cmd>lua vim.lsp.buf.implementation()<cr>", "Go to Implementation" },
-    R = { "<cmd>lua vim.lsp.buf.references()<cr>", "References" },
-    w = {
-      name = "Workspace",
-      a = { "<cmd>lua vim.lsp.buf.add_workspace_folder()<cr>", "Add Folder" },
-      r = { "<cmd>lua vim.lsp.buf.remove_workspace_folder()<cr>", "Remove Folder" },
-      l = { "<cmd>lua print(vim.inspect(vim.lsp.buf.list_workspace_folders()))<cr>", "List Folders" },
-    },
-  },
-  d = {
-    name = "Debug",
-    b = { "<cmd>GoBreakToggle<CR>", "Toggle Breakpoint", mode = { "n", "v" } },
-    B = { "<cmd>BreakCondition<CR>", "Conditional Breakpoint", mode = { "n", "v" } },
-    c = { "<cmd>GoDbgContinue<CR>", "Continue (Go)", mode = { "n", "v" } },
-    t = { "<cmd>GoDebug -t<CR>", "Debug Test (Go)", mode = { "n", "v" } },
-    f = { "<cmd>GoDebug<CR>", "Debug File (Go)", mode = { "n", "v" } },
-    p = { "<cmd>lua require('dap-python').debug_selection()<cr>", "Debug Selection (Python)", mode = { "n", "v" } },
-  },
-  t = { "<cmd>lua require('nvim-toggler').toggle()<cr>", "Toggle" },
-  e = { "<cmd>NvimTreeToggle<cr>", "File Tree" },
-  w = { "<cmd>w<cr>", "Save" },
-  h = { "<cmd>noh<cr>", "Clear Highlight" },
-  Q = { "<cmd>qa<cr>", "Quit All" },
-  s = {
-    name = "Session",
-    v = { "<cmd>source ~/.config/nvim/init.lua<cr>", "Reload Config" },
-  },
-}, { prefix = " " })
+wk.add({
+  { "<leader>t", "<cmd>lua require('nvim-toggler').toggle()<cr>", desc = "Toggle" },
+  { "<leader>e", "<cmd>NvimTreeToggle<cr>", desc = "File Tree" },
+  { "<leader>w", "<cmd>w<cr>", desc = "Save" },
+  { "<leader>h", "<cmd>noh<cr>", desc = "Clear Highlight" },
+  { "<leader>Q", "<cmd>qa<cr>", desc = "Quit All" },
+
+  { "<leader>s", group = "Session" },
+  { "<leader>sv", "<cmd>source ~/.config/nvim/init.lua<cr>", desc = "Reload Config" },
+
+  { "<leader>l", group = "LSP" },
+  { "<leader>lr", "<cmd>lua vim.lsp.buf.rename()<cr>", desc = "Rename" },
+  { "<leader>la", "<cmd>lua vim.lsp.buf.code_action()<cr>", desc = "Code Action" },
+  { "<leader>lk", "<cmd>lua vim.lsp.buf.signature_help()<cr>", desc = "Signature Help" },
+  { "<leader>lo", "<cmd>lua vim.diagnostic.open_float()<cr>", desc = "Open Diagnostics" },
+  { "<leader>ll", "<cmd>lua vim.diagnostic.setloclist()<cr>", desc = "Location List" },
+  { "<leader>lD", "<cmd>lua vim.lsp.buf.type_definition()<cr>", desc = "Type Definition" },
+  { "<leader>lf", "<cmd>lua vim.lsp.buf.format({ async = true })<cr>", desc = "Format", mode = { "n", "v" } },
+  { "<leader>ld", "<cmd>lua vim.lsp.buf.definition()<cr>", desc = "Go to Definition" },
+  { "<leader>li", "<cmd>lua vim.lsp.buf.implementation()<cr>", desc = "Go to Implementation" },
+  { "<leader>lR", "<cmd>lua vim.lsp.buf.references()<cr>", desc = "References" },
+
+  { "<leader>lw", group = "Workspace" },
+  { "<leader>lwa", "<cmd>lua vim.lsp.buf.add_workspace_folder()<cr>", desc = "Add Folder" },
+  { "<leader>lwr", "<cmd>lua vim.lsp.buf.remove_workspace_folder()<cr>", desc = "Remove Folder" },
+  { "<leader>lwl", "<cmd>lua print(vim.inspect(vim.lsp.buf.list_workspace_folders()))<cr>", desc = "List Folders" },
+
+  { "<leader>d", group = "Debug" },
+  { "<leader>db", "<cmd>GoBreakToggle<CR>", desc = "Toggle Breakpoint", mode = { "n", "v" } },
+  { "<leader>dB", "<cmd>BreakCondition<CR>", desc = "Conditional Breakpoint", mode = { "n", "v" } },
+  { "<leader>dc", "<cmd>GoDbgContinue<CR>", desc = "Continue (Go)", mode = { "n", "v" } },
+  { "<leader>dt", "<cmd>GoDebug -t<CR>", desc = "Debug Test (Go)", mode = { "n", "v" } },
+  { "<leader>df", "<cmd>GoDebug<CR>", desc = "Debug File (Go)", mode = { "n", "v" } },
+  { "<leader>dp", "<cmd>lua require('dap-python').debug_selection()<cr>", desc = "Debug Selection (Python)", mode = { "n", "v" } },
+
+  { "gc", group = "Comments" },
+})
 
 -- COMMA PREFIX: Plugin Commands
-wk.register({
-  c = {
-    name = "ChatGPT",
-    a = { "<cmd>ChatGPTRun add_tests<CR>", "Add Tests", mode = { "n", "v" } },
-    c = { "<cmd>ChatGPT<CR>", "Chat" },
-    d = { "<cmd>ChatGPTRun docstring<CR>", "Docstring", mode = { "n", "v" } },
-    e = { "<cmd>ChatGPTEditWithInstruction<CR>", "Edit with instruction", mode = { "n", "v" } },
-    f = { "<cmd>ChatGPTRun fix_bugs<CR>", "Fix Bugs", mode = { "n", "v" } },
-    g = { "<cmd>ChatGPTRun grammar_correction<CR>", "Grammar Correction", mode = { "n", "v" } },
-    k = { "<cmd>ChatGPTRun keywords<CR>", "Keywords", mode = { "n", "v" } },
-    l = { "<cmd>ChatGPTRun code_readability_analysis<CR>", "Code Readability Analysis", mode = { "n", "v" } },
-    o = { "<cmd>ChatGPTRun optimize_code<CR>", "Optimize Code", mode = { "n", "v" } },
-    s = { "<cmd>ChatGPTRun summarize<CR>", "Summarize", mode = { "n", "v" } },
-    t = { "<cmd>ChatGPTRun translate<CR>", "Translate", mode = { "n", "v" } },
-    r = { "<cmd>ChatGPTRun roxygen_edit<CR>", "Roxygen Edit", mode = { "n", "v" } },
-    x = { "<cmd>ChatGPTRun explain_code<CR>", "Explain Code", mode = { "n", "v" } },
-  },
+wk.add({
+  { ",C", group = "Cypress" },
+  { ",Ce", "<cmd>TermExec mode=horizontal cmd='npx cypress run --browser chrome --headless --e2e'<cr>", desc = "Run E2E Tests", mode = { "n", "v" } },
+  { ",Cs", "<cmd>TermExec mode=horizontal cmd='npx cypress run --spec %'<cr>", desc = "Run Spec", mode = { "n", "v" } },
+  { ",Cu", "<cmd>TermExec mode=horizontal cmd='npx cypress run --browser chrome --headless --component'<cr>", desc = "Run Component Tests", mode = { "n", "v" } },
 
-  C = {
-    name = "Cypress",
-    e = { "<cmd>TermExec mode=horizontal cmd='npx cypress run --browser chrome --headless --e2e'<cr>", "Run E2E Tests", mode = { "n", "v" } },
-    s = { "<cmd>TermExec mode=horizontal cmd='npx cypress run --spec %'<cr>", "Run Spec", mode = { "n", "v" } },
-    u = { "<cmd>TermExec mode=horizontal cmd='npx cypress run --browser chrome --headless --component'<cr>", "Run Component Tests", mode = { "n", "v" } },
-  },
+  { ",P", group = "Playwright" },
+  { ",Pe", "<cmd>!npx playwright test<cr>", desc = "Run E2E Tests", mode = { "n", "v" } },
+  { ",Pu", "<cmd>!npx playwright test --ui<cr>", desc = "Run UI Mode", mode = { "n", "v" } },
+  { ",Pd", "<cmd>!npx playwright test --debug<cr>", desc = "Debug Tests", mode = { "n", "v" } },
+  { ",Pc", "<cmd>!npx playwright codegen<cr>", desc = "Codegen", mode = { "n", "v" } },
 
-  P = {
-    name = "Playwright",
-    e = { "<cmd>!npx playwright test<cr>", "Run E2E Tests", mode = { "n", "v" } },
-    u = { "<cmd>!npx playwright test --ui<cr>", "Run UI Mode", mode = { "n", "v" } },
-    d = { "<cmd>!npx playwright test --debug<cr>", "Debug Tests", mode = { "n", "v" } },
-    c = { "<cmd>!npx playwright codegen<cr>", "Codegen", mode = { "n", "v" } },
-  },
+  { ",D", "<cmd>DataViewer<CR>", desc = "Open Data Viewer", mode = { "n", "v" } },
 
-  D = { "<cmd>DataViewer<CR>", "Open Data Viewer", mode = { "n", "v" } },
+  { ",f", group = "Search" },
+  { ",fc", "<cmd>Telescope commands<CR>", desc = "Commands", mode = { "n", "v" } },
+  { ",fd", "<cmd>Telescope diagnostics<CR>", desc = "Diagnostics", mode = { "n", "v" } },
+  { ",ff", "<cmd>Telescope grep_string<CR>", desc = "Grep for Selected", mode = { "v" } },
+  { ",fm", "<cmd>Telescope man_pages<CR>", desc = "Man Pages", mode = { "n", "v" } },
+  { ",fo", "<cmd>Telescope oldfiles<CR>", desc = "Recent Files", mode = { "n", "v" } },
+  { ",fr", "<cmd>Telescope registers<CR>", desc = "Registers", mode = { "n", "v" } },
+  { ",fs", "<cmd>Telescope treesitter<CR>", desc = "Code", mode = { "n", "v" } },
+  { ",fz", "<cmd>Telescope current_buffer_fuzzy_find<CR>", desc = "Fuzzy in Buffer", mode = { "n", "v" } },
 
-  f = {
-    name = "Search",
-    c = { "<cmd>Telescope commands<CR>", "Commands", mode = { "n", "v" } },
-    d = { "<cmd>Telescope diagnostics<CR>", "Diagnostics", mode = { "n", "v" } },
-    f = { "<cmd>Telescope grep_string<CR>", "Grep for Selected", mode = { "v" } },
-    m = { "<cmd>Telescope man_pages<CR>", "Man Pages", mode = { "n", "v" } },
-    o = { "<cmd>Telescope oldfiles<CR>", "Recent Files", mode = { "n", "v" } },
-    r = { "<cmd>Telescope registers<CR>", "Registers", mode = { "n", "v" } },
-    s = { "<cmd>Telescope treesitter<CR>", "Code", mode = { "n", "v" } },
-    z = { "<cmd>Telescope current_buffer_fuzzy_find<CR>", "Fuzzy in Buffer", mode = { "n", "v" } },
-  },
+  { ",g", group = "Go Tools" },
+  { ",gg", "<cmd>GoSave<CR>", desc = "Format and Imports", mode = { "n", "v" } },
+  { ",gc", "<cmd>GoCoverage<CR>", desc = "Tests with Coverage", mode = { "n", "v" } },
+  { ",gf", "<cmd>GoTest -f<CR>", desc = "Test File", mode = { "n", "v" } },
+  { ",gi", "<cmd>GoGet<CR>", desc = "Go Get", mode = { "n", "v" } },
+  { ",gl", "<cmd>GoLint<CR>", desc = "Linter", mode = { "n", "v" } },
+  { ",gp", "<cmd>GoTestPkg<CR>", desc = "Test Package", mode = { "n", "v" } },
+  { ",gr", "<cmd>GoRename<CR>", desc = "Rename", mode = { "n", "v" } },
+  { ",gR", "<cmd>GoRun<CR>", desc = "Go Run", mode = { "n", "v" } },
+  { ",gt", "<cmd>GoTest<CR>", desc = "Test All", mode = { "n", "v" } },
 
-  g = {
-    name = "Go Tools",
-    g = { "<cmd>GoSave<CR>", "Format and Imports", mode = { "n", "v" } },
-    c = { "<cmd>GoCoverage<CR>", "Tests with Coverage", mode = { "n", "v" } },
-    f = { "<cmd>GoTest -f<CR>", "Test File", mode = { "n", "v" } },
-    i = { "<cmd>GoGet<CR>", "Go Get", mode = { "n", "v" } },
-    l = { "<cmd>GoLint<CR>", "Linter", mode = { "n", "v" } },
-    p = { "<cmd>GoTestPkg<CR>", "Test Package", mode = { "n", "v" } },
-    r = { "<cmd>GoRename<CR>", "Rename", mode = { "n", "v" } },
-    R = { "<cmd>GoRun<CR>", "Go Run", mode = { "n", "v" } },
-    t = { "<cmd>GoTest<CR>", "Test All", mode = { "n", "v" } },
-  },
+  { ",G", "<cmd>LazyGit<CR>", desc = "Lazy Git", mode = { "n", "v" } },
 
-  G = { "<cmd>LazyGit<CR>", "Lazy Git", mode = { "n", "v" } },
+  { ",k", desc = "k9s" },
 
-  ["k"] = "k9s",
+  { ",m", "<cmd>Telescope make<cr>", desc = "Make", mode = { "n", "v" } },
 
-  m = { "<cmd>Telescope make<cr>", "Make", mode = { "n", "v" } },
+  { ",M", group = "Markdown" },
+  { ",Me", "<cmd>MdEval<cr>", desc = "Evaluate code block" },
+  { ",Mm", "<cmd>MarkmapOpen<cr>", desc = "Open Mindmap" },
+  { ",Mp", "<cmd>PeekOpen<cr>", desc = "Preview in Browser" },
+  { ",Mt", "<cmd>EasyTablesCreateNew 3<cr>", desc = "Create Table" },
 
-  M = {
-    name = "Markdown",
-    e = { "<cmd>MdEval<cr>", "Evaludate code block", mode = { "n" }},
-    m = { "<cmd>MarkmapOpen<cr>", "Open Mindmap", mode = { "n" }},
-    p = { "<cmd>PeekOpen<cr>", "Preview in Browser", mode = { "n" }},
-    t = { "<cmd>EasyTablesCreateNew 3<cr>", "Create Table", mode = { "n" }},
-  },
+  { ",n", group = "Node" },
+  { ",nc", "<cmd>lua require('package-info').change_version()<cr>", desc = "Change Dependency Version", mode = { "n", "v" } },
+  { ",nd", "<cmd>lua require('package-info').delete()<cr>", desc = "Delete Dependency", mode = { "n", "v" } },
+  { ",nh", "<cmd>lua require('package-info').hide()<cr>", desc = "Hide Dependency Versions", mode = { "n", "v" } },
+  { ",ni", "<cmd>lua require('package-info').install()<cr>", desc = "Install Dependency", mode = { "n", "v" } },
+  { ",ns", "<cmd>lua require('package-info').show()<cr>", desc = "Show Dependency Versions", mode = { "n", "v" } },
+  { ",nt", "<cmd>lua require('package-info').toggle()<cr>", desc = "Toggle Showing Dependency Versions", mode = { "n", "v" } },
+  { ",nu", "<cmd>lua require('package-info').update()<cr>", desc = "Update Dependency", mode = { "n", "v" } },
 
-  n = {
-    name = "Node",
-    c = { "<cmd>lua require('package-info').change_version()<cr>", "Change Dependency Version", mode = { "n", "v" } },
-    d = { "<cmd>lua require('package-info').delete()<cr>", "Delete Dependency", mode = { "n", "v" } },
-    h = { "<cmd>lua require('package-info').hide()<cr>", "Hide Dependency Versions", mode = { "n", "v" } },
-    i = { "<cmd>lua require('package-info').install()<cr>", "Install Dependency", mode = { "n", "v" } },
-    s = { "<cmd>lua require('package-info').show()<cr>", "Show Dependency Versions", mode = { "n", "v" } },
-    t = { "<cmd>lua require('package-info').toggle()<cr>", "Toggle Showing Dependency Versions", mode = { "n", "v" } },
-    u = { "<cmd>lua require('package-info').update()<cr>", "Update Dependency", mode = { "n", "v" } },
-  },
+  { ",t", group = "Terminal" },
+  { ",tf", "<cmd>Dotenv<CR><cmd>ToggleTerm size=15 direction=float<cr>", desc = "Floating", mode = { "n", "v" } },
+  { ",th", "<cmd>Dotenv<CR><cmd>ToggleTerm size=15 direction=horizontal<cr>", desc = "Horizontal", mode = { "n", "v" } },
+  { ",tt", "<cmd>Dotenv<CR><cmd>ToggleTerm direction=tab<cr>", desc = "Tab", mode = { "n", "v" } },
+  { ",tv", "<cmd>Dotenv<CR><cmd>ToggleTerm size=70 direction=vertical<cr>", desc = "Vertical", mode = { "n", "v" } },
 
-  t = {
-    name = "Terminal",
-    f = { "<cmd>Dotenv<CR><cmd>ToggleTerm size=15 direction=float<cr>", "Floating", mode = { "n", "v" } },
-    h = { "<cmd>Dotenv<CR><cmd>ToggleTerm size=15 direction=horizontal<cr>", "Horizontal", mode = { "n", "v" } },
-    t = { "<cmd>Dotenv<CR><cmd>ToggleTerm direction=tab<cr>", "Tab", mode = { "n", "v" } },
-    v = { "<cmd>Dotenv<CR><cmd>ToggleTerm size=70 direction=vertical<cr>", "Vertical", mode = { "n", "v" } },
-  },
-
-  z = {
-    name = "Lazy",
-    c = { "<cmd>Lazy check<cr>", "Check for Updates", mode = { "n", "v" } },
-    C = { "<cmd>Lazy clean<cr>", "Clean", mode = { "n", "v" } },
-    d = { "<cmd>Lazy debug<cr>", "Debug", mode = { "n", "v" } },
-    h = { "<cmd>Lazy home<cr>", "Home", mode = { "n", "v" } },
-    H = { "<cmd>Lazy health<cr>", "Health", mode = { "n", "v" } },
-    i = { "<cmd>Lazy install<cr>", "Install", mode = { "n", "v" } },
-    r = { "<cmd>Lazy restore<cr>", "Restore", mode = { "n", "v" } },
-    u = { "<cmd>Lazy update<cr>", "Update", mode = { "n", "v" } },
-  },
-}, { prefix = "," })
+  { ",z", group = "Lazy" },
+  { ",zc", "<cmd>Lazy check<cr>", desc = "Check for Updates", mode = { "n", "v" } },
+  { ",zC", "<cmd>Lazy clean<cr>", desc = "Clean", mode = { "n", "v" } },
+  { ",zd", "<cmd>Lazy debug<cr>", desc = "Debug", mode = { "n", "v" } },
+  { ",zh", "<cmd>Lazy home<cr>", desc = "Home", mode = { "n", "v" } },
+  { ",zH", "<cmd>Lazy health<cr>", desc = "Health", mode = { "n", "v" } },
+  { ",zi", "<cmd>Lazy install<cr>", desc = "Install", mode = { "n", "v" } },
+  { ",zr", "<cmd>Lazy restore<cr>", desc = "Restore", mode = { "n", "v" } },
+  { ",zu", "<cmd>Lazy update<cr>", desc = "Update", mode = { "n", "v" } },
+})

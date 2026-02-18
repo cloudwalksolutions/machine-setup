@@ -65,8 +65,11 @@ local servers = {
   "sqls",
   "yamlls",
   "helm_ls",
-  "clangd",
 }
+
+if vim.fn.executable("clang") == 1 or vim.fn.executable("clangd") == 1 then
+  table.insert(servers, "clangd")
+end
 
 -- Enable all servers with global defaults
 for _, lsp in ipairs(servers) do

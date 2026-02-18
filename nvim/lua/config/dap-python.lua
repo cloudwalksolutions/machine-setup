@@ -3,6 +3,7 @@
 -- Auto-detect Python with debugpy from common venv locations
 local function find_python_with_debugpy()
   local python_paths = {
+    vim.fn.stdpath("data") .. "/mason/packages/debugpy/venv/bin/python",
     vim.fn.expand("~/.virtualenvs/debugpy/bin/python"),
     vim.fn.expand("./venv/bin/python"),
     vim.fn.expand("./env/bin/python"),

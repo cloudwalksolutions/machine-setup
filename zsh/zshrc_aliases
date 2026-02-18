@@ -32,34 +32,16 @@ alias add-figma='claude mcp add --transport http figma-dev-mode-mcp-server http:
 alias vse='docker-compose exec -u vscode mono zsh'
 
 
-LAB_IP="192.168.1.199"
-alias ssh-lab='ssh homeassistant@${LAB_IP} -L 8123:localhost:8123'
-
-BRILEY_IP="192.168.1.104"
-alias ssh-briley='ssh brileyobrien@${BRILEY_IP}'
-
-AVERY_IP="192.168.1.TODO"
-alias ssh-briley='ssh avery@${AVERY_IP}'
-
-PC_IP="192.168.1.181"
-alias ssh-pc='ssh walker@${LAB_IP}'
-
-
-# Ssh file manipulations
+# Profile manipulations
 alias a42='gcloud config set account walker.obrien@apex42.ai; cp ~/.ssh/id_rsa.a42 ~/.ssh/id_rsa; cp ~/.ssh/id_rsa.pub.a42 ~/.ssh/id_rsa.pub'
 alias cws='gcloud config set account walker.obrien@cloudwalksolutions.io; cp ~/.ssh/id_rsa.cws ~/.ssh/id_rsa; cp ~/.ssh/id_rsa.pub.cws ~/.ssh/id_rsa.pub'
-alias wob='gcloud config set account wnobrien@lakegames.us; cp ~/.ssh/id_rsa.wob ~/.ssh/id_rsa; cp ~/.ssh/id_rsa.pub.wob ~/.ssh/id_rsa.pub'
 alias pham='gcloud config set account walker.obrien@jaanhealth.com; cp ~/.ssh/id_rsa.pham ~/.ssh/id_rsa; cp ~/.ssh/id_rsa.pub.pham ~/.ssh/id_rsa.pub'
 
 
 alias getpub='cat ~/.ssh/id_rsa.pub'
 
-alias weather='curl wttr.in/chicago'
-
-alias gg='go get'
-alias gmt='go mod tidy'
-alias gmd='go mod download'
-
+alias chi='curl wttr.in/chicago'
+alias nyc='curl wttr.in/newyork'
 
 alias ls='ls -aG'
 alias lss='ls -alhSG'
@@ -72,7 +54,10 @@ alias b='byobu'
 alias v='vim .'
 alias nv='nvim .'
 
-alias postgresql='postgresql@14'
+alias gg='go get'
+alias gmt='go mod tidy'
+alias gmd='go mod download'
+
 
 alias pip='pip3'
 alias python='python3'
@@ -93,17 +78,17 @@ alias cmod='chmod +x ./bin/*'
 
 alias sp='source ~/.zprofile'
 alias sb='source ~/.zshrc'
-alias sbs='source ~/.zshrc.secret'
-alias sba='source ~/.zshrc.aliases'
-alias sbf='source ~/.zshrc.funcs'
+alias sbs='source ~/.zshrc_secret'
+alias sba='source ~/.zshrc_aliases'
+alias sbf='source ~/.zshrc_funcs'
 alias sv='source ~/.vimrc > /dev/null 2>&1'
 alias sps='source ~/.p10k.zsh'
 
 alias vimp="$EDITOR ~/.zprofile; sp"
 alias vimb="$EDITOR ~/.zshrc; sb"
-alias vimbs="$EDITOR ~/.zshrc.secret; sbs"
-alias vimba="$EDITOR ~/.zshrc.aliases; sba"
-alias vimbf="$EDITOR ~/.zshrc.funcs; sbf"
+alias vimbs="$EDITOR ~/.zshrc_secret; sbs"
+alias vimba="$EDITOR ~/.zshrc_aliases; sba"
+alias vimbf="$EDITOR ~/.zshrc_funcs; sbf"
 alias vimby="$EDITOR ~/.byobu"
 alias vimv="$EDITOR ~/.vimrc; sv"
 alias vimc="$EDITOR ~/.config/nvim"
@@ -149,8 +134,4 @@ alias gaa='git add -A'
 alias gc='git commit -m'
 alias gpp='git fetch; git pull; git push'
 alias gpt='gpp && git push --tags'
-
-# GKE Auth shortcuts
-alias cluster-d='gcloud container clusters get-credentials central-cluster --zone us-central1-a --project d-platform-gke-project-hsw'
-alias cluster-p='gcloud container clusters get-credentials central-cluster --zone us-central1-a --project p-platform-gke-project-qjo'
 
