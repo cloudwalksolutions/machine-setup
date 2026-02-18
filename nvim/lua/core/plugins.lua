@@ -420,6 +420,9 @@ local plugin_specs = {
   -- K8s
   {
     "hsalem7/nvim-k8s",
+    cond = function()
+      return vim.fn.executable("kubectl") == 1
+    end,
     config = function()
       vim.g.vim_k8s_toggle_key_map = ',k'
     end

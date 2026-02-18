@@ -29,6 +29,6 @@ local python_path = find_python_with_debugpy()
 if python_path then
   require('dap-python').setup(python_path)
 else
-  vim.notify("debugpy not found in any venv - Python debugging won't work", vim.log.levels.WARN)
-  vim.notify("Install with: python3 -m pip install debugpy", vim.log.levels.INFO)
+  vim.notify("debugpy not found in any venv - Python debugging won't work", vim.log.levels.DEBUG)
+  vim.notify("Install with: python3 -m pip install debugpy", vim.log.levels.DEBUG)
 end
