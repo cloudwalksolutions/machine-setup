@@ -90,6 +90,9 @@ source_if_exists ~/.zshrc_secret
 source_if_exists ~/.zshrc_funcs
 source_if_exists ~/.zshrc_aliases
 source_if_exists .env
+source_if_exists .env.sh
+source_if_exists ../.env.sh
+source_if_exists ../../.env.sh
 source_if_exists ./venv/bin/activate
 source_if_exists ~/.p10k.zsh
 
