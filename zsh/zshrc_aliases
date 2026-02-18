@@ -20,10 +20,16 @@ alias c='claude'
 alias g='gemini'
 
 # Adding MCPs to Claude Code
+alias install-cc='curl -fsSL https://claude.ai/install.sh | bash'
+
 alias add-serena='claude mcp add serena -- uvx --from git+https://github.com/oraios/serena serena-mcp-server --context ide-assistant --project $(pwd)'
 alias add-jira='claude mcp add --transport sse atlassian https://mcp.atlassian.com/v1/sse'
 alias add-pwright='claude mcp add playwright -- npx @playwright/mcp@latest'
+alias add-gh='claude mcp add-json github '{"type":"http","url":"https://api.githubcopilot.com/mcp","headers":{"Authorization":"Bearer '"$(echo $GITHUB_TOKEN | cut -d '=' -f2)"'"}}''
 alias add-figma='claude mcp add --transport http figma-dev-mode-mcp-server http://127.0.0.1:3845/mcp'
+
+# Exec into VSCode dev container
+alias vse='docker-compose exec -u vscode mono zsh'
 
 
 LAB_IP="192.168.1.199"
