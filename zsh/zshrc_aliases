@@ -25,7 +25,7 @@ alias install-cc='curl -fsSL https://claude.ai/install.sh | bash'
 alias add-serena='claude mcp add serena -- uvx --from git+https://github.com/oraios/serena serena-mcp-server --context ide-assistant --project $(pwd)'
 alias add-jira='claude mcp add --transport sse atlassian https://mcp.atlassian.com/v1/sse'
 alias add-pwright='claude mcp add playwright -- npx @playwright/mcp@latest'
-alias add-gh='claude mcp add-json github '{"type":"http","url":"https://api.githubcopilot.com/mcp","headers":{"Authorization":"Bearer '"$(echo $GITHUB_TOKEN | cut -d '=' -f2)"'"}}''
+alias add-gh=`claude mcp add-json github '{"type":"http","url":"https://api.githubcopilot.com/mcp","headers":{"Authorization":"Bearer '"$(echo $GITHUB_TOKEN | cut -d '=' -f2)"'"}}'`
 alias add-figma='claude mcp add --transport http figma-dev-mode-mcp-server http://127.0.0.1:3845/mcp'
 
 # Exec into VSCode dev container
@@ -33,9 +33,9 @@ alias vse='docker-compose exec -u vscode mono zsh'
 
 
 # Profile manipulations
-alias a42='gcloud config set account walker.obrien@apex42.ai; cp ~/.ssh/id_rsa.a42 ~/.ssh/id_rsa; cp ~/.ssh/id_rsa.pub.a42 ~/.ssh/id_rsa.pub'
-alias cws='gcloud config set account walker.obrien@cloudwalksolutions.io; cp ~/.ssh/id_rsa.cws ~/.ssh/id_rsa; cp ~/.ssh/id_rsa.pub.cws ~/.ssh/id_rsa.pub'
-alias pham='gcloud config set account walker.obrien@jaanhealth.com; cp ~/.ssh/id_rsa.pham ~/.ssh/id_rsa; cp ~/.ssh/id_rsa.pub.pham ~/.ssh/id_rsa.pub'
+alias a42='cp ~/.ssh/id_rsa.a42 ~/.ssh/id_rsa; cp ~/.ssh/id_rsa.pub.a42 ~/.ssh/id_rsa.pub; gcloud config set account walker.obrien@apex42.ai'
+alias cws='cp ~/.ssh/id_rsa.cws ~/.ssh/id_rsa; cp ~/.ssh/id_rsa.pub.cws ~/.ssh/id_rsa.pub; gcloud config set account walker.obrien@cloudwalksolutions.io'
+alias pham='cp ~/.ssh/id_rsa.pham ~/.ssh/id_rsa; cp ~/.ssh/id_rsa.pub.pham ~/.ssh/id_rsa.pub; gcloud config set account walker.obrien@jaanhealth.com'
 
 
 alias getpub='cat ~/.ssh/id_rsa.pub'
