@@ -58,3 +58,6 @@ backups/
 zsh/zshrc_secret
 .zshrc_secret
 
+# Go CLI build artifacts
+cli/machine-setup
+

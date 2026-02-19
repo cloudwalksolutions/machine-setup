@@ -100,3 +100,21 @@ push-byobu:                     ## Push only Byobu config
 push-vim:                       ## Push only Vim config
 	@echo '⬆️  Pushing Vim config...'
 	@./scripts/components/vim.sh push
+
+CLI_DIR  := $(CURDIR)/cli
+CLI_BIN  := $(CLI_DIR)/machine-setup
+
+.PHONY: build-cli
+build-cli:                      ## Build the machine-setup Go CLI binary
+	@echo '🔨 Building CLI...'
+	@cd $(CLI_DIR) && go build -o machine-setup .
+
+.PHONY: test-cli
+test-cli: build-cli             ## Run CLI tests (Ginkgo suite)
+	@echo '🧪 Running CLI tests...'
+	@cd $(CLI_DIR) && go test ./cmd/... -v
+
+.PHONY: run-setup
+run-setup: build-cli            ## Run the machine-setup setup command
+	@echo '🚀 Running machine-setup setup...'
+	@$(CLI_BIN) setup
