@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/bash
 
 # Migration script
 # Migrates old dot-based naming to underscore naming

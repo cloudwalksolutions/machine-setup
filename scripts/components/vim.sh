@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/bash
 
 # Vim component script
 # Handles pull/push operations for Vim configuration

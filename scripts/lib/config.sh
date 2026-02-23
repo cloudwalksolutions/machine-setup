@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/bash
 
 # Configuration constants for machine-setup scripts
 # Defines all file paths and component mappings

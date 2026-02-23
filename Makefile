@@ -1,7 +1,7 @@
 # Makefile for machine-setup repository
 # Provides user-friendly interface for configuration management
 
-SHELL := /bin/zsh
+SHELL := /bin/bash
 
 .DEFAULT_GOAL := help
 

@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/bash
 
 # Neovim component script
 # Handles pull/push operations for Neovim configuration

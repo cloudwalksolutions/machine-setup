@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/bash
 
 # Pull orchestrator script
 # Pulls all component configurations from repo to local machine

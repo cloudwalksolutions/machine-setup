@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/bash
 
 # Zsh component script
 # Handles pull/push operations for Zsh configuration

@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/bash
 
 # Init orchestrator script
 # Sets up a fresh machine with all configurations and dependencies

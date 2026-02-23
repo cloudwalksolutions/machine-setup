@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/bash
 
 # Byobu component script
 # Handles pull/push operations for Byobu/tmux configuration

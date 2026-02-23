@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/bash
 
 # Fonts component script
 # Handles installation of fonts (pull-only, no push needed)

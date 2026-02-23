@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/bash
 
 # Common utilities for machine-setup scripts
 # Provides backup, logging, validation, and confirmation functions

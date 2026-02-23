@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/bash
 
 # Push orchestrator script
 # Pushes all component configurations from local machine to repo and commits

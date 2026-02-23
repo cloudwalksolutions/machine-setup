@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/bash
 
 echo "⚠️  WARNING: copy.sh is deprecated"
 echo "   Use 'make' commands instead:"
