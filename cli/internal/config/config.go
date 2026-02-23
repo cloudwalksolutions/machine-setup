@@ -76,3 +76,18 @@ func Init(path string) (*Config, error) {
 
 	return &cfg, nil
 }
+
+// Save writes cfg back to path, preserving any unrecognized keys already in the file.
+func Save(path string, cfg *Config) error {
+	v := viper.New()
+	v.SetConfigFile(path)
+	v.SetConfigType("yaml")
+	if _, err := os.Stat(path); err == nil {
+		_ = v.ReadInConfig()
+	}
+	v.Set("architecture", cfg.Architecture)
+	v.Set("sources", cfg.Sources)
+	v.Set("packages", cfg.Packages)
+	v.Set("apps", cfg.Apps)
+	return v.WriteConfigAs(path)
+}

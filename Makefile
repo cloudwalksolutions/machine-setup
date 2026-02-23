@@ -114,6 +114,11 @@ test-cli: build-cli             ## Run CLI tests (Ginkgo suite)
 	@echo '🧪 Running CLI tests...'
 	@cd $(CLI_DIR) && go test ./cmd/... -v
 
+.PHONY: test-cli-integration
+test-cli-integration:           ## Run brew integration tests (requires brew, installs/removes 'hello')
+	@echo '🧪 Running CLI integration tests...'
+	@cd $(CLI_DIR) && INTEGRATION=1 go test ./internal/pkg/brew/... -v
+
 .PHONY: run-setup
 run-setup: build-cli            ## Run the machine-setup setup command
 	@echo '🚀 Running machine-setup setup...'
