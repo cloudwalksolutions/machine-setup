@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"bytes"
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -9,7 +11,51 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"gopkg.in/yaml.v3"
+
+	"github.com/cloudwalk/machine-setup/internal/pkg"
 )
+
+// ManagerSpy is a test spy that records all calls and allows configuring responses.
+type ManagerSpy struct {
+	InstallCalls    []string
+	UninstallCalls  []string
+	UpdateCalls     []string
+	IsInstalledCalls []string
+
+	InstallErrors      map[string]error
+	UninstallErrors    map[string]error
+	UpdateErrors       map[string]error
+	IsInstalledReturns map[string]bool
+}
+
+func NewManagerSpy() *ManagerSpy {
+	return &ManagerSpy{
+		InstallErrors:      make(map[string]error),
+		UninstallErrors:    make(map[string]error),
+		UpdateErrors:       make(map[string]error),
+		IsInstalledReturns: make(map[string]bool),
+	}
+}
+
+func (s *ManagerSpy) Install(name string) error {
+	s.InstallCalls = append(s.InstallCalls, name)
+	return s.InstallErrors[name]
+}
+
+func (s *ManagerSpy) Uninstall(name string) error {
+	s.UninstallCalls = append(s.UninstallCalls, name)
+	return s.UninstallErrors[name]
+}
+
+func (s *ManagerSpy) Update(name string) error {
+	s.UpdateCalls = append(s.UpdateCalls, name)
+	return s.UpdateErrors[name]
+}
+
+func (s *ManagerSpy) IsInstalled(name string) (bool, error) {
+	s.IsInstalledCalls = append(s.IsInstalledCalls, name)
+	return s.IsInstalledReturns[name], nil
+}
 
 // ExecutorFixture captures cobra command output and manages test config paths.
 type ExecutorFixture struct {
@@ -33,12 +79,18 @@ func (f *ExecutorFixture) Setup() {
 	// Redirect config path and suppress TUI form via env vars.
 	os.Setenv("MACHINE_SETUP_CONFIG_PATH", f.ConfigPath)
 	os.Setenv("MACHINE_SETUP_NO_FORM", "1")
+
+	// Always inject a no-op spy so no spec accidentally hits real brew.
+	newManagerFn = func(stdout, stderr io.Writer) (pkg.Manager, error) {
+		return NewManagerSpy(), nil
+	}
 }
 
 func (f *ExecutorFixture) Teardown() {
 	os.RemoveAll(f.TmpDir)
 	os.Unsetenv("MACHINE_SETUP_CONFIG_PATH")
 	os.Unsetenv("MACHINE_SETUP_NO_FORM")
+	newManagerFn = pkg.NewManager
 }
 
 // RunSetup executes the setup command via cobra, capturing stdout and stderr.
@@ -108,14 +160,6 @@ var _ = Describe("setup command", func() {
 			}
 		})
 
-		It("initializes packages as an empty list", func() {
-			Expect(fixture.RunSetup()).To(Succeed())
-			cfg := fixture.ReadConfig()
-			if packages, ok := cfg["packages"]; ok && packages != nil {
-				Expect(packages).To(BeEmpty())
-			}
-		})
-
 		It("initializes apps as an empty list", func() {
 			Expect(fixture.RunSetup()).To(Succeed())
 			cfg := fixture.ReadConfig()
@@ -159,6 +203,49 @@ var _ = Describe("setup command", func() {
 		It("prints the detected architecture", func() {
 			Expect(fixture.RunSetup()).To(Succeed())
 			Expect(fixture.Stdout.String()).To(ContainSubstring(runtime.GOARCH))
+		})
+	})
+
+	Describe("package installation", func() {
+		var spy *ManagerSpy
+
+		BeforeEach(func() {
+			spy = NewManagerSpy()
+			newManagerFn = func(stdout, stderr io.Writer) (pkg.Manager, error) {
+				return spy, nil
+			}
+		})
+
+		It("installs all selected dev tools", func() {
+			Expect(fixture.RunSetup()).To(Succeed())
+			Expect(spy.InstallCalls).To(ConsistOf(pkg.DevToolNames()))
+		})
+
+		It("prints an installing message for each tool", func() {
+			Expect(fixture.RunSetup()).To(Succeed())
+			for _, name := range pkg.DevToolNames() {
+				Expect(fixture.Stdout.String()).To(ContainSubstring("Installing " + name))
+			}
+		})
+
+		It("saves the selected packages to the config file", func() {
+			Expect(fixture.RunSetup()).To(Succeed())
+			cfg := fixture.ReadConfig()
+			pkgs, ok := cfg["packages"]
+			Expect(ok).To(BeTrue())
+			Expect(pkgs).To(HaveLen(len(pkg.DevTools)))
+		})
+
+		It("continues installing remaining tools when one fails", func() {
+			spy.InstallErrors["jq"] = fmt.Errorf("install failed")
+			Expect(fixture.RunSetup()).To(Succeed())
+			Expect(spy.InstallCalls).To(ConsistOf(pkg.DevToolNames()))
+		})
+
+		It("prints an error line for a failed install without aborting", func() {
+			spy.InstallErrors["jq"] = fmt.Errorf("install failed")
+			Expect(fixture.RunSetup()).To(Succeed())
+			Expect(fixture.Stderr.String()).To(ContainSubstring("jq"))
 		})
 	})
 })
