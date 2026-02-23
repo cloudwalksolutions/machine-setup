@@ -15,11 +15,15 @@ pull() {
   validate_path "${ZSH_PATHS[profile_repo]}" "file" || return 1
   validate_path "${ZSH_PATHS[starship_repo]}" "file" || return 1
 
-  # Backup and copy zshrc
-  if [[ -f "${ZSH_PATHS[zshrc_local]}" ]]; then
-    backup_file "${ZSH_PATHS[zshrc_local]}" "zsh" || return 1
+  # Backup and copy shell rc file (deploys to ~/.zshrc or ~/.bashrc based on shell)
+  local rc_local="${ZSH_PATHS[zshrc_local]}"
+  if [[ "$SHELL" == *"bash"* ]] && ! command -v zsh &>/dev/null; then
+    rc_local="${HOME}/.bashrc"
   fi
-  safe_copy "${ZSH_PATHS[zshrc_repo]}" "${ZSH_PATHS[zshrc_local]}" "zsh" || return 1
+  if [[ -f "$rc_local" ]]; then
+    backup_file "$rc_local" "zsh" || return 1
+  fi
+  safe_copy "${ZSH_PATHS[zshrc_repo]}" "$rc_local" "zsh" || return 1
 
   # Backup and copy aliases
   if [[ -f "${ZSH_PATHS[aliases_local]}" ]]; then

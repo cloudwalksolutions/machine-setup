@@ -6,6 +6,7 @@ import (
 	"runtime"
 
 	"github.com/cloudwalk/machine-setup/internal/config"
+	"github.com/cloudwalk/machine-setup/internal/pkg/apt"
 	"github.com/cloudwalk/machine-setup/internal/pkg/brew"
 )
 
@@ -21,7 +22,6 @@ type Manager interface {
 // DevTools is the curated CloudWalk default package list.
 var DevTools = []config.Package{
 	{Name: "neovim", Manager: "brew"},
-	{Name: "starship", Manager: "brew"},
 	{Name: "byobu", Manager: "brew"},
 	{Name: "fzf", Manager: "brew"},
 	{Name: "ripgrep", Manager: "brew"},
@@ -66,6 +66,8 @@ func NewManager(stdout, stderr io.Writer) (Manager, error) {
 	switch runtime.GOOS {
 	case "darwin":
 		return brew.New(stdout, stderr), nil
+	case "linux":
+		return apt.New(stdout, stderr), nil
 	default:
 		return nil, fmt.Errorf("unsupported OS: %s", runtime.GOOS)
 	}

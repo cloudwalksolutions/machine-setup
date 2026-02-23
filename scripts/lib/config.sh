@@ -3,9 +3,12 @@
 # Configuration constants for machine-setup scripts
 # Defines all file paths and component mappings
 
-# Repo root directory (auto-detected from scripts/lib/)
-# scripts/lib/ -> scripts/ -> repo root
-REPO_ROOT="$(cd "$(dirname "${(%):-%x}")/../.." && pwd)"
+# Repo root directory (auto-detected from scripts/lib/, works in both bash and zsh)
+if [[ -n "${BASH_SOURCE[0]:-}" ]]; then
+  REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+else
+  REPO_ROOT="$(cd "$(dirname "${(%):-%x}")/../.." && pwd)"
+fi
 
 # Backup configuration
 export BACKUP_DIR="${REPO_ROOT}/backups"
@@ -55,15 +58,27 @@ declare -gA VIM_PATHS=(
   [colors_local]="${HOME}/.vim/colors/sublimemonokai.vim"
 )
 
-# Fonts paths
-declare -gA FONTS_PATHS=(
-  [repo]="${REPO_ROOT}/fonts"
-  [local]="/Library/Fonts"
-)
-
-# Platform detection
+# Platform detection (must precede OS-conditional path declarations)
 if [[ "$OSTYPE" == "darwin"* ]]; then
   export IS_MACOS=true
+  export IS_LINUX=false
+elif [[ "$OSTYPE" == "linux"* ]]; then
+  export IS_MACOS=false
+  export IS_LINUX=true
 else
   export IS_MACOS=false
+  export IS_LINUX=false
+fi
+
+# Fonts paths
+if [[ "$IS_MACOS" == "true" ]]; then
+  declare -gA FONTS_PATHS=(
+    [repo]="${REPO_ROOT}/fonts"
+    [local]="/Library/Fonts"
+  )
+else
+  declare -gA FONTS_PATHS=(
+    [repo]="${REPO_ROOT}/fonts"
+    [local]="${HOME}/.local/share/fonts"
+  )
 fi

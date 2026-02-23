@@ -10,26 +10,30 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Get repo root directory
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# Get repo root directory (works in both bash and zsh)
+if [[ -n "${BASH_SOURCE[0]:-}" ]]; then
+  REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+else
+  REPO_ROOT="$(cd "$(dirname "${(%):-%x}")/../.." && pwd)"
+fi
 BACKUP_DIR="${REPO_ROOT}/backups"
 BACKUP_RETENTION=5
 
 # Logging functions
 log_info() {
-  echo "${BLUE}ℹ️  $1${NC}"
+  echo -e "${BLUE}ℹ️  $1${NC}"
 }
 
 log_error() {
-  echo "${RED}❌ ERROR: $1${NC}" >&2
+  echo -e "${RED}❌ ERROR: $1${NC}" >&2
 }
 
 log_success() {
-  echo "${GREEN}✅ $1${NC}"
+  echo -e "${GREEN}✅ $1${NC}"
 }
 
 log_warning() {
-  echo "${YELLOW}⚠️  WARNING: $1${NC}"
+  echo -e "${YELLOW}⚠️  WARNING: $1${NC}"
 }
 
 # Validate path exists and is of correct type
