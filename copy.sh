@@ -23,7 +23,6 @@ pull () {
     cp ./zsh/zshrc ~/.zshrc
     cp ./zsh/zshrc.aliases ~/.zshrc.aliases
     cp ./zsh/profile ~/.profile
-    cp ./zsh/starship.toml ~/.config/starship.toml
 
     source ~/.profile
 
@@ -54,7 +53,6 @@ push () {
     cp ~/.profile ./zsh/profile
     cp ~/.zshrc ./zsh/zshrc
     cp ~/.zshrc.aliases ./zsh/zshrc.aliases
-    cp ~/.config/starship.toml ./zsh/starship.toml
 
     cp ~/.byobu/bin/* ./byobu/bin
     cp ~/.byobu/.tmux.conf ./byobu
@@ -89,8 +87,7 @@ elif [[ $1 == "push" ]]; then
 
 elif [[ $1 == "init" ]]; then
     pull
-    
-    brew install starship
+
     brew install byobu
     brew install nvim
     

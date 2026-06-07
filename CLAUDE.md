@@ -9,7 +9,7 @@ This is a one-command macOS machine setup repository that provisions a fully con
 ## Core Philosophy
 
 **Single Command Setup**: Run `make init` on a new machine and get:
-- Package manager and essential tools (starship, byobu, neovim)
+- Package manager and essential tools (byobu, neovim)
 - IDE-quality Neovim configuration with LSP, debugging, AI integrations
 - Zsh with oh-my-zsh, plugins, and custom prompt
 - Terminal multiplexer (byobu/tmux) with custom status bar

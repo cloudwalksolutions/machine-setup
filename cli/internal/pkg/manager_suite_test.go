@@ -1,4 +1,4 @@
-package apt_test
+package pkg_test
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestAptSuite(t *testing.T) {
+func TestPkgSuite(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "apt Suite")
+	RunSpecs(t, "pkg Suite")
 }

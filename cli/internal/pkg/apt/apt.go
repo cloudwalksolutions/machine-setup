@@ -1,3 +1,7 @@
+// Package apt provides polymorphic Installable implementations for the
+// Debian/Ubuntu side of the CLI's curated install list. Each installable
+// type (Package, NeovimAppImage) is its own kind that knows how to install
+// itself — no dispatcher map, no type switches.
 package apt
 
 import (
@@ -8,91 +12,62 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strings"
 )
 
-// aptNames maps brew-style package names to their apt equivalents.
-// Packages not listed here use the same name on both managers.
+// Runner runs an apt subcommand. Production wiring shells out to
+// `sudo apt …`; tests inject a recorder.
+type Runner func(args []string, stdout, stderr io.Writer) error
+
+// DefaultRunner returns the production Runner.
+func DefaultRunner() Runner {
+	return func(args []string, stdout, stderr io.Writer) error {
+		cmd := exec.Command("sudo", append([]string{"apt"}, args...)...)
+		cmd.Stdout = stdout
+		cmd.Stderr = stderr
+		return cmd.Run()
+	}
+}
+
+// aptNames maps brew-style names to their apt equivalents.
 var aptNames = map[string]string{
 	"go":     "golang",
 	"node":   "nodejs",
 	"python": "python3",
 }
 
-// customInstallers maps package names to functions that install them
-// outside of apt (e.g. AppImage, curl installer).
-var customInstallers = map[string]func(stdout, stderr io.Writer) error{
-	"neovim":   installNeovimAppImage,
-	"starship": installStarship,
+// Package is an apt-installable package referenced by its brew-style name.
+// Install resolves the name to the apt package and runs `apt install -y`.
+type Package struct {
+	name string
+	run  Runner
 }
 
-// Apt is an apt-backed package manager adapter for Debian-based systems.
-type Apt struct {
-	stdout io.Writer
-	stderr io.Writer
+// NewPackage returns a Package bound to a runner.
+func NewPackage(name string, run Runner) Package {
+	return Package{name: name, run: run}
 }
 
-// New returns an Apt adapter that streams output to stdout and stderr.
-func New(stdout, stderr io.Writer) *Apt {
-	return &Apt{stdout: stdout, stderr: stderr}
-}
+// Name returns the brew-style name (unresolved). This is what the user sees.
+func (p Package) Name() string { return p.name }
 
-func (a *Apt) Install(name string) error {
-	if installer, ok := customInstallers[name]; ok {
-		return installer(a.stdout, a.stderr)
+// Install runs `apt install -y <resolved-name>`.
+func (p Package) Install(stdout, stderr io.Writer) error {
+	resolved := p.name
+	if mapped, ok := aptNames[p.name]; ok {
+		resolved = mapped
 	}
-	return a.run("install", "-y", resolve(name))
+	return p.run([]string{"install", "-y", resolved}, stdout, stderr)
 }
 
-func (a *Apt) Uninstall(name string) error {
-	return a.run("remove", "-y", resolve(name))
-}
+// NeovimAppImage installs Neovim by downloading the upstream AppImage to
+// ~/.local/bin/nvim. Used on Linux where the apt package is often outdated.
+type NeovimAppImage struct{}
 
-func (a *Apt) Update(name string) error {
-	if _, ok := customInstallers[name]; ok {
-		// For custom-installed packages, reinstall to update
-		return a.Install(name)
-	}
-	return a.run("install", "-y", "--only-upgrade", resolve(name))
-}
+// Name reports "neovim" to match its brew counterpart for the form display.
+func (NeovimAppImage) Name() string { return "neovim" }
 
-// IsInstalled returns true if the package is installed according to dpkg,
-// or if a custom-installed binary is found in PATH.
-func (a *Apt) IsInstalled(name string) (bool, error) {
-	if _, ok := customInstallers[name]; ok {
-		_, err := exec.LookPath(name)
-		if err != nil {
-			// neovim binary is "nvim", not "neovim"
-			if name == "neovim" {
-				_, err = exec.LookPath("nvim")
-			}
-		}
-		return err == nil, nil
-	}
-	out, err := exec.Command("dpkg", "-l", resolve(name)).Output()
-	if err != nil {
-		return false, nil
-	}
-	return strings.Contains(string(out), "ii"), nil
-}
-
-// resolve translates a brew-style name to the apt package name.
-func resolve(name string) string {
-	if mapped, ok := aptNames[name]; ok {
-		return mapped
-	}
-	return name
-}
-
-func (a *Apt) run(args ...string) error {
-	cmd := exec.Command("sudo", append([]string{"apt"}, args...)...)
-	cmd.Stdout = a.stdout
-	cmd.Stderr = a.stderr
-	return cmd.Run()
-}
-
-// installNeovimAppImage downloads the nvim AppImage to ~/.local/bin/nvim.
-func installNeovimAppImage(stdout, stderr io.Writer) error {
+// Install downloads the AppImage and makes it executable.
+func (NeovimAppImage) Install(stdout, stderr io.Writer) error {
 	arch := runtime.GOARCH
 	if arch == "amd64" {
 		arch = "x86_64"
@@ -104,7 +79,6 @@ func installNeovimAppImage(stdout, stderr io.Writer) error {
 	dest := filepath.Join(os.Getenv("HOME"), ".local", "bin", "nvim")
 
 	fmt.Fprintf(stdout, "Downloading Neovim AppImage to %s...\n", dest)
-
 	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 		return fmt.Errorf("creating directory: %w", err)
 	}
@@ -114,7 +88,6 @@ func installNeovimAppImage(stdout, stderr io.Writer) error {
 		return fmt.Errorf("downloading neovim: %w", err)
 	}
 	defer resp.Body.Close()
-
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("download failed: HTTP %d", resp.StatusCode)
 	}
@@ -124,24 +97,9 @@ func installNeovimAppImage(stdout, stderr io.Writer) error {
 		return fmt.Errorf("creating file: %w", err)
 	}
 	defer out.Close()
-
 	if _, err := io.Copy(out, resp.Body); err != nil {
 		return fmt.Errorf("writing file: %w", err)
 	}
-
-	if err := os.Chmod(dest, 0o755); err != nil {
-		return fmt.Errorf("setting permissions: %w", err)
-	}
-
-	fmt.Fprintf(stdout, "Neovim AppImage installed to %s\n", dest)
-	return nil
+	return os.Chmod(dest, 0o755)
 }
 
-// installStarship downloads starship via the official installer script.
-func installStarship(stdout, stderr io.Writer) error {
-	fmt.Fprintln(stdout, "Installing starship via official installer...")
-	cmd := exec.Command("sh", "-c", "curl -sS https://starship.rs/install.sh | sh -s -- -y")
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
-	return cmd.Run()
-}

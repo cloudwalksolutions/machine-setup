@@ -30,11 +30,6 @@ elif [[ "$IS_LINUX" == "true" ]]; then
       && chmod +x "$nvim_dest" \
       || log_warning "Failed to install Neovim AppImage"
   fi
-  # starship (prompt fallback for bash, or zsh without oh-my-zsh)
-  if ! command -v starship &>/dev/null; then
-    log_info "Installing starship prompt..."
-    curl -sS https://starship.rs/install.sh | sh -s -- -y || log_warning "Failed to install starship"
-  fi
 else
   log_warning "Unsupported platform. Skipping package installation."
 fi

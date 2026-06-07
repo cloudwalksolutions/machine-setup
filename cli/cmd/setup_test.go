@@ -1,251 +1,355 @@
-package cmd
+package cmd_test
 
 import (
 	"bytes"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
-	"runtime"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"gopkg.in/yaml.v3"
 
+	"github.com/cloudwalk/machine-setup/cmd"
+	"github.com/cloudwalk/machine-setup/internal/components"
+	"github.com/cloudwalk/machine-setup/internal/config"
 	"github.com/cloudwalk/machine-setup/internal/pkg"
 )
 
-// ManagerSpy is a test spy that records all calls and allows configuring responses.
-type ManagerSpy struct {
-	InstallCalls    []string
-	UninstallCalls  []string
-	UpdateCalls     []string
-	IsInstalledCalls []string
+// ── Test doubles ─────────────────────────────────────────────────────────
 
-	InstallErrors      map[string]error
-	UninstallErrors    map[string]error
-	UpdateErrors       map[string]error
-	IsInstalledReturns map[string]bool
+type spyWelcome struct{ calls int }
+
+func (s *spyWelcome) Show() error { s.calls++; return nil }
+
+type spyPicker struct {
+	offered []string
+	pick    []string
 }
 
-func NewManagerSpy() *ManagerSpy {
-	return &ManagerSpy{
-		InstallErrors:      make(map[string]error),
-		UninstallErrors:    make(map[string]error),
-		UpdateErrors:       make(map[string]error),
-		IsInstalledReturns: make(map[string]bool),
+func (s *spyPicker) Pick(offered []string) ([]string, error) {
+	s.offered = offered
+	if s.pick != nil {
+		return s.pick, nil
+	}
+	return offered, nil
+}
+
+type memConfigStore struct {
+	path string
+	cfg  *config.Config
+}
+
+func newMemConfigStore(path string) *memConfigStore {
+	return &memConfigStore{path: path}
+}
+func (s *memConfigStore) Load() (*config.Config, error) {
+	if s.cfg == nil {
+		s.cfg = &config.Config{Architecture: "test-arch"}
+	}
+	return s.cfg, nil
+}
+func (s *memConfigStore) Save(c *config.Config) error { s.cfg = c; return nil }
+func (s *memConfigStore) Path() string                { return s.path }
+
+type fixedRegistry struct{ tools []pkg.Installable }
+
+func (r *fixedRegistry) Installables() []pkg.Installable { return r.tools }
+func (r *fixedRegistry) Names() []string {
+	names := make([]string, len(r.tools))
+	for i, t := range r.tools {
+		names[i] = t.Name()
+	}
+	return names
+}
+
+type spyInstallable struct {
+	name string
+	log  *[]string
+	err  error
+}
+
+func (s *spyInstallable) Name() string { return s.name }
+func (s *spyInstallable) Install(_, _ io.Writer) error {
+	*s.log = append(*s.log, s.name)
+	return s.err
+}
+
+type recordingInstaller struct {
+	available []pkg.Installable
+	selected  []string
+	log       *[]string
+	errs      map[string]error
+	stderr    io.Writer
+}
+
+func (r *recordingInstaller) InstallAll(available []pkg.Installable, selected []string) {
+	r.available, r.selected = available, selected
+	picked := map[string]bool{}
+	for _, n := range selected {
+		picked[n] = true
+	}
+	for _, inst := range available {
+		if !picked[inst.Name()] {
+			continue
+		}
+		*r.log = append(*r.log, inst.Name())
+		if err := r.errs[inst.Name()]; err != nil {
+			fmt.Fprintf(r.stderr, "  %s: %v\n", inst.Name(), err)
+		}
 	}
 }
 
-func (s *ManagerSpy) Install(name string) error {
-	s.InstallCalls = append(s.InstallCalls, name)
-	return s.InstallErrors[name]
+type spyInstaller struct {
+	calls int
+	err   error
 }
 
-func (s *ManagerSpy) Uninstall(name string) error {
-	s.UninstallCalls = append(s.UninstallCalls, name)
-	return s.UninstallErrors[name]
+func (s *spyInstaller) Install() error { s.calls++; return s.err }
+
+type spyComponent struct {
+	name string
+	log  *[]string
+	err  error
 }
 
-func (s *ManagerSpy) Update(name string) error {
-	s.UpdateCalls = append(s.UpdateCalls, name)
-	return s.UpdateErrors[name]
+func (c *spyComponent) Name() string { return c.name }
+func (c *spyComponent) Pull() error {
+	*c.log = append(*c.log, c.name)
+	return c.err
 }
 
-func (s *ManagerSpy) IsInstalled(name string) (bool, error) {
-	s.IsInstalledCalls = append(s.IsInstalledCalls, name)
-	return s.IsInstalledReturns[name], nil
+type recordingPuller struct {
+	components []components.Component
+	stderr     io.Writer
 }
 
-// ExecutorFixture captures cobra command output and manages test config paths.
-type ExecutorFixture struct {
-	TmpDir     string
-	ConfigPath string
-	Stdout     *bytes.Buffer
-	Stderr     *bytes.Buffer
-}
-
-func NewExecutorFixture() *ExecutorFixture {
-	return &ExecutorFixture{}
-}
-
-func (f *ExecutorFixture) Setup() {
-	var err error
-	f.TmpDir, err = os.MkdirTemp("", "machine-setup-test-*")
-	Expect(err).NotTo(HaveOccurred())
-
-	f.ConfigPath = filepath.Join(f.TmpDir, "config.yaml")
-
-	// Redirect config path and suppress TUI form via env vars.
-	os.Setenv("MACHINE_SETUP_CONFIG_PATH", f.ConfigPath)
-	os.Setenv("MACHINE_SETUP_NO_FORM", "1")
-
-	// Always inject a no-op spy so no spec accidentally hits real brew.
-	newManagerFn = func(stdout, stderr io.Writer) (pkg.Manager, error) {
-		return NewManagerSpy(), nil
+func (p *recordingPuller) PullAll() {
+	for _, c := range p.components {
+		if err := c.Pull(); err != nil {
+			fmt.Fprintf(p.stderr, "  %s: %v\n", c.Name(), err)
+		}
 	}
 }
 
-func (f *ExecutorFixture) Teardown() {
-	os.RemoveAll(f.TmpDir)
-	os.Unsetenv("MACHINE_SETUP_CONFIG_PATH")
-	os.Unsetenv("MACHINE_SETUP_NO_FORM")
-	newManagerFn = pkg.NewManager
+// ── Fixture ──────────────────────────────────────────────────────────────
+
+// fixture assembles a Setup with test doubles. Tests can read spy state
+// directly via the exported fields after calling Run().
+type fixture struct {
+	Welcome   *spyWelcome
+	Picker    *spyPicker
+	Config    *memConfigStore
+	Installer *recordingInstaller
+	OhMyZsh   *spyInstaller
+	P10k      *spyInstaller
+	Puller    *recordingPuller
+
+	InstallableNames []string
+	InstallLog       []string
+	InstallErrs      map[string]error
+
+	ComponentNames []string
+	PullLog        []string
+	ComponentErrs  map[string]error
+
+	Stdout *bytes.Buffer
+	Stderr *bytes.Buffer
+
+	Setup *cmd.Setup
 }
 
-// RunSetup executes the setup command via cobra, capturing stdout and stderr.
-func (f *ExecutorFixture) RunSetup(extraArgs ...string) error {
-	f.Stdout = new(bytes.Buffer)
-	f.Stderr = new(bytes.Buffer)
-
-	cfgFile = "" // reset persistent flag state between runs
-	rootCmd.SetOut(f.Stdout)
-	rootCmd.SetErr(f.Stderr)
-	rootCmd.SetArgs(append([]string{"setup"}, extraArgs...))
-
-	return rootCmd.Execute()
+func newFixture() *fixture {
+	f := &fixture{
+		InstallableNames: []string{
+			"neovim", "byobu", "fzf", "ripgrep", "bat", "eza",
+			"jq", "gh", "go", "node", "python",
+			"yarn", "n",
+			"rustup", "ghcup",
+		},
+		ComponentNames: []string{"vim", "zsh", "byobu", "nvim", "fonts"},
+		InstallErrs:    map[string]error{},
+		ComponentErrs:  map[string]error{},
+		Stdout:         &bytes.Buffer{},
+		Stderr:         &bytes.Buffer{},
+	}
+	f.assemble()
+	return f
 }
 
-// ReadConfig parses the YAML config file written by the last RunSetup call.
-func (f *ExecutorFixture) ReadConfig() map[string]interface{} {
-	data, err := os.ReadFile(f.ConfigPath)
-	Expect(err).NotTo(HaveOccurred())
+// assemble builds the spy graph + Setup. Call after mutating InstallErrs /
+// ComponentErrs to pick up the new error config.
+func (f *fixture) assemble() {
+	f.Welcome = &spyWelcome{}
+	f.Picker = &spyPicker{}
+	f.Config = newMemConfigStore(filepath.Join(GinkgoT().TempDir(), "config.yaml"))
+	f.OhMyZsh = &spyInstaller{}
+	f.P10k = &spyInstaller{}
 
-	var result map[string]interface{}
-	Expect(yaml.Unmarshal(data, &result)).To(Succeed())
-	return result
+	f.InstallLog = []string{}
+	tools := make([]pkg.Installable, len(f.InstallableNames))
+	for i, n := range f.InstallableNames {
+		tools[i] = &spyInstallable{name: n, log: &f.InstallLog, err: f.InstallErrs[n]}
+	}
+	f.Installer = &recordingInstaller{log: &f.InstallLog, errs: f.InstallErrs, stderr: f.Stderr}
+
+	f.PullLog = []string{}
+	comps := make([]components.Component, len(f.ComponentNames))
+	for i, n := range f.ComponentNames {
+		comps[i] = &spyComponent{name: n, log: &f.PullLog, err: f.ComponentErrs[n]}
+	}
+	f.Puller = &recordingPuller{components: comps, stderr: f.Stderr}
+
+	f.Setup = &cmd.Setup{
+		Welcome:   f.Welcome,
+		Picker:    f.Picker,
+		Config:    f.Config,
+		Registry:  &fixedRegistry{tools: tools},
+		Installer: f.Installer,
+		OhMyZsh:   f.OhMyZsh,
+		P10k:      f.P10k,
+		Pull:      f.Puller,
+		Stdout:    f.Stdout,
+		Stderr:    f.Stderr,
+	}
 }
 
-var _ = Describe("setup command", func() {
-	var fixture *ExecutorFixture
+// ── Specs ────────────────────────────────────────────────────────────────
 
-	BeforeEach(func() {
-		fixture = NewExecutorFixture()
-		fixture.Setup()
-	})
+var _ = Describe("Setup.Run", func() {
+	var f *fixture
 
-	AfterEach(func() {
-		fixture.Teardown()
-	})
+	BeforeEach(func() { f = newFixture() })
 
-	Describe("config file creation", func() {
-		It("creates the config file at the expected path", func() {
-			Expect(fixture.RunSetup()).To(Succeed())
-			Expect(fixture.ConfigPath).To(BeAnExistingFile())
-		})
-
-		It("writes valid YAML to the config file", func() {
-			Expect(fixture.RunSetup()).To(Succeed())
-
-			data, err := os.ReadFile(fixture.ConfigPath)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(string(data)).NotTo(BeEmpty())
-		})
-
-		It("includes the architecture key in the config", func() {
-			Expect(fixture.RunSetup()).To(Succeed())
-			Expect(fixture.ReadConfig()).To(HaveKey("architecture"))
-		})
-
-		It("writes the correct architecture for the current machine", func() {
-			Expect(fixture.RunSetup()).To(Succeed())
-			Expect(fixture.ReadConfig()["architecture"]).To(Equal(runtime.GOARCH))
-		})
-
-		It("initializes sources as an empty list", func() {
-			Expect(fixture.RunSetup()).To(Succeed())
-			cfg := fixture.ReadConfig()
-			if sources, ok := cfg["sources"]; ok && sources != nil {
-				Expect(sources).To(BeEmpty())
-			}
-		})
-
-		It("initializes apps as an empty list", func() {
-			Expect(fixture.RunSetup()).To(Succeed())
-			cfg := fixture.ReadConfig()
-			if apps, ok := cfg["apps"]; ok && apps != nil {
-				Expect(apps).To(BeEmpty())
-			}
+	Describe("welcome", func() {
+		It("invokes the Welcomer exactly once", func() {
+			Expect(f.Setup.Run()).To(Succeed())
+			Expect(f.Welcome.calls).To(Equal(1))
 		})
 	})
 
-	Describe("idempotency", func() {
-		It("succeeds when run a second time", func() {
-			Expect(fixture.RunSetup()).To(Succeed())
-			Expect(fixture.RunSetup()).To(Succeed())
-		})
-
-		It("preserves config content on second run", func() {
-			Expect(fixture.RunSetup()).To(Succeed())
-			firstContent, _ := os.ReadFile(fixture.ConfigPath)
-
-			Expect(fixture.RunSetup()).To(Succeed())
-			secondContent, _ := os.ReadFile(fixture.ConfigPath)
-
-			Expect(string(secondContent)).To(Equal(string(firstContent)))
-		})
-	})
-
-	Describe("--config flag override", func() {
-		It("writes config to the path specified by --config", func() {
-			customPath := filepath.Join(fixture.TmpDir, "custom", "my-config.yaml")
-			Expect(fixture.RunSetup("--config", customPath)).To(Succeed())
-			Expect(customPath).To(BeAnExistingFile())
-		})
-	})
-
-	Describe("stdout output", func() {
-		It("prints the config path", func() {
-			Expect(fixture.RunSetup()).To(Succeed())
-			Expect(fixture.Stdout.String()).To(ContainSubstring("Config written to"))
-		})
-
-		It("prints the detected architecture", func() {
-			Expect(fixture.RunSetup()).To(Succeed())
-			Expect(fixture.Stdout.String()).To(ContainSubstring(runtime.GOARCH))
+	Describe("tool picker", func() {
+		It("offers the registry's names to the picker", func() {
+			Expect(f.Setup.Run()).To(Succeed())
+			Expect(f.Picker.offered).To(Equal(f.InstallableNames))
 		})
 	})
 
 	Describe("package installation", func() {
-		var spy *ManagerSpy
-
-		BeforeEach(func() {
-			spy = NewManagerSpy()
-			newManagerFn = func(stdout, stderr io.Writer) (pkg.Manager, error) {
-				return spy, nil
-			}
-		})
-
-		It("installs all selected dev tools", func() {
-			Expect(fixture.RunSetup()).To(Succeed())
-			Expect(spy.InstallCalls).To(ConsistOf(pkg.DevToolNames()))
-		})
-
-		It("prints an installing message for each tool", func() {
-			Expect(fixture.RunSetup()).To(Succeed())
-			for _, name := range pkg.DevToolNames() {
-				Expect(fixture.Stdout.String()).To(ContainSubstring("Installing " + name))
-			}
-		})
-
-		It("saves the selected packages to the config file", func() {
-			Expect(fixture.RunSetup()).To(Succeed())
-			cfg := fixture.ReadConfig()
-			pkgs, ok := cfg["packages"]
-			Expect(ok).To(BeTrue())
-			Expect(pkgs).To(HaveLen(len(pkg.DevTools)))
+		It("installs every selected installable", func() {
+			Expect(f.Setup.Run()).To(Succeed())
+			Expect(f.InstallLog).To(ConsistOf(f.InstallableNames))
 		})
 
 		It("continues installing remaining tools when one fails", func() {
-			spy.InstallErrors["jq"] = fmt.Errorf("install failed")
-			Expect(fixture.RunSetup()).To(Succeed())
-			Expect(spy.InstallCalls).To(ConsistOf(pkg.DevToolNames()))
+			f.InstallErrs = map[string]error{"jq": fmt.Errorf("install failed")}
+			f.assemble()
+
+			Expect(f.Setup.Run()).To(Succeed())
+
+			Expect(f.InstallLog).To(ConsistOf(f.InstallableNames))
 		})
 
 		It("prints an error line for a failed install without aborting", func() {
-			spy.InstallErrors["jq"] = fmt.Errorf("install failed")
-			Expect(fixture.RunSetup()).To(Succeed())
-			Expect(fixture.Stderr.String()).To(ContainSubstring("jq"))
+			f.InstallErrs = map[string]error{"jq": fmt.Errorf("install failed")}
+			f.assemble()
+
+			Expect(f.Setup.Run()).To(Succeed())
+
+			Expect(f.Stderr.String()).To(ContainSubstring("jq"))
+		})
+	})
+
+	Describe("config persistence", func() {
+		It("saves the selected packages by name", func() {
+			Expect(f.Setup.Run()).To(Succeed())
+			cfg, _ := f.Config.Load()
+			names := make([]string, len(cfg.Packages))
+			for i, p := range cfg.Packages {
+				names[i] = p.Name
+			}
+			Expect(names).To(Equal(f.InstallableNames))
+		})
+
+		It("prints the config path", func() {
+			Expect(f.Setup.Run()).To(Succeed())
+			Expect(f.Stdout.String()).To(ContainSubstring("Config written to"))
+			Expect(f.Stdout.String()).To(ContainSubstring(f.Config.Path()))
+		})
+
+		It("prints the detected architecture", func() {
+			Expect(f.Setup.Run()).To(Succeed())
+			Expect(f.Stdout.String()).To(ContainSubstring("test-arch"))
+		})
+	})
+
+	Describe("oh-my-zsh install", func() {
+		It("calls the oh-my-zsh installer exactly once", func() {
+			Expect(f.Setup.Run()).To(Succeed())
+			Expect(f.OhMyZsh.calls).To(Equal(1))
+		})
+
+		It("reports a failed install without aborting", func() {
+			f.OhMyZsh.err = fmt.Errorf("git missing")
+			Expect(f.Setup.Run()).To(Succeed())
+			Expect(f.Stderr.String()).To(ContainSubstring("oh-my-zsh"))
+			Expect(f.Stderr.String()).To(ContainSubstring("git missing"))
+		})
+	})
+
+	Describe("powerlevel10k install", func() {
+		It("calls the powerlevel10k installer exactly once", func() {
+			Expect(f.Setup.Run()).To(Succeed())
+			Expect(f.P10k.calls).To(Equal(1))
+		})
+
+		It("reports a failed install without aborting", func() {
+			f.P10k.err = fmt.Errorf("git clone failed")
+			Expect(f.Setup.Run()).To(Succeed())
+			Expect(f.Stderr.String()).To(ContainSubstring("powerlevel10k"))
+		})
+	})
+
+	Describe("component pull", func() {
+		It("pulls each component in the documented order: vim, zsh, byobu, nvim, fonts", func() {
+			Expect(f.Setup.Run()).To(Succeed())
+			Expect(f.PullLog).To(Equal(f.ComponentNames))
+		})
+
+		It("continues pulling remaining components when one fails, and reports the failure", func() {
+			f.ComponentErrs = map[string]error{"zsh": fmt.Errorf("disk full")}
+			f.assemble()
+
+			Expect(f.Setup.Run()).To(Succeed())
+
+			Expect(f.PullLog).To(Equal(f.ComponentNames))
+			Expect(f.Stderr.String()).To(ContainSubstring("zsh"))
+			Expect(f.Stderr.String()).To(ContainSubstring("disk full"))
+		})
+	})
+
+	Describe("yaml config write", func() {
+		It("the saved config can be unmarshaled back as YAML packages", func() {
+			Expect(f.Setup.Run()).To(Succeed())
+			cfg, err := f.Config.Load()
+			Expect(err).NotTo(HaveOccurred())
+
+			// Round-trip the saved config through YAML to make sure the shape stays serializable.
+			raw, err := yaml.Marshal(cfg)
+			Expect(err).NotTo(HaveOccurred())
+			var roundTripped config.Config
+			Expect(yaml.Unmarshal(raw, &roundTripped)).To(Succeed())
+			Expect(roundTripped.Packages).To(HaveLen(len(f.InstallableNames)))
+		})
+	})
+
+	Describe("post-setup next steps", func() {
+		It("prints the rustup, ghcup, and powerlevel10k hints", func() {
+			Expect(f.Setup.Run()).To(Succeed())
+			out := f.Stdout.String()
+			Expect(out).To(ContainSubstring("rustup install stable"))
+			Expect(out).To(ContainSubstring("ghcup tui"))
+			Expect(out).To(ContainSubstring("Powerlevel10k"))
 		})
 	})
 })

@@ -32,8 +32,6 @@ declare -gA ZSH_PATHS=(
   [funcs_local]="${HOME}/.zshrc_funcs"
   [profile_repo]="${REPO_ROOT}/zsh/profile"
   [profile_local]="${HOME}/.profile"
-  [starship_repo]="${REPO_ROOT}/zsh/starship.toml"
-  [starship_local]="${HOME}/.config/starship.toml"
 )
 
 # Byobu paths

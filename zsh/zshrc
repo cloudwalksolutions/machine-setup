@@ -34,8 +34,6 @@ if [[ -n "$ZSH_VERSION" ]]; then
 
   if [[ -d "$ZSH" ]]; then
     source $ZSH/oh-my-zsh.sh
-  elif command -v starship &>/dev/null; then
-    eval "$(starship init zsh)"
   fi
 fi
 
@@ -54,17 +52,13 @@ if [[ -n "$BASH_VERSION" ]]; then
     source /usr/share/bash-completion/bash_completion
   fi
 
-  # Prompt: use starship if available, otherwise git-aware PS1
-  if command -v starship &>/dev/null; then
-    eval "$(starship init bash)"
-  else
-    __git_ps1_branch() {
-      local branch
-      branch=$(git symbolic-ref --short HEAD 2>/dev/null || git rev-parse --short HEAD 2>/dev/null)
-      [[ -n "$branch" ]] && echo " ($branch)"
-    }
-    PS1='\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[33m\]$(__git_ps1_branch)\[\033[00m\]\$ '
-  fi
+  # Git-aware PS1.
+  __git_ps1_branch() {
+    local branch
+    branch=$(git symbolic-ref --short HEAD 2>/dev/null || git rev-parse --short HEAD 2>/dev/null)
+    [[ -n "$branch" ]] && echo " ($branch)"
+  }
+  PS1='\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[33m\]$(__git_ps1_branch)\[\033[00m\]\$ '
 fi
 
 # ── Shared (runs in both zsh and bash) ──────────────────────────────────────
@@ -102,3 +96,14 @@ export PATH="/Users/walkerobrien/.rd/bin:$PATH"
 ### MANAGED BY RANCHER DESKTOP END (DO NOT EDIT)
 
 export PATH="$HOME/.local/bin:$PATH"
+
+# Rust toolchain — brew's rustup is keg-only, so we add it explicitly.
+if command -v brew &>/dev/null; then
+  _rustup_prefix="$(brew --prefix rustup 2>/dev/null)"
+  [[ -n "$_rustup_prefix" && -d "$_rustup_prefix/bin" ]] && export PATH="$_rustup_prefix/bin:$PATH"
+fi
+# Cargo-installed binaries land in ~/.cargo/bin after `rustup install stable`.
+[[ -d "$HOME/.cargo/bin" ]] && export PATH="$HOME/.cargo/bin:$PATH"
+
+# Ruby Version Manager (sourced when present so `rvm`, `ruby`, gem shims work).
+[[ -s "$HOME/.rvm/scripts/rvm" ]] && source "$HOME/.rvm/scripts/rvm"
