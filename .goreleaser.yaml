@@ -1,0 +1,73 @@
+# GoReleaser config (schema v2). Docs: https://goreleaser.com
+# The Go module lives in cli/, so builds set `dir: cli`.
+# Test locally without a tag:  HOMEBREW_TAP_TOKEN=x goreleaser release --snapshot --clean
+version: 2
+
+project_name: tars
+
+before:
+  hooks:
+    - go -C cli mod tidy
+
+builds:
+  - id: tars
+    dir: cli          # go.mod + main.go live here
+    main: .           # relative to dir -> cli/main.go
+    binary: tars
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{ .Version }}
+      - -X main.commit={{ .Commit }}
+      - -X main.date={{ .Date }}
+
+archives:
+  - id: tars
+    formats: [tar.gz]
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
+
+# Publishes a Homebrew cask to cloudwalksolutions/homebrew-tap.
+# Requires a HOMEBREW_TAP_TOKEN secret (a PAT with write access to the tap repo);
+# the default GITHUB_TOKEN cannot push to a different repo.
+homebrew_casks:
+  - name: tars
+    repository:
+      owner: cloudwalksolutions
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    # Skip the tap push for snapshots/prereleases (so local snapshot builds and
+    # pre-1.0 prereleases don't need the tap). Full releases push normally.
+    skip_upload: auto
+    homepage: "https://github.com/cloudwalksolutions/machine-setup"
+    description: "CloudWalk dev-machine setup CLI (dotfiles, tools, fonts, terminals)"
+    # Remove the quarantine xattr so the unsigned binary runs without a Gatekeeper prompt.
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/tars"]
+          end
+
+release:
+  draft: false
+  prerelease: auto

@@ -1,0 +1,13 @@
+add-pg() {
+  local env_file="${1:-.env}"
+  [ -f "$env_file" ] && source "$env_file"
+
+  while [ -z "$DB_HOST" ];     do printf "DB_HOST: ";              read DB_HOST;     done
+  while [ -z "$DB_USERNAME" ]; do printf "DB_USERNAME: ";          read DB_USERNAME; done
+  if   [ -z "$DB_PORT" ];      then printf "DB_PORT [5432]: ";     read _port; DB_PORT="${_port:-5432}"; fi
+  if   [ -z "$DB_PASSWORD" ];  then printf "DB_PASSWORD (empty for IAM/proxy): "; read -s DB_PASSWORD; echo; fi
+
+  local env_args="-e PGHOST=${DB_HOST} -e PGPORT=${DB_PORT} -e PGUSER=${DB_USERNAME}"
+  [ -n "$DB_PASSWORD" ] && env_args="$env_args -e PGPASSWORD=${DB_PASSWORD}"
+  claude mcp add pgedge $env_args -- /usr/local/bin/pgedge-postgres-mcp
+}

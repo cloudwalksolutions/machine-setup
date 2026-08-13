@@ -1,170 +1,138 @@
-# Machine Setup
+# tars
 
-One-command macOS machine setup for provisioning a fully configured development environment.
-
-## Quick Start
-
-```bash
-# Fresh machine setup
-make init
-
-# Pull latest configs
-make pull
-
-# Push local changes
-make push
-```
-
-## Overview
-
-This repository manages dotfiles and development environment configurations with:
-
-- **One-command setup**: Go from fresh MacBook to production-ready in minutes
-- **Automatic backups**: Semantic versioning (v1, v2, v3...) before any changes
-- **Modular design**: Pull/push individual components or all at once
-- **Easy to customize**: Personal overrides with `.zshrc_secret` and `.zshrc_funcs`
-
-## What's Included
-
-- **Neovim**: IDE-quality configuration with LSP, debugging, AI integrations
-- **Zsh**: oh-my-zsh with Powerlevel10k theme, extensive aliases
-- **Byobu/tmux**: Terminal multiplexer with custom status bar
-- **Vim**: Fallback configuration with Monokai theme
-- **Fonts**: Hack Nerd Fonts for proper icon display
-
-## Usage
-
-### Main Commands
-
-```bash
-make help        # Show all available commands
-make init        # Fresh machine setup (install deps + pull configs)
-make pull        # Pull all configs from repo → local
-make push        # Push all configs from local → repo
-```
-
-### Component-Specific Commands
-
-```bash
-make pull-nvim   # Pull only Neovim config
-make pull-zsh    # Pull only Zsh config
-make pull-byobu  # Pull only Byobu config
-make pull-vim    # Pull only Vim config
-make pull-fonts  # Install fonts only
-
-make push-nvim   # Push only Neovim config
-make push-zsh    # Push only Zsh config
-make push-byobu  # Push only Byobu config
-make push-vim    # Push only Vim config
-```
-
-### Backup Management
-
-```bash
-make backup        # Create manual backup of all configs
-make backups-list  # List all backup versions
-```
-
-Backups are versioned semantically (v1, v2, v3...) and stored in `backups/<component>/vN/`.
-
-## Fresh Machine Setup
-
-On a new MacBook:
-
-```bash
-# Clone this repository
-git clone <repo-url> ~/machine-setup
-cd ~/machine-setup
-
-# Run setup (installs brew packages + applies all configs)
-make init
-
-# Edit your personal secrets
-vim ~/.zshrc_secret
-
-# Restart terminal
-```
-
-## Customization
-
-### Personal Files (Git-Ignored)
-
-- `~/.zshrc_secret` - API keys, tokens, private env vars
-- `~/.zshrc_funcs` - Personal shell functions (synced if you want)
-
-### Synced Files
-
-All configuration files in this repo are synced bidirectionally:
-- Neovim: `~/.config/nvim/`
-- Zsh: `~/.zshrc`, `~/.zshrc_aliases`, `~/.zshrc_funcs`, `~/.profile`
-- Byobu: `~/.byobu/`
-- Vim: `~/.vimrc`, `~/.vim/colors/`
-
-## Development Workflow
-
-1. **Make changes locally**: Edit files in `~/.config/nvim`, `~/.zshrc`, etc.
-2. **Test your changes**: Restart terminal, open nvim, verify everything works
-3. **Push to repo**: `make push` (automatically commits and pushes)
-4. **Sync to other machines**: `git pull && make pull`
-
-## Architecture
-
-```
-machine-setup/
-├── Makefile                    # User interface
-├── scripts/
-│   ├── lib/                    # Shared utilities
-│   ├── components/             # Component-specific scripts
-│   ├── pull.sh                 # Pull orchestrator
-│   ├── push.sh                 # Push orchestrator
-│   └── init.sh                 # Init orchestrator
-├── backups/                    # Versioned backups (git-ignored)
-├── nvim/                       # Neovim configuration
-├── zsh/                        # Zsh configuration
-├── byobu/                      # Byobu configuration
-├── vim/                        # Vim configuration
-└── fonts/                      # Hack Nerd Fonts
-```
-
-## Migration from Old Version
-
-### Migrating from copy.sh
-
-If you were using the old `copy.sh` script:
-
-```bash
-# Old way (deprecated)
-./copy.sh pull
-./copy.sh push
-
-# New way
-make pull
-make push
-```
-
-The old script still works but shows a deprecation warning.
-
-### Migrating File Names
-
-If you have old dot-based naming (`.zshrc.aliases`, `.zshrc.funcs`, `.zshrc.secret`):
-
-```bash
-make migrate
-```
-
-This will:
-- Copy `.zshrc.aliases` → `.zshrc_aliases`
-- Copy `.zshrc.funcs` → `.zshrc_funcs`
-- Copy `.zshrc.secret` → `.zshrc_secret`
-- Optionally remove old files after successful migration
+`tars` is a one-command CLI that provisions a macOS development environment —
+dotfiles, dev tools, fonts, and terminal settings — with automatic, versioned
+backups of anything it replaces. It applies the opinionated CloudWalk configs kept in
+**this repository**, so you run it from a clone of the repo.
 
 ## Requirements
 
-- macOS (tested on macOS 11+)
-- Homebrew (installed by init script if needed)
-- Git
+- **macOS** (primary target; a Linux/apt path exists but is partial)
+- **[Homebrew](https://brew.sh)** — `tars` installs packages via `brew` but does not
+  install Homebrew itself
+- **git** (ships with the Xcode Command Line Tools: `xcode-select --install`)
 
-## See Also
+## Getting started (fresh machine)
 
-- [CLAUDE.md](CLAUDE.md) - Detailed architecture documentation for Claude Code
-- [nvim/CLAUDE.md](nvim/CLAUDE.md) - Neovim-specific documentation
+```bash
+# 1. Clone this repo (it holds both the CLI and the configs tars applies)
+git clone https://github.com/cloudwalksolutions/machine-setup.git ~/machine-setup
+cd ~/machine-setup
+
+# 2. Install the tars CLI
+brew install cloudwalksolutions/homebrew-tap/tars
+#   (or build from source: cd cli && go build -o tars . && sudo mv tars /usr/local/bin/)
+
+# 3. Provision the machine — run from inside the repo
+tars setup
+```
+
+`tars` finds the repo by walking up from your current directory (looking for this
+repo's `cli/go.mod` + `nvim/`). To run it from anywhere, point it at your clone:
+
+```bash
+export MACHINE_SETUP_REPO="$HOME/machine-setup"
+```
+
+Verify the install any time with `tars --version`.
+
+## Commands
+
+```bash
+tars setup     # full bootstrap: pick tools, install packages, apply all configs
+tars pull      # apply repo configs to this machine (dotfiles/fonts/terminals) — no installs
+tars push      # copy your local config changes back into the repo
+```
+
+- **`setup`** is the fresh-machine command. In order, it: shows a welcome screen, lets
+  you pick which dev tools to install, installs those packages (Homebrew), installs
+  oh-my-zsh and Powerlevel10k, then applies all configs.
+- **`pull`** only lays down configuration — no package installs, no network — so it's
+  safe to run repeatedly (e.g. after `git pull` to sync new config).
+- **`push`** captures your local edits back into the repo so you can commit them.
+
+For unattended/CI runs, set `MACHINE_SETUP_NO_FORM=1` to skip the interactive prompts
+(all offered tools are selected).
+
+## ⚠️ What this does to your machine
+
+`tars` writes into your home directory. **Before overwriting anything it makes a
+versioned backup** under `backups/<component>/vN/`, so nothing is lost — but be aware
+it replaces these if they already exist:
+
+- `~/.zshrc`, `~/.zshrc_aliases`, `~/.zshrc_funcs`, `~/.zprofile`
+- `~/.config/nvim/` (replaced wholesale)
+- `~/.byobu/`, `~/.vimrc`, `~/.vim/colors/`
+
+Also note:
+
+- **These are opinionated CloudWalk defaults** — you'll get our Neovim/Zsh/Byobu setup.
+- **Fonts install needs `sudo`.** Copying into `/Library/Fonts` prompts for your password.
+- **`setup` runs third-party install scripts** (oh-my-zsh, Powerlevel10k) via their
+  official `curl | sh` installers.
+- Put personal secrets and per-account aliases in `~/.zshrc_secret` (git-ignored) — see
+  `zsh/zshrc_secret.template`.
+
+## What's included
+
+- **Neovim** — IDE-quality config with LSP, debugging, AI integrations
+- **Zsh** — oh-my-zsh + Powerlevel10k, aliases, functions
+- **Byobu/tmux** — custom status bar and keybindings
+- **Vim** — fallback config with Monokai
+- **Fonts** — Hack Nerd Font (icon glyphs in nvim/terminal)
+- **Terminals** — sets iTerm2 + Terminal.app to the Nerd Font
+
+## Customization (git-ignored)
+
+- `~/.zshrc_secret` — API keys, tokens, per-account aliases (template:
+  `zsh/zshrc_secret.template`)
+- `~/.zshrc_funcs` — personal shell functions
+
+## How backups work
+
+Every overwrite is archived first, semantically versioned under
+`backups/<component>/vN/` (and `backups/<component>-repo/vN/` for `push`). Backups are
+git-ignored and never auto-deleted. `tars` skips the copy (and the backup) when a file
+already matches, so re-running is a no-op when nothing changed.
+
+## Releasing (maintainers)
+
+Releases are cut by GoReleaser on a semver tag:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0     # triggers .github/workflows/release.yml
+```
+
+This builds darwin/linux (amd64/arm64) archives + checksums, publishes a GitHub
+Release, and updates the Homebrew tap. **One-time prerequisites for the Homebrew push:**
+
+1. Create the tap repo `cloudwalksolutions/homebrew-tap` (empty is fine).
+2. Add a `HOMEBREW_TAP_TOKEN` Actions secret — a PAT with write access to that tap repo
+   (the default `GITHUB_TOKEN` can't push to another repo).
+
+Test the release config locally without tagging (builds into `./dist`):
+
+```bash
+HOMEBREW_TAP_TOKEN=x goreleaser release --snapshot --clean
+```
+
+## Development
+
+The CLI is Go, in `cli/` (the module lives there). Tests are Ginkgo/Gomega:
+
+```bash
+cd cli && go test ./...
+```
+
+CI (`.github/workflows/ci.yml`) runs `go vet` + build + `go test -race` on Linux and
+macOS, golangci-lint, and a Docker-isolated end-to-end test
+(`test/e2e/Dockerfile`) on every PR to `main`.
+
+Config management lives entirely in `tars`. The `Makefile` is for developing the CLI +
+configs: `make build`, `make lint`, `make unit` (fast/airgapped), `make integration`
+(brew + Neovim tests), `make test` (unit + integration), `make e2e` (Docker), and
+`make check` (lint + build + test). Run `make help` for the full list.
+
+> See [CLAUDE.md](CLAUDE.md) and [nvim/CLAUDE.md](nvim/CLAUDE.md) for architecture and
+> the testing/TDD workflow.

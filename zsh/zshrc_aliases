@@ -32,10 +32,8 @@ alias add-figma='claude mcp add --transport http figma-dev-mode-mcp-server http:
 alias vse='docker-compose exec -u vscode mono zsh'
 
 
-# Profile manipulations
-alias a42='cp ~/.ssh/id_rsa.a42 ~/.ssh/id_rsa; cp ~/.ssh/id_rsa.pub.a42 ~/.ssh/id_rsa.pub; gcloud config set account walker.obrien@apex42.ai'
-alias cws='cp ~/.ssh/id_rsa.cws ~/.ssh/id_rsa; cp ~/.ssh/id_rsa.pub.cws ~/.ssh/id_rsa.pub; gcloud config set account walker.obrien@cloudwalksolutions.io'
-alias pham='cp ~/.ssh/id_rsa.pham ~/.ssh/id_rsa; cp ~/.ssh/id_rsa.pub.pham ~/.ssh/id_rsa.pub; gcloud config set account walker.obrien@jaanhealth.com'
+# Per-account SSH/gcloud switch aliases are personal — define them in
+# ~/.zshrc_secret (see zsh/zshrc_secret.template for an example).
 
 
 alias getpub='cat ~/.ssh/id_rsa.pub'

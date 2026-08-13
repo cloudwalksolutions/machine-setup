@@ -1,5 +1,16 @@
+# Login-shell profile (deployed to ~/.zprofile on macOS, ~/.profile elsewhere).
+# Keep this machine-agnostic — per-machine bits belong in ~/.zprofile_local.
 
-# Added by LM Studio CLI (lms)
-export PATH="$PATH:/Users/walkerobrien/.lmstudio/bin"
-# End of LM Studio CLI section
+# Homebrew: path_helper already adds the bin dir via /etc/paths.d/homebrew, but
+# this also sets HOMEBREW_PREFIX, MANPATH, INFOPATH, etc.
+[ -x /opt/homebrew/bin/brew ] && eval "$(/opt/homebrew/bin/brew shellenv)"
 
+# RVM
+export PATH="$PATH:$HOME/.rvm/bin"
+[[ -s "$HOME/.rvm/scripts/rvm" ]] && source "$HOME/.rvm/scripts/rvm"
+
+# LM Studio CLI (lms)
+export PATH="$PATH:$HOME/.lmstudio/bin"
+
+# Machine-specific overrides (git-ignored; JetBrains Toolbox, per-host PATH, etc.)
+[[ -f "$HOME/.zprofile_local" ]] && source "$HOME/.zprofile_local"

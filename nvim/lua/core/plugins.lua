@@ -417,9 +417,10 @@ local plugin_specs = {
     end,
   },
 
-  -- K8s
+  -- K8s (build hook fixes upstream case-sensitive require bug on Linux)
   {
     "hsalem7/nvim-k8s",
+    build = "mv lua/nvim-k8s/k8s.lua lua/nvim-k8s/K8s.lua 2>/dev/null; mv lua/nvim-k8s/window.lua lua/nvim-k8s/Window.lua 2>/dev/null; true",
     cond = function()
       return vim.fn.executable("kubectl") == 1
     end,

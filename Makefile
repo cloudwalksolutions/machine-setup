@@ -1,120 +1,61 @@
-# Makefile for machine-setup repository
-# Provides user-friendly interface for configuration management
+# Makefile for machine-setup.
+#
+# Machine provisioning is the `tars` CLI: tars setup | pull | push (see README).
+# This Makefile is for developing tars + the configs.
+#
+# Test layers:
+#   unit         fast, airgapped logic tests (no external deps, no network)
+#   integration  external deps — brew installers + Neovim config tests
+#   e2e          the whole thing in Docker, like provisioning a fresh machine
+#   test         = unit + integration
+#   check        = lint + build + test (the local gate)
 
-SHELL := /bin/zsh
-
+SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
+CLI := cli
+
 .PHONY: help
-help:                           ## Show this help message
-	@echo '🔧 Machine Setup - Configuration Management'
+help:            ## Show this help
+	@echo 'Provisioning: `tars setup | pull | push` (see README). Dev targets:'
 	@echo ''
-	@echo 'Usage: make [target]'
-	@echo ''
-	@echo 'Main targets:'
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
-		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
 
-.PHONY: init
-init:                           ## Fresh machine setup (brew install + pull configs)
-	@echo '🚀 Initializing machine setup...'
-	@./scripts/init.sh
+.PHONY: build
+build:           ## Build the tars CLI binary (cli/tars)
+	cd $(CLI) && go build -o tars .
 
-.PHONY: pull
-pull:                           ## Copy configs from repo → local machine (with backup)
-	@echo '⬇️  Pulling configurations...'
-	@./scripts/pull.sh
+.PHONY: lint
+lint:            ## Lint the CLI (golangci-lint)
+	cd $(CLI) && golangci-lint run ./...
 
-.PHONY: push
-push:                           ## Copy configs from local machine → repo (with git commit)
-	@echo '⬆️  Pushing configurations...'
-	@./scripts/push.sh
+.PHONY: unit
+unit:            ## Fast, airgapped unit tests
+	cd $(CLI) && go test ./...
 
-.PHONY: backup
-backup:                         ## Create manual backup of all local configs
-	@echo '💾 Creating manual backup...'
-	@. ./scripts/lib/common.sh && backup_all
+.PHONY: integration
+integration: test-nvim  ## External-dep tests: brew installers + Neovim
+	cd $(CLI) && INTEGRATION=1 go test ./internal/pkg/brew/...
 
-.PHONY: backups-list
-backups-list:                   ## List all backup versions
-	@echo '📋 Listing all backups...'
-	@echo ''
-	@. ./scripts/lib/common.sh && list_all_backups
+.PHONY: test
+test: unit integration  ## All tests (unit + integration)
 
-.PHONY: migrate
-migrate:                        ## Migrate old dot-based filenames to underscore naming
-	@echo '🔄 Migrating to new naming convention...'
-	@./scripts/migrate.sh
+.PHONY: e2e
+e2e:             ## Full end-to-end in Docker (fresh-machine simulation)
+	docker build -f test/e2e/Dockerfile -t tars-e2e .
+
+.PHONY: check
+check: lint build test  ## Local gate: lint, build, then all tests
+
+.PHONY: run
+run: build       ## Build and run `tars setup`
+	$(CLI)/tars setup
 
 .PHONY: test-nvim
-test-nvim:                      ## Run Neovim configuration tests
-	@echo '🧪 Running Neovim smoke tests...'
-	@nvim -u nvim/init.lua --headless -l nvim/tests/smoke_test.lua
+test-nvim:       ## Neovim smoke tests (headless)
+	nvim -u nvim/init.lua --headless -l nvim/tests/smoke_test.lua
 
 .PHONY: health-nvim
-health-nvim:                    ## Run Neovim health checks
-	@echo '🏥 Running Neovim health checks...'
-	@nvim --headless -c "checkhealth nvim_config" -c "quit"
-
-.PHONY: pull-nvim
-pull-nvim:                      ## Pull only Neovim config
-	@echo '⬇️  Pulling Neovim config...'
-	@./scripts/components/nvim.sh pull
-
-.PHONY: pull-zsh
-pull-zsh:                       ## Pull only Zsh config
-	@echo '⬇️  Pulling Zsh config...'
-	@./scripts/components/zsh.sh pull
-
-.PHONY: pull-byobu
-pull-byobu:                     ## Pull only Byobu config
-	@echo '⬇️  Pulling Byobu config...'
-	@./scripts/components/byobu.sh pull
-
-.PHONY: pull-vim
-pull-vim:                       ## Pull only Vim config
-	@echo '⬇️  Pulling Vim config...'
-	@./scripts/components/vim.sh pull
-
-.PHONY: pull-fonts
-pull-fonts:                     ## Pull only fonts
-	@echo '⬇️  Installing fonts...'
-	@./scripts/components/fonts.sh pull
-
-.PHONY: push-nvim
-push-nvim:                      ## Push only Neovim config
-	@echo '⬆️  Pushing Neovim config...'
-	@./scripts/components/nvim.sh push
-
-.PHONY: push-zsh
-push-zsh:                       ## Push only Zsh config
-	@echo '⬆️  Pushing Zsh config...'
-	@./scripts/components/zsh.sh push
-
-.PHONY: push-byobu
-push-byobu:                     ## Push only Byobu config
-	@echo '⬆️  Pushing Byobu config...'
-	@./scripts/components/byobu.sh push
-
-.PHONY: push-vim
-push-vim:                       ## Push only Vim config
-	@echo '⬆️  Pushing Vim config...'
-	@./scripts/components/vim.sh push
-
-CLI_DIR  := $(CURDIR)/cli
-CLI_BIN  := $(CLI_DIR)/machine-setup
-
-.PHONY: build-cli
-build-cli:                      ## Build the machine-setup Go CLI binary
-	@echo '🔨 Building CLI...'
-	@cd $(CLI_DIR) && go build -o machine-setup .
-
-.PHONY: test-cli
-test-cli: build-cli             ## Run CLI tests (Ginkgo suite)
-	@echo '🧪 Running CLI tests...'
-	@cd $(CLI_DIR) && go test ./cmd/... -v
-
-.PHONY: run-setup
-run-setup: build-cli            ## Run the machine-setup setup command
-	@echo '🚀 Running machine-setup setup...'
-	@$(CLI_BIN) setup
+health-nvim:     ## Neovim health checks
+	nvim --headless -c "checkhealth nvim_config" -c "quit"
