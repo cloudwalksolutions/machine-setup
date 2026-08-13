@@ -1,141 +1,168 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code (claude.ai/code) when working in this repository.
 
 ## Repository Purpose
 
-This is a one-command macOS machine setup repository that provisions a fully configured development environment. The goal is to go from a fresh MacBook to a production-ready development machine with minimal manual intervention.
+A one-command macOS machine-setup tool. It goes from a fresh MacBook to a
+production-ready dev environment: dev tools, dotfiles (Neovim, Zsh, Byobu, Vim),
+fonts, and terminal settings. The user-facing CLI is **`tars`** (Go, in `cli/`).
 
 ## Core Philosophy
 
-**Single Command Setup**: Run `make init` on a new machine and get:
-- Package manager and essential tools (byobu, neovim)
-- IDE-quality Neovim configuration with LSP, debugging, AI integrations
-- Zsh with oh-my-zsh, plugins, and custom prompt
-- Terminal multiplexer (byobu/tmux) with custom status bar
-- Development fonts and macOS automation presets
-- All environment configurations in their proper locations
-
-**Bidirectional Sync**: Makefile commands manage configuration flow:
-- `make pull` - Repository → Local machine (apply configs with backups)
-- `make push` - Local machine → Repository (save changes with git commit)
-- Component-specific commands like `make pull-nvim` for granular control
-- This enables configuration development in situ with easy version control
-
-**Versioned Backups**: Automatic semantic versioning before any destructive operations:
-- Backups stored in `backups/<component>/v1/`, `v2/`, `v3/`...
-- Never lose configuration - all changes are backed up
-- Use `make backups-list` to see all versions
-
-**Personalization First**: Configurations are designed to be overridden:
-- Zsh sources optional files: `~/.zshrc_secret`, `~/.zshrc_funcs`, `.env`, `./venv/bin/activate`
-- Template provided for secrets: `zsh/zshrc_secret.template`
-- Neovim plugin system allows easy additions/removals
-- Git ignores personal/secret files by default
+- **Single command**: `tars setup` installs packages (Homebrew), oh-my-zsh,
+  Powerlevel10k, then applies all configs.
+- **Bidirectional sync**: `tars pull` applies repo configs to the machine (no installs,
+  no network — safe to re-run); `tars push` copies local edits back into the repo.
+- **Versioned backups**: every overwrite is archived first under
+  `backups/<component>/vN/` (and `backups/<component>-repo/vN/` for push). Never
+  auto-deleted. Identical files are skipped (no backup, no copy) so re-runs are no-ops.
+- **Self-contained Go**: the CLI reimplements all logic natively. It NEVER shells out to
+  repo scripts. (The old `scripts/` bash tooling has been removed; `cli/` is the source
+  of truth.)
+- **Personalization**: Zsh sources optional `~/.zshrc_secret` (git-ignored; template at
+  `zsh/zshrc_secret.template`) and `~/.zshrc_funcs`. Keep shared configs machine-agnostic
+  — no hardcoded personal paths; per-machine bits go in git-ignored `*_local`/secret files.
 
 ## Architecture
 
-### Component Structure
-
 ```
-├── Makefile                    # User-facing interface
-├── scripts/
-│   ├── lib/
-│   │   ├── common.sh          # Shared utilities (backup, logging, validation)
-│   │   └── config.sh          # Path constants and configuration
-│   ├── components/             # Modular component handlers
-│   │   ├── nvim.sh            # Neovim pull/push operations
-│   │   ├── zsh.sh             # Zsh pull/push operations
-│   │   ├── byobu.sh           # Byobu pull/push operations
-│   │   ├── vim.sh             # Vim pull/push operations
-│   │   └── fonts.sh           # Fonts installation
-│   ├── pull.sh                # Orchestrates all component pulls
-│   ├── push.sh                # Orchestrates all component pushes
-│   └── init.sh                # Fresh machine setup
-├── backups/                    # Versioned backups (git-ignored)
-├── nvim/                       # Full IDE-quality Neovim config (see nvim/CLAUDE.md)
-├── zsh/                        # Shell configuration and aliases
-├── byobu/                      # Terminal multiplexer config
-├── vim/                        # Fallback vim config
-├── fonts/                      # Hack Nerd Fonts
-└── walker.bttpreset            # BetterTouchTool macOS automation
+├── cli/                         # the `tars` Go CLI (module lives here)
+│   ├── main.go                  # entrypoint; version/commit/date injected via ldflags
+│   ├── cmd/                     # cobra commands: setup, pull, push (+ root)
+│   │   ├── setup.go             # Setup orchestrator + SequentialPuller (DI, testable)
+│   │   ├── pull.go / push.go    # apply / capture configs; SequentialPusher
+│   └── internal/
+│       ├── components/          # per-tool Pull/Push: vim, zsh, byobu, nvim, fonts, terminal
+│       ├── fsutil/              # Backup + SafeCopy (versioned, idempotent)
+│       ├── paths/               # repo→local file mappings (ForOS: OS-aware)
+│       ├── repo/                # repo-root discovery (markers: cli/go.mod + nvim/)
+│       ├── pkg/                 # installable dev tools (brew/apt/rvm) + registry
+│       ├── forms/               # huh TUI (honors MACHINE_SETUP_NO_FORM=1)
+│       ├── shell/               # oh-my-zsh / powerlevel10k installers
+│       └── config/              # persisted YAML config
+├── nvim/  zsh/  byobu/  vim/     # the dotfiles tars manages
+├── fonts/                       # Hack Nerd Font files
+├── terminal/                    # font string + Terminal.app profile (iTerm2/Terminal.app)
+├── backups/                     # versioned backups (git-ignored)
+├── Makefile                     # slim: nvim config tests + Go dev helpers only
+└── .goreleaser.yaml, .github/   # release (tag v*) + CI
 ```
 
-### Key Configuration Locations
+The CLI locates the repo root by walking up for `cli/go.mod` + `nvim/`, or via the
+`MACHINE_SETUP_REPO` env var (`cli/internal/repo`). So `tars` must run from inside a
+clone of this repo.
 
-**Neovim**: Modular Lua architecture with core system (`lua/core/`) and plugin configs (`lua/config/`). See `nvim/CLAUDE.md` for complete documentation.
+## Testing Strategy
 
-**Zsh**: Main config in `zsh/zshrc`, aliases in `zsh/zshrc_aliases`, functions in `zsh/zshrc_funcs`. Uses oh-my-zsh with plugins for git, kubectl, fzf, etc. Secret template in `zsh/zshrc_secret.template`.
+**Framework: Ginkgo v2 + Gomega.** Each package has a `*_suite_test.go` runner and
+`*_test.go` specs. The Makefile maps the layers to targets: `make unit` (fast,
+airgapped), `make integration` (external deps), `make e2e` (Docker), `make test`
+(unit + integration), `make check` (lint + build + test). CI runs `go test -race`.
 
-**Byobu**: Custom status bar and keybindings, including git integration via `byobu/bin/1_git`.
+Tests are layered:
 
-## Development Workflow
+1. **Unit** (`make unit` = `go test ./...`) — the fast, airgapped bulk, no external
+   deps or network. Two kinds:
+   - Logic specs (`internal/...`) with `GinkgoT().TempDir()` fake repos/HOMEs — component
+     Pull/Push, `fsutil` backup/copy, `paths` OS-awareness, the `pkg` registry.
+   - Command specs (`cmd/`) that construct `Setup`/`SequentialPuller`/`SequentialPusher`
+     with **spy collaborators** and assert orchestration (order, failure-tolerance),
+     never touching the real machine.
+2. **Integration** (`make integration`) — real external deps: brew installers gated by
+   `INTEGRATION=1` (installs/removes `hello`) plus the Neovim config tests (real `nvim`).
+   Off by default in `go test`.
+3. **End-to-end** (`make e2e`) — `test/e2e/Dockerfile`: builds `tars`, runs `tars pull`
+   in a non-root container with `HOME` forced to a throwaway dir and `MACHINE_SETUP_REPO=/repo`
+   — **no apt, no sudo, no network at runtime** — then asserts dotfiles/fonts landed, a
+   versioned backup is created on modify-then-repull, and a clean re-pull is idempotent.
+   Assertions are `RUN` lines, so a failure fails `docker build`. Runs in CI on every PR.
 
-### Testing Changes with Claude Code
+**The seam pattern (critical).** Unit tests must never touch the real system (plists,
+`sudo cp`, network, `/Library/Fonts`). Anything that does is injected behind a seam so a
+spec can drive a fake and still fail red-first:
 
-**Current approach** for validating changes:
-1. Make modifications to configs in this repository OR edit locally
-2. If editing in repo: Run `make pull` to apply to local environment
-3. Test functionality (open nvim, source zshrc, check byobu)
-4. If working and edited locally: Run `make push` to commit back to repo
+- **Function-typed fields** for side-effecting ops, e.g. `Fonts.CopyFn(src,dst)` (real:
+  `sudo cp`), and `Terminal.CurrentFontFn / SetFontFn / ApplyFn / ExportFn` (real:
+  PlistBuddy / `open` / `defaults`). Tests assign fakes; the real impl is left untested
+  by unit tests and validated via the E2E and manual runs.
+- **OS override constructors**: `NewFontsForOS(opts, goos)`, `NewTerminalForOS(opts, goos)`
+  so darwin-only paths are exercised on any host. CI also runs a `macos-latest` matrix leg
+  so darwin-only code compiles and its unit tests run for real.
+- **Path/env overrides**: `Fonts.LocalOverride`, `MACHINE_SETUP_REPO`,
+  `MACHINE_SETUP_NO_FORM=1` (skips the TUI).
 
-**Backup safety**: All pull/push operations automatically create versioned backups (v1, v2, v3...) before making changes. Use `make backups-list` to view all versions.
+**Backup-safety invariant (must hold, is tested).** Any destructive write (e.g.
+`os.RemoveAll` in `nvim` Pull/Push) MUST call `fsutil.Backup(...)` first AND error-check
+it before removing — a backup failure must abort before any data is lost. `SafeCopy`
+enforces backup-before-overwrite and short-circuits on byte-identical content.
 
-**Future considerations:**
-- Automated validation scripts for config syntax
-- Docker-based testing environment for isolated testing
-- Dry-run mode for operations
-- Validation of required dependencies before applying configs
+**Neovim config is tested via Lua, not Go**: `make test-nvim` runs headless smoke
+tests (`nvim/tests/smoke_test.lua`); `make health-nvim` runs checkhealth. `make test-nvim`
+is also run as part of `make integration`.
 
-### Making Configuration Changes
+**CI** (`.github/workflows/ci.yml`, on PR/push to `main`): `test` matrix
+(ubuntu + macOS: `go vet`, `go build`, `go test -race`), `lint`
+(golangci-lint, config `cli/.golangci.yml`), and `e2e-linux` (the Docker build).
 
-1. **Direct editing**: Edit files in home directory (`~/.config/nvim`, `~/.zshrc`) for iterative development
-2. **Sync back**: Run `make push` when satisfied (automatically commits and pushes)
-3. **Pull updates**: Run `git pull && make pull` to apply latest from repo
-4. **Component-specific**: Use `make pull-nvim`, `make push-zsh`, etc. for granular control
+## Development Patterns (TDD)
 
-### Adding New Components
+**Strict red → green, one spec at a time.** This is non-negotiable for `cli/` code:
 
-When adding new tools or configurations:
-1. Create new component script in `scripts/components/<name>.sh` following the standard interface (pull/push functions)
-2. Add path mappings to `scripts/lib/config.sh`
-3. Add component to orchestration scripts (`scripts/pull.sh`, `scripts/push.sh`)
-4. Add Makefile targets: `pull-<name>` and `push-<name>`
-5. Add installation commands to `scripts/init.sh` if needed
-6. Update `.gitignore` to exclude generated/personal files
-7. Test on clean environment if possible
+1. Write ONE failing `It(...)` for the next small behavior.
+2. Run just that package (`go test ./internal/<pkg>/`), and SEE it fail (compile error or
+   assertion). Do not skip observing red.
+3. Write the MINIMAL code to make it green.
+4. Refactor if needed, keeping green. Then move to the next spec.
 
-## Customization and Overrides
+Do NOT batch-write many specs or implement ahead of a failing test. Match existing
+Ginkgo/Gomega style and the seam pattern above.
 
-### Personal Overrides (Git-Ignored)
+**Adding a new dotfile component** (Go, TDD each step):
 
-The configuration system automatically sources these files if they exist:
-- `~/.zshrc_secret` - Private environment variables, API keys (git-ignored, template provided)
-- `~/.zshrc_funcs` - Personal shell functions (synced if created)
-- Local `.env` files in project directories
-- Project-specific virtual environments
+1. Add its paths to `paths.go` (`<Comp>Paths` struct + wire into `ForOS`, OS-aware if
+   needed) — spec first in `paths_test.go`.
+2. Implement `cli/internal/components/<comp>.go` with `Name()` + `Pull()` (and `Push()`
+   if it's pushable). Use `fsutil.SafeCopy(src, dst, "<comp>", BackupRoot)` for
+   backup-before-overwrite + idempotent skip; for push, copy local→repo under
+   `"<comp>-repo"`. Put any system side-effects behind a function-typed seam.
+3. Register in `AllPullable` / `AllPushable` (`component.go`) — spec asserts membership.
+4. `gofmt`, then `go test ./... && golangci-lint run ./...` green.
 
-During `make init`, a template is copied to `~/.zshrc_secret` for easy setup.
+**Adding an installable tool**: edit the curated lists in
+`cli/internal/pkg/registry.go` (`darwinFormulas` / `darwinCasks` / `darwinTappedFormulas`
+/ `linuxAptPackages`, or a dedicated `apt` installable) — registry spec first. The
+registry, not any script, is the source of truth for installed tooling.
 
-### Modifying Shared Configuration
+**Conventions**: keep comments to a single concise line (state the why, not a paragraph).
+Never edit files with `sed`/`awk` stream edits — use proper edits and fix at the source.
 
-**For personal style preferences:**
-- Fork or maintain personal branch for significant deviations
-- Use conditional logic in configs (e.g., hostname-based customization)
-- Override keybindings in plugin configs rather than modifying core
+## Customization and Overrides (git-ignored)
 
-**For contributions:**
-- Keep changes broadly applicable
-- Avoid hardcoding personal preferences in shared files
-- Document new features or significant changes
+- `~/.zshrc_secret` — API keys, tokens, per-account aliases (template:
+  `zsh/zshrc_secret.template`; seeded by `setup` if missing).
+- `~/.zshrc_funcs` — personal shell functions.
+- Keep shared configs generic; machine-specific bits belong in `*_local` files sourced by
+  the canonical config (e.g. `~/.zprofile` sources `~/.zprofile_local`).
+
+## Releasing
+
+GoReleaser on a semver tag (`git tag v0.1.0 && git push origin v0.1.0` →
+`.github/workflows/release.yml`): builds darwin/linux × amd64/arm64 archives + checksums,
+publishes a GitHub Release, and updates the Homebrew tap. See the README's "Releasing"
+section for the one-time tap-repo + `HOMEBREW_TAP_TOKEN` prerequisites. Test locally with
+`HOMEBREW_TAP_TOKEN=x goreleaser release --snapshot --clean`.
 
 ## Important Notes
 
-- **Never commit secrets**: The `.gitignore` excludes secret files (`.zshrc_secret`), but be vigilant
-- **Backups are versioned**: All operations create semantic version backups (v1, v2, v3...) - never auto-deleted
-- **Neovim dependencies**: Neovim configuration requires Python3, Node.js, and various language servers (auto-installed via Mason)
-- **macOS specific**: This configuration is tailored for macOS (Homebrew, paths, BetterTouchTool, etc.)
-- **Old copy.sh deprecated**: Use `make` commands instead - `copy.sh` shows deprecation warning but still works
-- **Migration available**: Run `make migrate` to migrate old dot-based filenames (`.zshrc.aliases` → `.zshrc_aliases`)
-- **Neovim as primary editor**: Main development focus is Neovim; vim config is minimal fallback
-- **ALWAYS RUN TESTS**: After making any changes to Neovim config, ALWAYS run `make test-nvim` to validate changes - do not ask permission, just run them automatically
+- **Never commit secrets.** `.gitignore` excludes `.zshrc_secret`, `backups/`, and build
+  artifacts — stay vigilant.
+- **Backups are versioned** (v1, v2, v3…) and never auto-deleted.
+- **macOS-focused.** Homebrew, `/Library/Fonts`, iTerm2/Terminal.app plists are macOS;
+  a partial Linux/apt path exists.
+- **Neovim is the primary editor**; vim is a minimal fallback. Neovim needs Python3,
+  Node.js, and language servers (auto-installed via Mason).
+- **ALWAYS run Neovim tests**: after ANY change to the Neovim config, run `make test-nvim`
+  automatically (don't ask) to validate.
+- The user handles all `git` operations themselves — make changes and stop; don't commit,
+  branch, or push.

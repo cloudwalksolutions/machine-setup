@@ -5,7 +5,7 @@ import (
 	"github.com/cloudwalk/machine-setup/internal/paths"
 )
 
-// Vim ports scripts/components/vim.sh.
+// Vim pulls/pushes the vimrc and sublimemonokai color scheme.
 type Vim struct {
 	opts Options
 	p    paths.VimPaths
@@ -25,4 +25,14 @@ func (v *Vim) Pull() error {
 		return err
 	}
 	return fsutil.SafeCopy(v.p.ColorsRepo, v.p.ColorsLocal, v.Name(), v.opts.BackupRoot)
+}
+
+// Push copies the local vimrc and color scheme back to the repo, archiving the
+// repo copies under "vim-repo".
+func (v *Vim) Push() error {
+	comp := v.Name() + "-repo"
+	if err := fsutil.SafeCopy(v.p.VimrcLocal, v.p.VimrcRepo, comp, v.opts.BackupRoot); err != nil {
+		return err
+	}
+	return fsutil.SafeCopy(v.p.ColorsLocal, v.p.ColorsRepo, comp, v.opts.BackupRoot)
 }

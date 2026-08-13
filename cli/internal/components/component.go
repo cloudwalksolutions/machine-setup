@@ -1,5 +1,5 @@
-// Package components ports scripts/components/*.sh to native Go so the CLI
-// can pull dotfile configs without shelling out to bash.
+// Package components implements the per-tool config operations (pull to the
+// machine, push back to the repo) natively in Go.
 package components
 
 import "io"
@@ -8,6 +8,13 @@ import "io"
 type Component interface {
 	Name() string
 	Pull() error
+}
+
+// Pushable is a component that can copy local config back into the repo.
+// Fonts is intentionally not Pushable (system fonts are install-only).
+type Pushable interface {
+	Name() string
+	Push() error
 }
 
 // Options is the per-run configuration every component needs.
@@ -19,7 +26,7 @@ type Options struct {
 	Stderr     io.Writer // error/warning output
 }
 
-// AllPullable returns the components in the order scripts/pull.sh iterates them.
+// AllPullable returns the pullable components in canonical order.
 func AllPullable(opts Options) []Component {
 	return []Component{
 		NewVim(opts),
@@ -27,5 +34,18 @@ func AllPullable(opts Options) []Component {
 		NewByobu(opts),
 		NewNvim(opts),
 		NewFonts(opts),
+		NewTerminal(opts),
+	}
+}
+
+// AllPushable returns the components that can push local config back to the repo,
+// in canonical order (fonts excluded — install-only).
+func AllPushable(opts Options) []Pushable {
+	return []Pushable{
+		NewVim(opts),
+		NewZsh(opts),
+		NewByobu(opts),
+		NewNvim(opts),
+		NewTerminal(opts),
 	}
 }

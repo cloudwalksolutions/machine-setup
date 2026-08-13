@@ -69,9 +69,10 @@ func (NeovimAppImage) Name() string { return "neovim" }
 // Install downloads the AppImage and makes it executable.
 func (NeovimAppImage) Install(stdout, stderr io.Writer) error {
 	arch := runtime.GOARCH
-	if arch == "amd64" {
+	switch arch {
+	case "amd64":
 		arch = "x86_64"
-	} else if arch == "arm64" {
+	case "arm64":
 		arch = "aarch64"
 	}
 
@@ -101,5 +102,38 @@ func (NeovimAppImage) Install(stdout, stderr io.Writer) error {
 		return fmt.Errorf("writing file: %w", err)
 	}
 	return os.Chmod(dest, 0o755)
+}
+
+// GCloudCLI installs the Google Cloud CLI on Debian/Ubuntu by adding Google's
+// apt repository (the package is not in the default archives) and installing
+// google-cloud-cli. Mirrors the documented steps at
+// https://cloud.google.com/sdk/docs/install#deb.
+type GCloudCLI struct{}
+
+// Name reports "gcloud" to match its brew-cask counterpart for the form display.
+func (GCloudCLI) Name() string { return "gcloud" }
+
+// Install adds Google's apt source and key, then installs google-cloud-cli.
+func (GCloudCLI) Install(stdout, stderr io.Writer) error {
+	const keyring = "/usr/share/keyrings/cloud.google.gpg"
+	steps := [][]string{
+		{"sudo", "apt-get", "update"},
+		{"sudo", "apt-get", "install", "-y", "apt-transport-https", "ca-certificates", "gnupg", "curl"},
+		// Fetch Google's signing key and dearmor it into the keyring.
+		{"sh", "-c", "curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o " + keyring},
+		// Register the cloud-sdk apt source, pinned to the keyring.
+		{"sh", "-c", "echo 'deb [signed-by=" + keyring + "] https://packages.cloud.google.com/apt cloud-sdk main' | sudo tee /etc/apt/sources.list.d/google-cloud-sdk.list"},
+		{"sudo", "apt-get", "update"},
+		{"sudo", "apt-get", "install", "-y", "google-cloud-cli"},
+	}
+	for _, step := range steps {
+		cmd := exec.Command(step[0], step[1:]...)
+		cmd.Stdout = stdout
+		cmd.Stderr = stderr
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("gcloud install step %q: %w", step, err)
+		}
+	}
+	return nil
 }
 

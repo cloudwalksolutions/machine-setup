@@ -8,7 +8,7 @@ import (
 	"github.com/cloudwalk/machine-setup/internal/paths"
 )
 
-// Nvim ports scripts/components/nvim.sh.
+// Nvim pulls/pushes the ~/.config/nvim tree (clean replace) + monokai theme.
 type Nvim struct {
 	opts Options
 	p    paths.NvimPaths
@@ -45,4 +45,20 @@ func (n *Nvim) Pull() error {
 	}
 	monokaiDst := filepath.Join(n.p.MonokaiLocal, "monokai.lua")
 	return fsutil.SafeCopy(n.p.MonokaiRepo, monokaiDst, n.Name(), n.opts.BackupRoot)
+}
+
+// Push replaces the repo's nvim/ tree with ~/.config/nvim, archiving the old
+// repo tree under "nvim-repo" (clean replace, mirroring Pull).
+func (n *Nvim) Push() error {
+	comp := n.Name() + "-repo"
+	if _, err := fsutil.Backup(n.p.Repo, comp, n.opts.BackupRoot); err != nil {
+		return err
+	}
+	if err := os.RemoveAll(n.p.Repo); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(n.p.Repo), 0o755); err != nil {
+		return err
+	}
+	return fsutil.SafeCopy(n.p.Local, n.p.Repo, comp, n.opts.BackupRoot)
 }

@@ -7,7 +7,7 @@ import (
 	"github.com/cloudwalk/machine-setup/internal/paths"
 )
 
-// Zsh ports scripts/components/zsh.sh.
+// Zsh pulls/pushes the zsh dotfiles and seeds the secret template.
 type Zsh struct {
 	opts Options
 	p    paths.ZshPaths
@@ -39,6 +39,33 @@ func (z *Zsh) Pull() error {
 		}
 	}
 	return z.seedSecret()
+}
+
+// Push copies local zsh files back to the repo, archiving the repo copies under
+// "zsh-repo". Funcs and profile are pushed only when they exist locally.
+func (z *Zsh) Push() error {
+	comp := z.Name() + "-repo"
+	if err := fsutil.SafeCopy(z.p.ZshrcLocal, z.p.ZshrcRepo, comp, z.opts.BackupRoot); err != nil {
+		return err
+	}
+	if err := fsutil.SafeCopy(z.p.AliasesLocal, z.p.AliasesRepo, comp, z.opts.BackupRoot); err != nil {
+		return err
+	}
+	for _, c := range []struct{ local, repo string }{
+		{z.p.FuncsLocal, z.p.FuncsRepo},
+		{z.p.ProfileLocal, z.p.ProfileRepo},
+	} {
+		if _, err := os.Stat(c.local); err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return err
+		}
+		if err := fsutil.SafeCopy(c.local, c.repo, comp, z.opts.BackupRoot); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // seedSecret copies the template to ~/.zshrc_secret iff the local file does

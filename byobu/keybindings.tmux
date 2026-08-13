@@ -31,3 +31,8 @@ unbind-key -n C-a
 set -g prefix ^A
 set -g prefix2 F12
 bind a send-prefix
+
+# Rename via tmux's brace form; byobu's quoted-string `%%` breaks under tmux 3.6+
+bind-key A     command-prompt -I "#W" { rename-window "%%" }
+unbind-key -n F8
+bind-key -n F8 command-prompt -p "(rename-window) " -I "#W" { rename-window "%%" }

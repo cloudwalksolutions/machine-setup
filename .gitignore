@@ -59,5 +59,6 @@ zsh/zshrc_secret
 .zshrc_secret
 
 # Go CLI build artifacts
+cli/tars
 cli/machine-setup
 

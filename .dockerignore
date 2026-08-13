@@ -1,0 +1,7 @@
+# Keep the E2E build context lean and free of local/build artifacts.
+.git
+backups/
+**/dist/
+cli/tars
+cli/machine-setup
+.github

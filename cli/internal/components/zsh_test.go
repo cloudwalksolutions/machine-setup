@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -47,7 +48,12 @@ var _ = Describe("Zsh.Pull", func() {
 		}
 		mustEqual(filepath.Join(home, ".zshrc"), "ZSHRC")
 		mustEqual(filepath.Join(home, ".zshrc_aliases"), "ALIASES")
-		mustEqual(filepath.Join(home, ".profile"), "PROFILE")
+		// zsh login shells read ~/.zprofile on macOS; ~/.profile elsewhere.
+		loginProfile := ".profile"
+		if runtime.GOOS == "darwin" {
+			loginProfile = ".zprofile"
+		}
+		mustEqual(filepath.Join(home, loginProfile), "PROFILE")
 	})
 
 	It("copies zshrc_funcs only when present in repo", func() {

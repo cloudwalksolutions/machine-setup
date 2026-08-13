@@ -1,7 +1,9 @@
-// Package fsutil ports backup_file and safe_copy from scripts/lib/common.sh.
+// Package fsutil provides versioned backups and safe (backup-before-overwrite)
+// copies shared by all components.
 package fsutil
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -40,6 +42,12 @@ func SafeCopy(src, dst, component, backupRoot string) error {
 		return err
 	}
 	if _, err := os.Stat(dst); err == nil {
+		// Idempotent: if dst already matches src, do nothing — no backup, no copy.
+		if same, err := SameContent(src, dst); err != nil {
+			return err
+		} else if same {
+			return nil
+		}
 		if _, err := Backup(dst, component, backupRoot); err != nil {
 			return err
 		}
@@ -50,6 +58,31 @@ func SafeCopy(src, dst, component, backupRoot string) error {
 		return err
 	}
 	return copyPath(src, dst)
+}
+
+// SameContent reports whether src and dst are regular files with identical bytes.
+// Directories always report false so directory copies proceed normally.
+func SameContent(src, dst string) (bool, error) {
+	si, err := os.Stat(src)
+	if err != nil {
+		return false, err
+	}
+	di, err := os.Stat(dst)
+	if err != nil {
+		return false, err
+	}
+	if si.IsDir() || di.IsDir() || si.Size() != di.Size() {
+		return false, nil
+	}
+	a, err := os.ReadFile(src)
+	if err != nil {
+		return false, err
+	}
+	b, err := os.ReadFile(dst)
+	if err != nil {
+		return false, err
+	}
+	return bytes.Equal(a, b), nil
 }
 
 func copyPath(src, dst string) error {

@@ -95,6 +95,12 @@ var darwinTappedFormulas = map[string]string{
 	"terraform": "hashicorp/tap",
 }
 
+// darwinCasks is the curated list of brew casks installed on macOS (GUI apps and
+// vendor bundles distributed as casks rather than core formulas).
+var darwinCasks = []string{
+	"gcloud-cli",
+}
+
 func (f RegistryFactory) wireDarwin(r *DevToolRegistry) {
 	builder := brew.NewBuilder(f.brewRun)
 	for _, formula := range builder.Formulas(darwinFormulas...) {
@@ -102,6 +108,9 @@ func (f RegistryFactory) wireDarwin(r *DevToolRegistry) {
 	}
 	for name, tap := range darwinTappedFormulas {
 		r.Add(brew.NewTappedFormula(name, tap, f.brewRun))
+	}
+	for _, cask := range builder.Casks(darwinCasks...) {
+		r.Add(cask)
 	}
 }
 
@@ -116,5 +125,6 @@ func (f RegistryFactory) wireLinux(r *DevToolRegistry) {
 	for _, name := range linuxAptPackages {
 		r.Add(apt.NewPackage(name, f.aptRun))
 	}
+	r.Add(apt.GCloudCLI{})
 }
 

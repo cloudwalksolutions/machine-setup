@@ -24,3 +24,9 @@ var _ = Describe("Package.Install", func() {
 		Expect(gotArgs).To(Equal([]string{"install", "-y", "byobu"}))
 	})
 })
+
+var _ = Describe("GCloudCLI", func() {
+	It("reports the name gcloud", func() {
+		Expect(apt.GCloudCLI{}.Name()).To(Equal("gcloud"))
+	})
+})

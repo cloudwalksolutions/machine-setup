@@ -101,6 +101,14 @@ var _ = Describe("RegistryFactory", func() {
 		Expect(aptSpy.calls).To(Equal(0))
 	})
 
+	It("on darwin, includes the gcloud-cli cask", func() {
+		Expect(factory.For("darwin").Names()).To(ContainElement("gcloud-cli"))
+	})
+
+	It("on linux, includes a gcloud installable", func() {
+		Expect(factory.For("linux").Names()).To(ContainElement("gcloud"))
+	})
+
 	It("on linux, at least one installable routes through apt", func() {
 		registry := factory.For("linux")
 		Expect(registry.Installables()).NotTo(BeEmpty())

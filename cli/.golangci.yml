@@ -1,0 +1,13 @@
+# golangci-lint v2 config. Curated default linters (errcheck, govet, ineffassign,
+# staticcheck, unused), with errcheck relaxed for the conventionally-ignored cases:
+# writes to an output stream and deferred Close on read handles.
+version: "2"
+linters:
+  settings:
+    errcheck:
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - (*os.File).Close
+        - (io.ReadCloser).Close

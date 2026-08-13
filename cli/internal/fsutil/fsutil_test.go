@@ -108,4 +108,16 @@ var _ = Describe("SafeCopy", func() {
 		)
 		Expect(err).To(HaveOccurred())
 	})
+
+	It("is a no-op (no backup) when dst already equals src (idempotent)", func() {
+		src := filepath.Join(tmp, "src.txt")
+		dst := filepath.Join(tmp, "dst.txt")
+		Expect(os.WriteFile(src, []byte("same"), 0o644)).To(Succeed())
+		Expect(os.WriteFile(dst, []byte("same"), 0o644)).To(Succeed())
+
+		Expect(fsutil.SafeCopy(src, dst, "zsh", backupRoot)).To(Succeed())
+
+		_, err := os.Stat(filepath.Join(backupRoot, "zsh"))
+		Expect(os.IsNotExist(err)).To(BeTrue(), "no backup should be created for identical content")
+	})
 })

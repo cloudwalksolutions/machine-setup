@@ -8,7 +8,7 @@ import (
 	"github.com/cloudwalk/machine-setup/internal/paths"
 )
 
-// Byobu ports scripts/components/byobu.sh.
+// Byobu pulls/pushes the byobu config files and the bin/ scripts.
 type Byobu struct {
 	opts Options
 	p    paths.ByobuPaths
@@ -29,6 +29,7 @@ func (b *Byobu) Pull() error {
 		{b.p.KeybindingsRepo, b.p.KeybindingsLocal},
 		{b.p.DatetimeRepo, b.p.DatetimeLocal},
 		{b.p.StatusrcRepo, b.p.StatusrcLocal},
+		{b.p.ColorRepo, b.p.ColorLocal},
 	}
 	for _, c := range copies {
 		if err := fsutil.SafeCopy(c.src, c.dst, b.Name(), b.opts.BackupRoot); err != nil {
@@ -38,8 +39,52 @@ func (b *Byobu) Pull() error {
 	return b.pullBin()
 }
 
-// pullBin copies each file inside <repo>/byobu/bin into ~/.byobu/bin, flat.
-// Mirrors `cp -r byobu/bin/* ~/.byobu/bin/` in scripts/components/byobu.sh:29.
+// Push copies local byobu config back to the repo, archiving the repo copies
+// under "byobu-repo". Files absent locally are skipped.
+func (b *Byobu) Push() error {
+	comp := b.Name() + "-repo"
+	copies := []struct{ src, dst string }{
+		{b.p.TmuxConfLocal, b.p.TmuxConfRepo},
+		{b.p.KeybindingsLocal, b.p.KeybindingsRepo},
+		{b.p.DatetimeLocal, b.p.DatetimeRepo},
+		{b.p.StatusrcLocal, b.p.StatusrcRepo},
+		{b.p.ColorLocal, b.p.ColorRepo},
+	}
+	for _, c := range copies {
+		if _, err := os.Stat(c.src); err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return err
+		}
+		if err := fsutil.SafeCopy(c.src, c.dst, comp, b.opts.BackupRoot); err != nil {
+			return err
+		}
+	}
+	return b.pushBin(comp)
+}
+
+// pushBin copies each file inside ~/.byobu/bin back into <repo>/byobu/bin.
+func (b *Byobu) pushBin(comp string) error {
+	entries, err := os.ReadDir(b.p.BinLocal)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	for _, e := range entries {
+		src := filepath.Join(b.p.BinLocal, e.Name())
+		dst := filepath.Join(b.p.BinRepo, e.Name())
+		if err := fsutil.SafeCopy(src, dst, comp, b.opts.BackupRoot); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// pullBin copies each file inside <repo>/byobu/bin into ~/.byobu/bin, flat
+// (like `cp -r byobu/bin/* ~/.byobu/bin/`).
 func (b *Byobu) pullBin() error {
 	entries, err := os.ReadDir(b.p.BinRepo)
 	if err != nil {

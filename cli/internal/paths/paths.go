@@ -1,4 +1,4 @@
-// Package paths ports the path tables from scripts/lib/config.sh.
+// Package paths defines the repo→local file mappings for every component.
 package paths
 
 import (
@@ -8,21 +8,30 @@ import (
 
 // Paths holds all repo→local file mappings for each component.
 type Paths struct {
-	Nvim  NvimPaths
-	Zsh   ZshPaths
-	Byobu ByobuPaths
-	Vim   VimPaths
-	Fonts FontsPaths
+	Nvim     NvimPaths
+	Zsh      ZshPaths
+	Byobu    ByobuPaths
+	Vim      VimPaths
+	Fonts    FontsPaths
+	Terminal TerminalPaths
 }
 
-// FontsPaths mirrors FONTS_PATHS in scripts/lib/config.sh. Local destination
+// TerminalPaths locates the repo-side terminal font artifacts. FontRepo is the
+// plain font string applied to iTerm2; ProfileRepo is the Terminal.app profile
+// carrying the same font as an archived NSFont blob.
+type TerminalPaths struct {
+	FontRepo    string
+	ProfileRepo string
+}
+
+// FontsPaths holds the font repo→local mapping. Local destination
 // is OS-dependent: /Library/Fonts on darwin, ~/.local/share/fonts elsewhere.
 type FontsPaths struct {
 	Repo  string
 	Local string
 }
 
-// VimPaths mirrors VIM_PATHS in scripts/lib/config.sh.
+// VimPaths holds the vim repo→local mappings.
 type VimPaths struct {
 	VimrcRepo   string
 	VimrcLocal  string
@@ -30,7 +39,7 @@ type VimPaths struct {
 	ColorsLocal string
 }
 
-// NvimPaths mirrors NVIM_PATHS in scripts/lib/config.sh.
+// NvimPaths holds the neovim repo→local mappings.
 type NvimPaths struct {
 	Repo         string
 	Local        string
@@ -38,8 +47,8 @@ type NvimPaths struct {
 	MonokaiLocal string
 }
 
-// ZshPaths mirrors ZSH_PATHS in scripts/lib/config.sh, plus the secret template
-// which init.sh handles separately.
+// ZshPaths holds the zsh repo→local mappings, plus the secret template that
+// setup seeds into ~/.zshrc_secret.
 type ZshPaths struct {
 	ZshrcRepo      string
 	ZshrcLocal     string
@@ -53,7 +62,7 @@ type ZshPaths struct {
 	SecretLocal    string
 }
 
-// ByobuPaths mirrors BYOBU_PATHS in scripts/lib/config.sh.
+// ByobuPaths holds the byobu repo→local mappings.
 type ByobuPaths struct {
 	BinRepo          string
 	BinLocal         string
@@ -65,6 +74,8 @@ type ByobuPaths struct {
 	DatetimeLocal    string
 	StatusrcRepo     string
 	StatusrcLocal    string
+	ColorRepo        string
+	ColorLocal       string
 }
 
 // For builds a Paths bundle rooted at the given repo and home directories,
@@ -78,6 +89,14 @@ func ForOS(repoRoot, home, goos string) Paths {
 	fontsLocal := filepath.Join(home, ".local", "share", "fonts")
 	if goos == "darwin" {
 		fontsLocal = "/Library/Fonts"
+	}
+
+	// zsh login shells read ~/.zprofile and never ~/.profile, so on macOS
+	// (zsh by default) the login profile must target ~/.zprofile. Other OSes
+	// keep ~/.profile.
+	profileLocal := filepath.Join(home, ".profile")
+	if goos == "darwin" {
+		profileLocal = filepath.Join(home, ".zprofile")
 	}
 	return Paths{
 		Fonts: FontsPaths{
@@ -98,7 +117,7 @@ func ForOS(repoRoot, home, goos string) Paths {
 			FuncsRepo:      filepath.Join(repoRoot, "zsh", "zshrc_funcs"),
 			FuncsLocal:     filepath.Join(home, ".zshrc_funcs"),
 			ProfileRepo:    filepath.Join(repoRoot, "zsh", "profile"),
-			ProfileLocal:   filepath.Join(home, ".profile"),
+			ProfileLocal:   profileLocal,
 			SecretTemplate: filepath.Join(repoRoot, "zsh", "zshrc_secret.template"),
 			SecretLocal:    filepath.Join(home, ".zshrc_secret"),
 		},
@@ -113,12 +132,18 @@ func ForOS(repoRoot, home, goos string) Paths {
 			DatetimeLocal:    filepath.Join(home, ".byobu", "datetime.tmux"),
 			StatusrcRepo:     filepath.Join(repoRoot, "byobu", "statusrc"),
 			StatusrcLocal:    filepath.Join(home, ".byobu", "statusrc"),
+			ColorRepo:        filepath.Join(repoRoot, "byobu", "color.tmux"),
+			ColorLocal:       filepath.Join(home, ".byobu", "color.tmux"),
 		},
 		Vim: VimPaths{
 			VimrcRepo:   filepath.Join(repoRoot, "vim", "vimrc"),
 			VimrcLocal:  filepath.Join(home, ".vimrc"),
 			ColorsRepo:  filepath.Join(repoRoot, "vim", "colors", "sublimemonokai.vim"),
 			ColorsLocal: filepath.Join(home, ".vim", "colors", "sublimemonokai.vim"),
+		},
+		Terminal: TerminalPaths{
+			FontRepo:    filepath.Join(repoRoot, "terminal", "font"),
+			ProfileRepo: filepath.Join(repoRoot, "terminal", "CloudWalk.terminal"),
 		},
 	}
 }

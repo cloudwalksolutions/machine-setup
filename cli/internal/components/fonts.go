@@ -8,10 +8,11 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/cloudwalk/machine-setup/internal/fsutil"
 	"github.com/cloudwalk/machine-setup/internal/paths"
 )
 
-// Fonts ports scripts/components/fonts.sh.
+// Fonts installs the bundled Nerd Font files into the OS font directory.
 //
 // On darwin, the system font dir (/Library/Fonts) requires sudo, so the
 // default CopyFn shells out to `sudo cp`. On other OSes, a plain copy is used.
@@ -58,6 +59,10 @@ func (f *Fonts) Pull() error {
 		}
 		src := filepath.Join(f.p.Repo, e.Name())
 		dstFile := filepath.Join(dst, e.Name())
+		// Idempotent: skip fonts already installed identically (avoids a sudo prompt).
+		if same, err := fsutil.SameContent(src, dstFile); err == nil && same {
+			continue
+		}
 		if err := f.CopyFn(src, dstFile); err != nil {
 			return fmt.Errorf("install font %s: %w", e.Name(), err)
 		}

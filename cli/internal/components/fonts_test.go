@@ -69,4 +69,19 @@ var _ = Describe("Fonts.Pull", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(string(b)).To(Equal("FONT_B"))
 	})
+
+	It("skips CopyFn for fonts already present and identical (idempotent, no sudo)", func() {
+		localDir := filepath.Join(tmp, "installed-fonts")
+		Expect(os.MkdirAll(localDir, 0o755)).To(Succeed())
+		Expect(os.WriteFile(filepath.Join(localDir, "Hack Regular.ttf"), []byte("FONT_A"), 0o644)).To(Succeed())
+		Expect(os.WriteFile(filepath.Join(localDir, "Hack Bold.ttf"), []byte("FONT_B"), 0o644)).To(Succeed())
+
+		calls := 0
+		f := components.NewFontsForOS(opts, "linux")
+		f.LocalOverride = localDir
+		f.CopyFn = func(src, dst string) error { calls++; return nil }
+
+		Expect(f.Pull()).To(Succeed())
+		Expect(calls).To(Equal(0))
+	})
 })

@@ -20,10 +20,11 @@ var _ = Describe("Find", func() {
 		Expect(got).To(Equal(tmp))
 	})
 
-	It("walks up from start dir to find a dir containing Makefile + scripts/components", func() {
+	It("walks up from start dir to find a dir containing cli/go.mod + nvim/", func() {
 		root := GinkgoT().TempDir()
-		Expect(os.WriteFile(filepath.Join(root, "Makefile"), []byte("x"), 0o644)).To(Succeed())
-		Expect(os.MkdirAll(filepath.Join(root, "scripts", "components"), 0o755)).To(Succeed())
+		Expect(os.MkdirAll(filepath.Join(root, "cli"), 0o755)).To(Succeed())
+		Expect(os.WriteFile(filepath.Join(root, "cli", "go.mod"), []byte("module x"), 0o644)).To(Succeed())
+		Expect(os.MkdirAll(filepath.Join(root, "nvim"), 0o755)).To(Succeed())
 
 		nested := filepath.Join(root, "a", "b", "c")
 		Expect(os.MkdirAll(nested, 0o755)).To(Succeed())
@@ -42,8 +43,9 @@ var _ = Describe("Find", func() {
 	It("falls back to walking up from CWD when MACHINE_SETUP_REPO is unset", func() {
 		// Build a fake repo with markers + a nested subdir, chdir into it.
 		root := GinkgoT().TempDir()
-		Expect(os.WriteFile(filepath.Join(root, "Makefile"), []byte("x"), 0o644)).To(Succeed())
-		Expect(os.MkdirAll(filepath.Join(root, "scripts", "components"), 0o755)).To(Succeed())
+		Expect(os.MkdirAll(filepath.Join(root, "cli"), 0o755)).To(Succeed())
+		Expect(os.WriteFile(filepath.Join(root, "cli", "go.mod"), []byte("module x"), 0o644)).To(Succeed())
+		Expect(os.MkdirAll(filepath.Join(root, "nvim"), 0o755)).To(Succeed())
 		nested := filepath.Join(root, "deep", "child")
 		Expect(os.MkdirAll(nested, 0o755)).To(Succeed())
 

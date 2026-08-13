@@ -20,8 +20,9 @@ func Find() (string, error) {
 	return FindFrom(cwd)
 }
 
-// FindFrom walks up from start looking for a directory containing both a
-// Makefile and a scripts/components subdirectory (the markers of this repo).
+// FindFrom walks up from start looking for the machine-setup repo root: a
+// directory containing both the CLI module (cli/go.mod) and the nvim/ config
+// tree. Set MACHINE_SETUP_REPO to bypass this search.
 func FindFrom(start string) (string, error) {
 	dir := start
 	for {
@@ -37,10 +38,10 @@ func FindFrom(start string) (string, error) {
 }
 
 func hasMarkers(dir string) bool {
-	if _, err := os.Stat(filepath.Join(dir, "Makefile")); err != nil {
+	if _, err := os.Stat(filepath.Join(dir, "cli", "go.mod")); err != nil {
 		return false
 	}
-	if info, err := os.Stat(filepath.Join(dir, "scripts", "components")); err != nil || !info.IsDir() {
+	if info, err := os.Stat(filepath.Join(dir, "nvim")); err != nil || !info.IsDir() {
 		return false
 	}
 	return true
