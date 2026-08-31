@@ -1,6 +1,6 @@
 module github.com/cloudwalk/machine-setup
 
-go 1.22.0
+go 1.24.2
 
 require (
 	github.com/charmbracelet/huh v0.6.0
