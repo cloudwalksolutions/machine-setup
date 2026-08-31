@@ -65,3 +65,6 @@ vhs/tars-linux
 
 # Local Pi runtime state
 .atl/
+
+# go-mutesting artifacts
+cli/report.json
