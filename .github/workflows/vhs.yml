@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   vhs:
@@ -31,7 +32,12 @@ jobs:
       - uses: charmbracelet/vhs-action@v2
         with:
           path: vhs/sessions.tape
-      - uses: stefanzweifel/git-auto-commit-action@v5
+      # main is branch-protected, so regenerated GIFs arrive as a PR.
+      - uses: peter-evans/create-pull-request@v7
         with:
-          commit_message: "Re-record VHS demos"
-          file_pattern: "vhs/*.gif"
+          add-paths: vhs/*.gif
+          commit-message: "Re-record VHS demos"
+          title: "Re-record VHS demos"
+          body: "Automated re-recording — a tape under vhs/ changed on main."
+          branch: vhs-rerecord
+          delete-branch: true
