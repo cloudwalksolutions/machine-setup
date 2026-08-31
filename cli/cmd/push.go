@@ -37,7 +37,11 @@ var pushCmd = &cobra.Command{
 	Use:   "push",
 	Short: "Copy local config changes back into the repo (with versioned backups)",
 	Long: `Push local dotfile and terminal configuration into the repo, archiving the
-previous repo copies under backups/<component>-repo/vN.`,
+previous repo copies under ~/.local/state/tars/backups/<component>-repo/vN
+(override the location with MACHINE_SETUP_BACKUP_ROOT).
+
+Requires a real clone of the repo — the configs embedded in the binary are
+read-only. Exits non-zero when any component fails, listing each failure.`,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		stdout, stderr := cmd.OutOrStdout(), cmd.ErrOrStderr()
 		home, err := os.UserHomeDir()

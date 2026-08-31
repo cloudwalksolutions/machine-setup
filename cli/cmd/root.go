@@ -11,7 +11,7 @@ var cfgFile string
 var rootCmd = &cobra.Command{
 	Use:   "tars",
 	Short: "tars — CloudWalk dev-machine setup CLI",
-	Long:  "Provision and manage a CloudWalk development machine (dotfiles, tools, fonts, terminals).",
+	Long:  "Provision and manage a CloudWalk development machine (dotfiles, tools, fonts, terminals), and open byobu sessions from a simple config.",
 }
 
 // Execute is the single public entry point called by main.go.
@@ -32,7 +32,7 @@ func SetVersion(version, commit, date string) {
 func init() {
 	rootCmd.PersistentFlags().StringVar(
 		&cfgFile, "config", "",
-		"config file (default: ~/.config/.machine-setup/config.yaml)",
+		"config file (default: ~/.config/.machine-setup/config.yaml; env: MACHINE_SETUP_CONFIG_PATH)",
 	)
 	rootCmd.AddCommand(setupCmd)
 	rootCmd.AddCommand(pushCmd)

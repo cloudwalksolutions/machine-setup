@@ -47,6 +47,26 @@ jobs:
           version: v2.12.2
           working-directory: cli
 
+  coverage:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # badge commit on the badges branch (main only)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+      - name: Generate coverage profile
+        working-directory: cli
+        run: go test ./... -coverprofile=cover.out -covermode=atomic -coverpkg=./...
+      - name: Coverage gate + badge
+        uses: vladopajic/go-test-coverage@v2
+        with:
+          config: ./cli/.testcoverage.yml
+          git-token: ${{ github.ref_name == 'main' && secrets.GITHUB_TOKEN || '' }}
+          git-branch: badges
+
   e2e-linux:
     strategy:
       fail-fast: false

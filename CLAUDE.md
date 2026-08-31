@@ -4,14 +4,17 @@ Guidance for Claude Code (claude.ai/code) when working in this repository.
 
 ## Repository Purpose
 
-A one-command macOS machine-setup tool. It goes from a fresh MacBook to a
-production-ready dev environment: dev tools, dotfiles (Neovim, Zsh, Byobu, Vim),
-fonts, and terminal settings. The user-facing CLI is **`tars`** (Go, in `cli/`).
+A machine-setup tool for macOS (primary) and Linux (incl. shared bastions). It goes
+from a fresh machine to a production-ready dev environment: dev tools, dotfiles
+(Neovim, Zsh, Byobu, Vim), fonts, and terminal settings, plus a declarative byobu
+session manager. The user-facing CLI is **`tars`** (Go, in `cli/`) with four verbs:
+`setup`, `pull`, `push`, `sessions`.
 
 ## Core Philosophy
 
-- **Single command**: `tars setup` installs packages (Homebrew), oh-my-zsh,
-  Powerlevel10k, then applies all configs.
+- **One command to provision**: `tars setup` installs packages (brew on macOS,
+  apt/tarball on Linux), oh-my-zsh, Powerlevel10k, then applies all configs.
+  Day-to-day: `pull`/`push` sync configs, `sessions` opens byobu workspaces.
 - **Bidirectional sync**: `tars pull` applies repo configs to the machine (no installs,
   no network — safe to re-run); `tars push` copies local edits back into the repo.
 - **Versioned backups**: every overwrite is archived first under
@@ -34,6 +37,9 @@ fonts, and terminal settings. The user-facing CLI is **`tars`** (Go, in `cli/`).
 │   ├── cmd/                     # cobra commands: setup, pull, push, sessions (+ root)
 │   │   ├── setup.go             # Setup orchestrator + SequentialPuller (DI, testable)
 │   │   ├── pull.go / push.go    # apply / capture configs; SequentialPusher
+│   │   ├── sessions.go          # byobu sessions command group (aliases s/by)
+│   │   ├── backup.go            # BackupRoot: ~/.local/state/tars/backups (+ env override)
+│   │   ├── resolve.go           # ResolveRepo: clone discovery → embedded-assets fallback
 │   └── internal/
 │       ├── components/          # per-tool Pull/Push: vim, zsh, byobu, nvim, fonts, terminal
 │       ├── sessions/            # declarative byobu sessions: yaml config + idempotent launcher
@@ -48,8 +54,8 @@ fonts, and terminal settings. The user-facing CLI is **`tars`** (Go, in `cli/`).
 ├── nvim/  zsh/  byobu/  vim/     # the dotfiles tars manages
 ├── fonts/                       # Hack Nerd Font files
 ├── terminal/                    # font string + Terminal.app profile (iTerm2/Terminal.app)
-├── backups/                     # versioned backups (git-ignored)
-├── Makefile                     # slim: nvim config tests + Go dev helpers only
+├── install.sh                   # curl|sh installer (release binary → ~/.local/bin)
+├── Makefile                     # dev targets: build/lint/test layers, sync-assets, e2e
 └── .goreleaser.yaml, .github/   # release (tag v*) + CI
 ```
 

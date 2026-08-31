@@ -70,7 +70,7 @@ type Puller interface {
 
 // ── Setup ────────────────────────────────────────────────────────────────
 
-// Setup orchestrates the `machine-setup setup` flow. All collaborators are
+// Setup orchestrates the `tars setup` flow. All collaborators are
 // injected via interfaces, so tests can substitute spies without mutating
 // package state.
 type Setup struct {
@@ -308,8 +308,12 @@ func NewSetup(stdout, stderr io.Writer, cfgPath string) (*Setup, error) {
 var setupCmd = &cobra.Command{
 	Use:   "setup",
 	Short: "Initialize this machine with CloudWalk defaults",
-	Long: `Display a welcome greeting, select dev tools to install, initialize
-the machine-setup config, and install selected packages.`,
+	Long: `Full machine bootstrap: pick dev tools to install, install them (brew on
+macOS, apt/tarball on Linux), install oh-my-zsh and Powerlevel10k, then apply
+all dotfile configs — overwriting ~/.zshrc, ~/.config/nvim, ~/.byobu, and
+~/.vimrc, each archived first under ~/.local/state/tars/backups/<component>/vN.
+Also seeds ~/.zshrc_secret from a template when absent and saves the tool
+selection to the tars config file.`,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		cfgPath := config.DefaultConfigPath()
 		if cfgFile != "" {

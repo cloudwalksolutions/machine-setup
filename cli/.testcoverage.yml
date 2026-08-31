@@ -1,0 +1,11 @@
+# Config for vladopajic/go-test-coverage (CI coverage gate + badge).
+# Paths are relative to the repo root, where the action runs.
+profile: cli/cover.out
+
+threshold:
+  # Baseline measured at 60.5% — ratchet upward as coverage grows.
+  total: 60
+
+exclude:
+  paths:
+    - internal/assets # embedded dotfile mirror; the Go shim is a thin embed wrapper

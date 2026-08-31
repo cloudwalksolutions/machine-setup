@@ -259,8 +259,11 @@ Both are registered in which-key for discoverability. Press the prefix key to se
 5. Always test fixes with smoke tests
 
 ### Machine Setup Integration
-- This nvim config is part of the machine-setup repository
-- Use `make pull-nvim` to copy repo config to `~/.config/nvim/`
-- Use `make push-nvim` to copy `~/.config/nvim/` to repo
-- Backups are semantic versioned (v1, v2, v3, etc.) in `backups/nvim/`
-- See root README.md for full machine-setup commands
+- This nvim config is part of the machine-setup repository AND is embedded in the
+  `tars` binary (`cli/internal/assets/tree/nvim/`) — after ANY edit under `nvim/`,
+  run `make sync-assets` or the drift-guard spec fails CI
+- `tars pull` applies the repo config to `~/.config/nvim/`; `tars push` captures
+  local edits back into the repo
+- Backups are semantically versioned (v1, v2, v3, …) under
+  `~/.local/state/tars/backups/nvim/`
+- See the root README.md for full tars commands
