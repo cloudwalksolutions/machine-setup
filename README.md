@@ -16,12 +16,19 @@ only for contributing.
 ## Getting started (fresh machine)
 
 ```bash
-# 1. Install the tars CLI
+# 1. Install the tars CLI — via Homebrew (macOS):
 brew install cloudwalksolutions/homebrew-tap/tars
+
+#    …or the native installer (Linux servers/bastions, or anywhere without brew):
+curl -fsSL https://raw.githubusercontent.com/cloudwalksolutions/machine-setup/main/install.sh | sh
 
 # 2. Provision the machine
 tars setup
 ```
+
+The native installer detects OS/arch, verifies the release checksum, and installs a
+single binary to `~/.local/bin` (override with `TARS_INSTALL_DIR`) — no sudo, no
+dependencies beyond curl + tar.
 
 No clone needed: the dotfiles ship inside the binary and are materialized under
 `~/.local/share/tars/repo` on first use. If you DO have a clone (contributors),
