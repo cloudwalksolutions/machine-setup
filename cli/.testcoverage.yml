@@ -3,8 +3,8 @@
 profile: cli/cover.out
 
 threshold:
-  # Baseline measured at 60.5% — ratchet upward as coverage grows.
-  total: 60
+  # Ratcheted from the 60.5% baseline after the coverage backfill (75.5%).
+  total: 74
 
 exclude:
   paths:

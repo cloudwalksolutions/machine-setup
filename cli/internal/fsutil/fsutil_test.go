@@ -61,6 +61,106 @@ var _ = Describe("Backup", func() {
 	})
 })
 
+var _ = Describe("error and edge branches", func() {
+	var tmp string
+
+	BeforeEach(func() {
+		tmp = GinkgoT().TempDir()
+	})
+
+	lock := func(path string) {
+		Expect(os.Chmod(path, 0o000)).To(Succeed())
+		DeferCleanup(func() { _ = os.Chmod(path, 0o755) })
+	}
+
+	It("Backup starts at v1 when the component dir exists but is empty", func() {
+		src := filepath.Join(tmp, "src.txt")
+		Expect(os.WriteFile(src, []byte("x"), 0o644)).To(Succeed())
+		Expect(os.MkdirAll(filepath.Join(tmp, "backups", "zsh"), 0o755)).To(Succeed())
+
+		dst, err := fsutil.Backup(src, "zsh", filepath.Join(tmp, "backups"))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(dst).To(HaveSuffix("v1"))
+	})
+
+	It("Backup keeps scanning past a junk file that sorts before real versions", func() {
+		src := filepath.Join(tmp, "src.txt")
+		Expect(os.WriteFile(src, []byte("x"), 0o644)).To(Succeed())
+		componentDir := filepath.Join(tmp, "backups", "zsh")
+		Expect(os.MkdirAll(filepath.Join(componentDir, "v4"), 0o755)).To(Succeed())
+		Expect(os.WriteFile(filepath.Join(componentDir, "a-stray-file"), []byte("early"), 0o644)).To(Succeed())
+
+		dst, err := fsutil.Backup(src, "zsh", filepath.Join(tmp, "backups"))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(dst).To(HaveSuffix("v5"), "the stray file must be skipped, not end the scan")
+	})
+
+	It("Backup skips junk entries and files when picking the next version", func() {
+		src := filepath.Join(tmp, "src.txt")
+		Expect(os.WriteFile(src, []byte("x"), 0o644)).To(Succeed())
+		componentDir := filepath.Join(tmp, "backups", "zsh")
+		Expect(os.MkdirAll(filepath.Join(componentDir, "v2"), 0o755)).To(Succeed())
+		Expect(os.MkdirAll(filepath.Join(componentDir, "junk"), 0o755)).To(Succeed())
+		Expect(os.WriteFile(filepath.Join(componentDir, "v9"), []byte("a file, not a dir"), 0o644)).To(Succeed())
+
+		dst, err := fsutil.Backup(src, "zsh", filepath.Join(tmp, "backups"))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(dst).To(HaveSuffix("v3"), "v9 is a file and junk doesn't match — max is v2")
+	})
+
+	It("Backup propagates an unreadable component dir", func() {
+		src := filepath.Join(tmp, "src.txt")
+		Expect(os.WriteFile(src, []byte("x"), 0o644)).To(Succeed())
+		componentDir := filepath.Join(tmp, "backups", "zsh")
+		Expect(os.MkdirAll(componentDir, 0o755)).To(Succeed())
+		lock(componentDir)
+
+		_, err := fsutil.Backup(src, "zsh", filepath.Join(tmp, "backups"))
+		Expect(err).To(HaveOccurred())
+	})
+
+	It("Backup propagates a src stat error that is not not-exist", func() {
+		parent := filepath.Join(tmp, "locked")
+		Expect(os.MkdirAll(parent, 0o755)).To(Succeed())
+		src := filepath.Join(parent, "src.txt")
+		Expect(os.WriteFile(src, []byte("x"), 0o644)).To(Succeed())
+		lock(parent)
+
+		_, err := fsutil.Backup(src, "zsh", filepath.Join(tmp, "backups"))
+		Expect(err).To(HaveOccurred())
+	})
+
+	It("SafeCopy propagates a dst stat error that is not not-exist", func() {
+		src := filepath.Join(tmp, "src.txt")
+		Expect(os.WriteFile(src, []byte("x"), 0o644)).To(Succeed())
+		parent := filepath.Join(tmp, "locked")
+		Expect(os.MkdirAll(parent, 0o755)).To(Succeed())
+		lock(parent)
+
+		Expect(fsutil.SafeCopy(src, filepath.Join(parent, "dst.txt"), "zsh", filepath.Join(tmp, "backups"))).NotTo(Succeed())
+	})
+
+	It("SafeCopy propagates an unreadable identical-size dst", func() {
+		src := filepath.Join(tmp, "src.txt")
+		dst := filepath.Join(tmp, "dst.txt")
+		Expect(os.WriteFile(src, []byte("same"), 0o644)).To(Succeed())
+		Expect(os.WriteFile(dst, []byte("diff"), 0o644)).To(Succeed())
+		lock(dst)
+
+		Expect(fsutil.SafeCopy(src, dst, "zsh", filepath.Join(tmp, "backups"))).NotTo(Succeed())
+	})
+
+	It("copies a directory tree failing on an unreadable file inside", func() {
+		srcDir := filepath.Join(tmp, "srcdir")
+		Expect(os.MkdirAll(srcDir, 0o755)).To(Succeed())
+		bad := filepath.Join(srcDir, "locked.txt")
+		Expect(os.WriteFile(bad, []byte("x"), 0o644)).To(Succeed())
+		lock(bad)
+
+		Expect(fsutil.SafeCopy(srcDir, filepath.Join(tmp, "dstdir"), "nvim", filepath.Join(tmp, "backups"))).NotTo(Succeed())
+	})
+})
+
 var _ = Describe("SameTree", func() {
 	var tmp string
 
@@ -103,6 +203,27 @@ var _ = Describe("SameTree", func() {
 		Expect(os.Chmod(filepath.Join(tmp, "a", "x.sh"), 0o755)).To(Succeed())
 
 		Expect(fsutil.SameTree(filepath.Join(tmp, "a"), filepath.Join(tmp, "b"))).To(BeFalse())
+	})
+
+	It("reports false (no error) when dst is a file, not a directory", func() {
+		writeTree(filepath.Join(tmp, "a"), map[string]string{"x.txt": "X"})
+		dst := filepath.Join(tmp, "b")
+		Expect(os.WriteFile(dst, []byte("file"), 0o644)).To(Succeed())
+
+		same, err := fsutil.SameTree(filepath.Join(tmp, "a"), dst)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(same).To(BeFalse())
+	})
+
+	It("propagates an unreadable subtree", func() {
+		writeTree(filepath.Join(tmp, "a"), map[string]string{"sub/x.txt": "X"})
+		writeTree(filepath.Join(tmp, "b"), map[string]string{"sub/x.txt": "X"})
+		locked := filepath.Join(tmp, "a", "sub")
+		Expect(os.Chmod(locked, 0o000)).To(Succeed())
+		DeferCleanup(func() { _ = os.Chmod(locked, 0o755) })
+
+		_, err := fsutil.SameTree(filepath.Join(tmp, "a"), filepath.Join(tmp, "b"))
+		Expect(err).To(HaveOccurred())
 	})
 
 	It("reports false (no error) when dst is missing", func() {

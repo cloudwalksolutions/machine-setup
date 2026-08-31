@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/cloudwalk/machine-setup/internal/components"
 	"github.com/spf13/cobra"
@@ -20,20 +19,9 @@ network — it only lays down configuration, so it's safe to run repeatedly.
 Exits non-zero when any component fails, listing each failure.`,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		stdout, stderr := cmd.OutOrStdout(), cmd.ErrOrStderr()
-		home, err := os.UserHomeDir()
+		opts, err := buildOptions(stdout, stderr)
 		if err != nil {
-			return fmt.Errorf("locating home dir: %w", err)
-		}
-		root, err := ResolveRepo(home)
-		if err != nil {
-			return fmt.Errorf("locating repo root: %w", err)
-		}
-		opts := components.Options{
-			RepoRoot:   root,
-			Home:       home,
-			BackupRoot: BackupRoot(home),
-			Stdout:     stdout,
-			Stderr:     stderr,
+			return err
 		}
 		fmt.Fprintln(stdout, "Applying configuration files...")
 		if err := (SequentialPuller{

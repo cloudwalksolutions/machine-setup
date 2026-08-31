@@ -19,17 +19,24 @@ import (
 
 // ── Test doubles ─────────────────────────────────────────────────────────
 
-type spyWelcome struct{ calls int }
+type spyWelcome struct {
+	calls int
+	err   error
+}
 
-func (s *spyWelcome) Show() error { s.calls++; return nil }
+func (s *spyWelcome) Show() error { s.calls++; return s.err }
 
 type spyPicker struct {
 	offered []string
 	pick    []string
+	err     error
 }
 
 func (s *spyPicker) Pick(offered []string) ([]string, error) {
 	s.offered = offered
+	if s.err != nil {
+		return nil, s.err
+	}
 	if s.pick != nil {
 		return s.pick, nil
 	}

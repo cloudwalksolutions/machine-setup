@@ -114,6 +114,14 @@ spec can drive a fake and still fail red-first:
 it before removing — a backup failure must abort before any data is lost. `SafeCopy`
 enforces backup-before-overwrite and short-circuits on byte-identical content.
 
+**Coverage & mutation testing.** CI enforces the total-coverage threshold in
+`cli/.testcoverage.yml` (ratchet it up when coverage grows, never down). Test
+*quality* is spot-checked with `go-mutesting` (avito-tech): run
+`go-mutesting ./internal/<pkg>/` from `cli/` — it mutates files IN PLACE while
+running, so never edit or test concurrently; surviving mutants point at missing
+assertions. Production seams (`Default*` runners, `forms/`, plist helpers) stay
+untested by design — don't chase 100%.
+
 **Neovim config is tested via Lua, not Go**: `make test-nvim` runs headless smoke
 tests (`nvim/tests/smoke_test.lua`); `make health-nvim` runs checkhealth. `make test-nvim`
 is also run as part of `make integration`.

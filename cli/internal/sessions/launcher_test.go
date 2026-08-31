@@ -126,6 +126,26 @@ var _ = Describe("Launcher", func() {
 	})
 
 	Describe("Open", func() {
+		It("propagates a session-creation failure", func() {
+			byErr["has-session"] = errors.New("exit status 1")
+			byErr["new-session"] = errors.New("no server")
+
+			Expect(l.Open(work)).To(MatchError(ContainSubstring("no server")))
+		})
+
+		It("propagates an attach failure", func() {
+			byErr["attach-session"] = errors.New("not a terminal")
+
+			Expect(l.Open(work)).To(MatchError(ContainSubstring("not a terminal")))
+		})
+
+		It("propagates a window-creation failure", func() {
+			byErr["has-session"] = errors.New("exit status 1")
+			byErr["new-window"] = errors.New("bad window")
+
+			Expect(l.Open(work)).To(MatchError(ContainSubstring("bad window")))
+		})
+
 		It("ensures then attaches when outside tmux", func() {
 			Expect(l.Open(work)).To(Succeed())
 

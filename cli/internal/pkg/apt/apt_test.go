@@ -127,6 +127,82 @@ var _ = Describe("NeovimTarball", func() {
 
 		Expect(nv.Install(&bytes.Buffer{}, &bytes.Buffer{})).To(MatchError(ContainSubstring("404")))
 	})
+
+	It("rejects a body that is not a gzipped tarball", func() {
+		fetch := func(string) (io.ReadCloser, error) {
+			return io.NopCloser(bytes.NewBufferString("definitely not gzip")), nil
+		}
+		nv := apt.NeovimTarball{Fetch: fetch, Home: GinkgoT().TempDir(), Arch: "amd64"}
+
+		Expect(nv.Install(&bytes.Buffer{}, &bytes.Buffer{})).To(MatchError(ContainSubstring("extracting neovim")))
+	})
+
+	It("rejects tar entries that escape the destination (zip-slip)", func() {
+		evil := func() io.ReadCloser {
+			var buf bytes.Buffer
+			gz := gzip.NewWriter(&buf)
+			tw := tar.NewWriter(gz)
+			body := "pwned"
+			Expect(tw.WriteHeader(&tar.Header{Name: "top/../../evil", Mode: 0o644, Size: int64(len(body))})).To(Succeed())
+			_, err := tw.Write([]byte(body))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(tw.Close()).To(Succeed())
+			Expect(gz.Close()).To(Succeed())
+			return io.NopCloser(&buf)
+		}
+		home := GinkgoT().TempDir()
+		nv := apt.NeovimTarball{Fetch: func(string) (io.ReadCloser, error) { return evil(), nil }, Home: home, Arch: "amd64"}
+
+		Expect(nv.Install(&bytes.Buffer{}, &bytes.Buffer{})).To(MatchError(ContainSubstring("escapes destination")))
+	})
+
+	It("recreates symlink entries and skips top-level files outside the wrapper dir", func() {
+		tarball := func() io.ReadCloser {
+			var buf bytes.Buffer
+			gz := gzip.NewWriter(&buf)
+			tw := tar.NewWriter(gz)
+			write := func(name string, body string) {
+				Expect(tw.WriteHeader(&tar.Header{Name: name, Mode: 0o644, Size: int64(len(body))})).To(Succeed())
+				_, err := tw.Write([]byte(body))
+				Expect(err).NotTo(HaveOccurred())
+			}
+			write("top/bin/nvim", "ELF")
+			write("stray-root-file", "IGNORED") // no top dir — stripped to nothing
+			Expect(tw.WriteHeader(&tar.Header{
+				Name: "top/bin/vi", Typeflag: tar.TypeSymlink, Linkname: "nvim", Mode: 0o777,
+			})).To(Succeed())
+			Expect(tw.Close()).To(Succeed())
+			Expect(gz.Close()).To(Succeed())
+			return io.NopCloser(&buf)
+		}
+		home := GinkgoT().TempDir()
+		nv := apt.NeovimTarball{Fetch: func(string) (io.ReadCloser, error) { return tarball(), nil }, Home: home, Arch: "amd64"}
+
+		Expect(nv.Install(&bytes.Buffer{}, &bytes.Buffer{})).To(Succeed())
+
+		target, err := os.Readlink(filepath.Join(home, ".local", "nvim", "bin", "vi"))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(target).To(Equal("nvim"))
+		_, err = os.Stat(filepath.Join(home, ".local", "nvim", "stray-root-file"))
+		Expect(os.IsNotExist(err)).To(BeTrue(), "entries without a wrapper dir must be skipped")
+	})
+})
+
+var _ = Describe("multi-step installer failures", func() {
+	It("wraps a failing step with the installer name", func() {
+		boom := errors.New("boom")
+		run := func(argv []string, _, _ io.Writer) error {
+			if len(argv) > 0 && argv[0] == "sh" {
+				return boom
+			}
+			return nil
+		}
+
+		Expect(apt.NewGitHubCLI(run).Install(&bytes.Buffer{}, &bytes.Buffer{})).
+			To(MatchError(ContainSubstring("gh install step")))
+		Expect(apt.NewGCloudCLI(run).Install(&bytes.Buffer{}, &bytes.Buffer{})).
+			To(MatchError(ContainSubstring("gcloud install step")))
+	})
 })
 
 var _ = Describe("GitHubCLI", func() {

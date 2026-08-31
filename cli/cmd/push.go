@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -22,15 +21,7 @@ type SequentialPusher struct {
 // PushAll pushes every component, reporting failures inline without aborting,
 // and returns an aggregate error naming the components that failed.
 func (p SequentialPusher) PushAll() error {
-	var failed []error
-	for _, c := range p.Components {
-		fmt.Fprintf(p.Stdout, "  → %s\n", c.Name())
-		if err := c.Push(); err != nil {
-			fmt.Fprintf(p.Stderr, "  %s: %v\n", c.Name(), err)
-			failed = append(failed, fmt.Errorf("%s: %w", c.Name(), err))
-		}
-	}
-	return errors.Join(failed...)
+	return runComponents(p.Components, components.Pushable.Name, components.Pushable.Push, p.Stdout, p.Stderr)
 }
 
 var pushCmd = &cobra.Command{

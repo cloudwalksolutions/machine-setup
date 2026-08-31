@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"runtime"
 
@@ -236,12 +235,19 @@ type SequentialPuller struct {
 }
 
 func (p SequentialPuller) PullAll() error {
+	return runComponents(p.Components, components.Component.Name, components.Component.Pull, p.Stdout, p.Stderr)
+}
+
+// runComponents drives one action across a component list, printing progress,
+// tolerating per-component failures, and returning them aggregated — the shared
+// engine behind SequentialPuller and SequentialPusher (they change together).
+func runComponents[T any](items []T, name func(T) string, act func(T) error, stdout, stderr io.Writer) error {
 	var failed []error
-	for _, c := range p.Components {
-		fmt.Fprintf(p.Stdout, "  → %s\n", c.Name())
-		if err := c.Pull(); err != nil {
-			fmt.Fprintf(p.Stderr, "  %s: %v\n", c.Name(), err)
-			failed = append(failed, fmt.Errorf("%s: %w", c.Name(), err))
+	for _, c := range items {
+		fmt.Fprintf(stdout, "  → %s\n", name(c))
+		if err := act(c); err != nil {
+			fmt.Fprintf(stderr, "  %s: %v\n", name(c), err)
+			failed = append(failed, fmt.Errorf("%s: %w", name(c), err))
 		}
 	}
 	return errors.Join(failed...)
@@ -253,22 +259,11 @@ func (p SequentialPuller) PullAll() error {
 // the cli that assembles the dependency graph. The cobra RunE calls it; tests
 // either call it too or construct Setup directly with their own collaborators.
 func NewSetup(stdout, stderr io.Writer, cfgPath string) (*Setup, error) {
-	home, err := os.UserHomeDir()
+	compOpts, err := buildOptions(stdout, stderr)
 	if err != nil {
-		return nil, fmt.Errorf("locating home dir: %w", err)
+		return nil, err
 	}
-	root, err := ResolveRepo(home)
-	if err != nil {
-		return nil, fmt.Errorf("locating repo root: %w", err)
-	}
-
-	compOpts := components.Options{
-		RepoRoot:   root,
-		Home:       home,
-		BackupRoot: BackupRoot(home),
-		Stdout:     stdout,
-		Stderr:     stderr,
-	}
+	home := compOpts.Home
 	p10kDir := filepath.Join(home, ".oh-my-zsh", "custom", "themes", "powerlevel10k")
 
 	return &Setup{

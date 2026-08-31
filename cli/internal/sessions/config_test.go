@@ -1,6 +1,7 @@
 package sessions_test
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 
@@ -35,6 +36,13 @@ var _ = Describe("Seed", func() {
 		Expect(string(data)).To(ContainSubstring("#"))
 	})
 
+	It("fails when the parent path is a file", func() {
+		blocker := filepath.Join(GinkgoT().TempDir(), "blocker")
+		Expect(os.WriteFile(blocker, []byte("x"), 0o644)).To(Succeed())
+
+		Expect(sessions.Seed(filepath.Join(blocker, "sessions.yaml"))).NotTo(Succeed())
+	})
+
 	It("does not overwrite an existing file", func() {
 		path := filepath.Join(GinkgoT().TempDir(), "sessions.yaml")
 		Expect(os.WriteFile(path, []byte("keep me"), 0o644)).To(Succeed())
@@ -64,6 +72,23 @@ var _ = Describe("Load", func() {
 	write := func(content string) {
 		Expect(os.WriteFile(path, []byte(content), 0o644)).To(Succeed())
 	}
+
+	It("returns os.ErrNotExist for a missing file", func() {
+		_, err := sessions.Load(filepath.Join(GinkgoT().TempDir(), "nope.yaml"))
+		Expect(errors.Is(err, os.ErrNotExist)).To(BeTrue())
+	})
+
+	It("leaves ~ untouched when the home dir cannot be resolved", func() {
+		GinkgoT().Setenv("HOME", "")
+		write(`sessions:
+  - name: work
+    dirs: ["~/projects"]
+`)
+
+		f, err := sessions.Load(path)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(f.Sessions[0].Dirs[0]).To(Equal("~/projects"))
+	})
 
 	It("expands ~ in dirs to the user's home", func() {
 		GinkgoT().Setenv("HOME", "/fake/home")
