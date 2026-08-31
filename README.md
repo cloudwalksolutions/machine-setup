@@ -1,34 +1,32 @@
 # tars
 
-`tars` is a one-command CLI that provisions a macOS development environment —
+`tars` is a one-command CLI that provisions a development environment —
 dotfiles, dev tools, fonts, and terminal settings — with automatic, versioned
-backups of anything it replaces. It applies the opinionated CloudWalk configs kept in
-**this repository**, so you run it from a clone of the repo.
+backups of anything it replaces. The opinionated CloudWalk configs are **embedded
+in the binary**, so installing `tars` is all you need; a clone of this repo is
+only for contributing.
 
 ## Requirements
 
-- **macOS** (primary target; a Linux/apt path exists but is partial)
-- **[Homebrew](https://brew.sh)** — `tars` installs packages via `brew` but does not
-  install Homebrew itself
+- **macOS** (primary target) or **Linux** (Debian/Ubuntu; dotfiles fully, installs via apt)
+- **[Homebrew](https://brew.sh)** on macOS — `tars` installs packages via `brew` but
+  does not install Homebrew itself
 - **git** (ships with the Xcode Command Line Tools: `xcode-select --install`)
 
 ## Getting started (fresh machine)
 
 ```bash
-# 1. Clone this repo (it holds both the CLI and the configs tars applies)
-git clone https://github.com/cloudwalksolutions/machine-setup.git ~/machine-setup
-cd ~/machine-setup
-
-# 2. Install the tars CLI
+# 1. Install the tars CLI
 brew install cloudwalksolutions/homebrew-tap/tars
-#   (or build from source: cd cli && go build -o tars . && sudo mv tars /usr/local/bin/)
 
-# 3. Provision the machine — run from inside the repo
+# 2. Provision the machine
 tars setup
 ```
 
-`tars` finds the repo by walking up from your current directory (looking for this
-repo's `cli/go.mod` + `nvim/`). To run it from anywhere, point it at your clone:
+No clone needed: the dotfiles ship inside the binary and are materialized under
+`~/.local/share/tars/repo` on first use. If you DO have a clone (contributors),
+`tars` prefers it — found by walking up from your current directory (looking for
+`cli/go.mod` + `nvim/`) or via an explicit pointer:
 
 ```bash
 export MACHINE_SETUP_REPO="$HOME/machine-setup"
@@ -42,6 +40,7 @@ Verify the install any time with `tars --version`.
 tars setup     # full bootstrap: pick tools, install packages, apply all configs
 tars pull      # apply repo configs to this machine (dotfiles/fonts/terminals) — no installs
 tars push      # copy your local config changes back into the repo
+tars sessions  # open byobu sessions from a simple config of dirs (alias: s, by)
 ```
 
 - **`setup`** is the fresh-machine command. In order, it: shows a welcome screen, lets
@@ -49,15 +48,51 @@ tars push      # copy your local config changes back into the repo
   oh-my-zsh and Powerlevel10k, then applies all configs.
 - **`pull`** only lays down configuration — no package installs, no network — so it's
   safe to run repeatedly (e.g. after `git pull` to sync new config).
-- **`push`** captures your local edits back into the repo so you can commit them.
+- **`push`** captures your local edits back into the repo so you can commit them
+  (requires a real clone — the embedded configs are read-only).
+
+`pull` and `push` exit non-zero when any component fails (each failure is listed),
+so scripts and config management can detect partial runs.
 
 For unattended/CI runs, set `MACHINE_SETUP_NO_FORM=1` to skip the interactive prompts
 (all offered tools are selected).
 
+## Sessions
+
+Stop rebuilding the same byobu windows after every terminal restart: declare them once
+in `~/.config/.machine-setup/sessions.yaml` (git-ignored, machine-specific) — each
+session is a name plus a list of dirs, one window per dir:
+
+```yaml
+sessions:
+  - name: cloudwalk
+    dirs:
+      - ~/projects/machine-setup
+      - ~/projects/api
+  - name: personal
+    dirs:
+      - ~/dotfiles
+```
+
+```bash
+tars sessions              # interactive picker (or: tars s)
+tars sessions all          # open every configured session, attach to the first (tars s a)
+tars sessions open <name>  # open just one (tars s o cloudwalk)
+tars sessions new [name]   # a fresh byobu session, unrelated to the config (tars s n)
+tars sessions list         # show what's configured (tars s l)
+tars sessions edit         # edit the config in $EDITOR, seeding an example (tars s e)
+```
+
+Opening is idempotent: an existing session is attached, never duplicated, so re-running
+after a terminal restart just reconnects. Inside byobu it switches sessions instead of
+nesting. (This deliberately avoids byobu's `~/.byobu/windows.tmux`, which creates a
+duplicate session set on every launch.)
+
 ## ⚠️ What this does to your machine
 
 `tars` writes into your home directory. **Before overwriting anything it makes a
-versioned backup** under `backups/<component>/vN/`, so nothing is lost — but be aware
+versioned backup** under `~/.local/state/tars/backups/<component>/vN/`, so nothing is
+lost — but be aware
 it replaces these if they already exist:
 
 - `~/.zshrc`, `~/.zshrc_aliases`, `~/.zshrc_funcs`, `~/.zprofile`
@@ -91,8 +126,10 @@ Also note:
 ## How backups work
 
 Every overwrite is archived first, semantically versioned under
-`backups/<component>/vN/` (and `backups/<component>-repo/vN/` for `push`). Backups are
-git-ignored and never auto-deleted. `tars` skips the copy (and the backup) when a file
+`~/.local/state/tars/backups/<component>/vN/` (and `<component>-repo/vN/` for `push`).
+Backups are per-user, never auto-deleted, and never written into the repo clone —
+so a shared or read-only clone works fine. Override the location with
+`MACHINE_SETUP_BACKUP_ROOT`. `tars` skips the copy (and the backup) when a file
 already matches, so re-running is a no-op when nothing changed.
 
 ## Releasing (maintainers)

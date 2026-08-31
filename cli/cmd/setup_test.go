@@ -2,6 +2,7 @@ package cmd_test
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -124,12 +125,15 @@ type recordingPuller struct {
 	stderr     io.Writer
 }
 
-func (p *recordingPuller) PullAll() {
+func (p *recordingPuller) PullAll() error {
+	var failed []error
 	for _, c := range p.components {
 		if err := c.Pull(); err != nil {
 			fmt.Fprintf(p.stderr, "  %s: %v\n", c.Name(), err)
+			failed = append(failed, err)
 		}
 	}
+	return errors.Join(failed...)
 }
 
 // ── Fixture ──────────────────────────────────────────────────────────────

@@ -5,6 +5,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -18,7 +19,6 @@ import (
 	"github.com/cloudwalk/machine-setup/internal/pkg/apt"
 	"github.com/cloudwalk/machine-setup/internal/pkg/brew"
 	"github.com/cloudwalk/machine-setup/internal/pkg/rvm"
-	"github.com/cloudwalk/machine-setup/internal/repo"
 	"github.com/cloudwalk/machine-setup/internal/shell"
 	"github.com/spf13/cobra"
 )
@@ -62,9 +62,10 @@ type Installer interface {
 	Install() error
 }
 
-// Puller pulls every dotfile component, reporting failures inline.
+// Puller pulls every dotfile component, reporting failures inline and
+// returning an aggregate error naming the components that failed.
 type Puller interface {
-	PullAll()
+	PullAll() error
 }
 
 // ── Setup ────────────────────────────────────────────────────────────────
@@ -151,9 +152,13 @@ func (s *Setup) runShellInstaller(name string, i Installer) {
 	}
 }
 
+// runPull applies the configs; failures are non-fatal here — the user can
+// re-run `tars pull` after fixing the cause.
 func (s *Setup) runPull() {
 	fmt.Fprintln(s.Stdout, "\nPulling configuration files...")
-	s.Pull.PullAll()
+	if s.Pull.PullAll() != nil {
+		fmt.Fprintln(s.Stderr, "  some components failed; re-run `tars pull` after fixing the cause")
+	}
 }
 
 func (s *Setup) printNextSteps() {
@@ -189,7 +194,7 @@ func (FormsPicker) Pick(offered []string) ([]string, error) {
 // FileConfigStore reads/writes the YAML config at a fixed path.
 type FileConfigStore struct{ path string }
 
-func NewFileConfigStore(path string) FileConfigStore  { return FileConfigStore{path: path} }
+func NewFileConfigStore(path string) FileConfigStore    { return FileConfigStore{path: path} }
 func (s FileConfigStore) Load() (*config.Config, error) { return config.Init(s.path) }
 func (s FileConfigStore) Save(cfg *config.Config) error { return config.Save(s.path, cfg) }
 func (s FileConfigStore) Path() string                  { return s.path }
@@ -230,13 +235,16 @@ type SequentialPuller struct {
 	Stderr     io.Writer
 }
 
-func (p SequentialPuller) PullAll() {
+func (p SequentialPuller) PullAll() error {
+	var failed []error
 	for _, c := range p.Components {
 		fmt.Fprintf(p.Stdout, "  → %s\n", c.Name())
 		if err := c.Pull(); err != nil {
 			fmt.Fprintf(p.Stderr, "  %s: %v\n", c.Name(), err)
+			failed = append(failed, fmt.Errorf("%s: %w", c.Name(), err))
 		}
 	}
+	return errors.Join(failed...)
 }
 
 // ── Composition root ─────────────────────────────────────────────────────
@@ -249,7 +257,7 @@ func NewSetup(stdout, stderr io.Writer, cfgPath string) (*Setup, error) {
 	if err != nil {
 		return nil, fmt.Errorf("locating home dir: %w", err)
 	}
-	root, err := repo.Find()
+	root, err := ResolveRepo(home)
 	if err != nil {
 		return nil, fmt.Errorf("locating repo root: %w", err)
 	}
@@ -257,19 +265,19 @@ func NewSetup(stdout, stderr io.Writer, cfgPath string) (*Setup, error) {
 	compOpts := components.Options{
 		RepoRoot:   root,
 		Home:       home,
-		BackupRoot: filepath.Join(root, "backups"),
+		BackupRoot: BackupRoot(home),
 		Stdout:     stdout,
 		Stderr:     stderr,
 	}
 	p10kDir := filepath.Join(home, ".oh-my-zsh", "custom", "themes", "powerlevel10k")
 
 	return &Setup{
-		Welcome:   FormsWelcomer{},
-		Picker:    FormsPicker{},
-		Config:    NewFileConfigStore(cfgPath),
+		Welcome: FormsWelcomer{},
+		Picker:  FormsPicker{},
+		Config:  NewFileConfigStore(cfgPath),
 		Registry: pkg.NewRegistryFactory(
 			brew.DefaultRunner(),
-			apt.DefaultRunner(),
+			apt.DefaultKit(),
 			rvm.NewInstaller(filepath.Join(home, ".rvm"), rvm.DefaultRunner()),
 		).For(runtime.GOOS),
 		Installer: IterativeInstaller{Stdout: stdout, Stderr: stderr},

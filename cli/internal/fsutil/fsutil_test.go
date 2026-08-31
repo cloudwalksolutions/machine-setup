@@ -61,6 +61,59 @@ var _ = Describe("Backup", func() {
 	})
 })
 
+var _ = Describe("SameTree", func() {
+	var tmp string
+
+	BeforeEach(func() {
+		tmp = GinkgoT().TempDir()
+	})
+
+	writeTree := func(root string, files map[string]string) {
+		for rel, content := range files {
+			path := filepath.Join(root, rel)
+			Expect(os.MkdirAll(filepath.Dir(path), 0o755)).To(Succeed())
+			Expect(os.WriteFile(path, []byte(content), 0o644)).To(Succeed())
+		}
+	}
+
+	It("reports true for identical trees", func() {
+		writeTree(filepath.Join(tmp, "a"), map[string]string{"x.txt": "X", "sub/y.txt": "Y"})
+		writeTree(filepath.Join(tmp, "b"), map[string]string{"x.txt": "X", "sub/y.txt": "Y"})
+
+		Expect(fsutil.SameTree(filepath.Join(tmp, "a"), filepath.Join(tmp, "b"))).To(BeTrue())
+	})
+
+	It("reports false when dst has an extra file", func() {
+		writeTree(filepath.Join(tmp, "a"), map[string]string{"x.txt": "X"})
+		writeTree(filepath.Join(tmp, "b"), map[string]string{"x.txt": "X", "extra.txt": "E"})
+
+		Expect(fsutil.SameTree(filepath.Join(tmp, "a"), filepath.Join(tmp, "b"))).To(BeFalse())
+	})
+
+	It("reports false when a file's content differs", func() {
+		writeTree(filepath.Join(tmp, "a"), map[string]string{"x.txt": "X"})
+		writeTree(filepath.Join(tmp, "b"), map[string]string{"x.txt": "CHANGED"})
+
+		Expect(fsutil.SameTree(filepath.Join(tmp, "a"), filepath.Join(tmp, "b"))).To(BeFalse())
+	})
+
+	It("reports false when an exec bit differs", func() {
+		writeTree(filepath.Join(tmp, "a"), map[string]string{"x.sh": "#!/bin/sh"})
+		writeTree(filepath.Join(tmp, "b"), map[string]string{"x.sh": "#!/bin/sh"})
+		Expect(os.Chmod(filepath.Join(tmp, "a", "x.sh"), 0o755)).To(Succeed())
+
+		Expect(fsutil.SameTree(filepath.Join(tmp, "a"), filepath.Join(tmp, "b"))).To(BeFalse())
+	})
+
+	It("reports false (no error) when dst is missing", func() {
+		writeTree(filepath.Join(tmp, "a"), map[string]string{"x.txt": "X"})
+
+		same, err := fsutil.SameTree(filepath.Join(tmp, "a"), filepath.Join(tmp, "missing"))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(same).To(BeFalse())
+	})
+})
+
 var _ = Describe("SafeCopy", func() {
 	var (
 		tmp        string
@@ -107,6 +160,33 @@ var _ = Describe("SafeCopy", func() {
 			"zsh", backupRoot,
 		)
 		Expect(err).To(HaveOccurred())
+	})
+
+	It("preserves the source's exec bit on copy", func() {
+		src := filepath.Join(tmp, "script.sh")
+		Expect(os.WriteFile(src, []byte("#!/bin/sh\n"), 0o755)).To(Succeed())
+		dst := filepath.Join(tmp, "out", "script.sh")
+
+		Expect(fsutil.SafeCopy(src, dst, "byobu", backupRoot)).To(Succeed())
+
+		info, err := os.Stat(dst)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(info.Mode().Perm()).To(Equal(os.FileMode(0o755)))
+	})
+
+	It("repairs a mode mismatch on identical content without backing up", func() {
+		src := filepath.Join(tmp, "script.sh")
+		dst := filepath.Join(tmp, "dst.sh")
+		Expect(os.WriteFile(src, []byte("#!/bin/sh\n"), 0o755)).To(Succeed())
+		Expect(os.WriteFile(dst, []byte("#!/bin/sh\n"), 0o644)).To(Succeed())
+
+		Expect(fsutil.SafeCopy(src, dst, "byobu", backupRoot)).To(Succeed())
+
+		info, err := os.Stat(dst)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(info.Mode().Perm()).To(Equal(os.FileMode(0o755)))
+		_, err = os.Stat(filepath.Join(backupRoot, "byobu"))
+		Expect(os.IsNotExist(err)).To(BeTrue(), "mode repair must not create a backup")
 	})
 
 	It("is a no-op (no backup) when dst already equals src (idempotent)", func() {

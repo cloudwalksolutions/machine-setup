@@ -26,10 +26,11 @@ type Terminal struct {
 	p    paths.TerminalPaths
 	goos string
 
-	CurrentFontFn func() (string, error)               // iTerm2: read default profile font
-	SetFontFn     func(font string) error              // iTerm2: set default profile font
-	ApplyFn       func(profilePath, name string) error // Terminal.app: import + set default
-	ExportFn      func(name, dst string) error         // Terminal.app: export default profile
+	CurrentFontFn    func() (string, error)               // iTerm2: read default profile font
+	SetFontFn        func(font string) error              // iTerm2: set default profile font
+	DefaultProfileFn func() (string, error)               // Terminal.app: read default profile name
+	ApplyFn          func(profilePath, name string) error // Terminal.app: import + set default
+	ExportFn         func(name, dst string) error         // Terminal.app: export default profile
 }
 
 // NewTerminal returns a Terminal component with platform defaults for the current OS.
@@ -40,13 +41,14 @@ func NewTerminal(opts Options) *Terminal {
 // NewTerminalForOS is the OS-explicit form, useful for tests.
 func NewTerminalForOS(opts Options, goos string) *Terminal {
 	return &Terminal{
-		opts:          opts,
-		p:             paths.ForOS(opts.RepoRoot, opts.Home, goos).Terminal,
-		goos:          goos,
-		CurrentFontFn: itermCurrentFont,
-		SetFontFn:     itermSetFont,
-		ApplyFn:       terminalAppApply,
-		ExportFn:      terminalAppExport,
+		opts:             opts,
+		p:                paths.ForOS(opts.RepoRoot, opts.Home, goos).Terminal,
+		goos:             goos,
+		CurrentFontFn:    itermCurrentFont,
+		SetFontFn:        itermSetFont,
+		DefaultProfileFn: terminalAppDefaultProfile,
+		ApplyFn:          terminalAppApply,
+		ExportFn:         terminalAppExport,
 	}
 }
 
@@ -75,6 +77,11 @@ func (t *Terminal) Pull() error {
 		if err := t.SetFontFn(want); err != nil {
 			return err
 		}
+	}
+	// Importing the profile pops a Terminal.app window; skip when it is
+	// already the default so re-pulls stay quiet.
+	if current, err := t.DefaultProfileFn(); err == nil && current == terminalProfileName {
+		return nil
 	}
 	return t.ApplyFn(t.p.ProfileRepo, terminalProfileName)
 }
@@ -177,8 +184,18 @@ func itermSetFont(font string) error {
 	return plistBuddy("-c", "Set :'New Bookmarks':"+idx+":'Use Non-ASCII Font' true").Run()
 }
 
+// terminalAppDefaultProfile reads Terminal.app's default window profile name.
+func terminalAppDefaultProfile() (string, error) {
+	out, err := exec.Command("defaults", "read", "com.apple.Terminal", "Default Window Settings").Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
 func terminalAppApply(profilePath, name string) error {
-	if err := exec.Command("open", profilePath).Run(); err != nil {
+	// -g keeps Terminal.app in the background, -j hides the imported window.
+	if err := exec.Command("open", "-g", "-j", profilePath).Run(); err != nil {
 		return err
 	}
 	for _, key := range []string{"Default Window Settings", "Startup Window Settings"} {

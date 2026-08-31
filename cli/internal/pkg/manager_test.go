@@ -1,7 +1,9 @@
 package pkg_test
 
 import (
+	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"io"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -17,8 +19,8 @@ import (
 // are tested in their own packages.
 type fakeInstallable struct{ name string }
 
-func (f fakeInstallable) Name() string                    { return f.name }
-func (f fakeInstallable) Install(_, _ io.Writer) error    { return nil }
+func (f fakeInstallable) Name() string                 { return f.name }
+func (f fakeInstallable) Install(_, _ io.Writer) error { return nil }
 
 var _ = Describe("DevToolRegistry", func() {
 	var registry *pkg.DevToolRegistry
@@ -73,17 +75,44 @@ func (r *recordingRunner) Run(args []string, _, _ io.Writer) error {
 
 var _ = Describe("RegistryFactory", func() {
 	var (
-		brewSpy *recordingRunner
-		aptSpy  *recordingRunner
-		factory pkg.RegistryFactory
+		brewSpy    *recordingRunner
+		aptSpy     *recordingRunner
+		cmdSpy     *recordingRunner
+		fetchCalls int
+		factory    pkg.RegistryFactory
 	)
+
+	// minimalTarGz is a valid empty gzipped tarball, so seam-driven installs
+	// that extract archives still succeed against the spy Fetch.
+	minimalTarGz := func() io.ReadCloser {
+		var buf bytes.Buffer
+		gz := gzip.NewWriter(&buf)
+		tw := tar.NewWriter(gz)
+		Expect(tw.Close()).To(Succeed())
+		Expect(gz.Close()).To(Succeed())
+		return io.NopCloser(&buf)
+	}
+
+	spyKit := func() apt.Kit {
+		return apt.Kit{
+			Apt: aptSpy.Run,
+			Cmd: cmdSpy.Run,
+			Fetch: func(string) (io.ReadCloser, error) {
+				fetchCalls++
+				return minimalTarGz(), nil
+			},
+			Home: GinkgoT().TempDir(),
+		}
+	}
 
 	BeforeEach(func() {
 		brewSpy = &recordingRunner{}
 		aptSpy = &recordingRunner{}
+		cmdSpy = &recordingRunner{}
+		fetchCalls = 0
 		factory = pkg.NewRegistryFactory(
 			brew.Runner(brewSpy.Run),
-			apt.Runner(aptSpy.Run),
+			spyKit(),
 		)
 	})
 
@@ -123,11 +152,40 @@ var _ = Describe("RegistryFactory", func() {
 		Fail("no installable in the linux registry routed through apt")
 	})
 
+	It("on linux, gh installs via the GitHub apt-repo steps, not a plain apt install", func() {
+		registry := factory.For("linux")
+
+		for _, tool := range registry.Installables() {
+			if tool.Name() != "gh" {
+				continue
+			}
+			Expect(tool.Install(&bytes.Buffer{}, &bytes.Buffer{})).To(Succeed())
+			Expect(cmdSpy.calls).To(BeNumerically(">", 0), "gh must run repo-setup steps")
+			Expect(aptSpy.calls).To(Equal(0), "gh must not be a plain apt package")
+			return
+		}
+		Fail("no gh installable in the linux registry")
+	})
+
+	It("on linux, every installable routes through an injected seam (airgapped unit contract)", func() {
+		registry := factory.For("linux")
+		Expect(registry.Installables()).NotTo(BeEmpty())
+
+		for _, tool := range registry.Installables() {
+			aptBefore, cmdBefore, fetchBefore := aptSpy.calls, cmdSpy.calls, fetchCalls
+
+			Expect(tool.Install(&bytes.Buffer{}, &bytes.Buffer{})).To(Succeed(), tool.Name())
+
+			touched := aptSpy.calls > aptBefore || cmdSpy.calls > cmdBefore || fetchCalls > fetchBefore
+			Expect(touched).To(BeTrue(), "%s performed no seam call — likely real I/O", tool.Name())
+		}
+	})
+
 	It("appends caller-provided extras to every supported-OS registry", func() {
 		extra := fakeInstallable{name: "my-extra"}
 		factoryWithExtra := pkg.NewRegistryFactory(
 			brew.Runner(brewSpy.Run),
-			apt.Runner(aptSpy.Run),
+			spyKit(),
 			extra,
 		)
 
@@ -137,7 +195,7 @@ var _ = Describe("RegistryFactory", func() {
 
 	It("does NOT include extras when the OS is unsupported", func() {
 		extra := fakeInstallable{name: "my-extra"}
-		factoryWithExtra := pkg.NewRegistryFactory(nil, nil, extra)
+		factoryWithExtra := pkg.NewRegistryFactory(nil, apt.Kit{}, extra)
 
 		Expect(factoryWithExtra.For("plan9").Installables()).To(BeEmpty())
 	})

@@ -50,14 +50,14 @@ func (r *DevToolRegistry) Names() []string {
 // the RVM curl-pipe installer, which isn't a brew/apt entry).
 type RegistryFactory struct {
 	brewRun brew.Runner
-	aptRun  apt.Runner
+	aptKit  apt.Kit
 	extras  []Installable
 }
 
 // NewRegistryFactory captures the platform runners and any cross-platform
 // extras. The extras are appended to every recognized-OS registry.
-func NewRegistryFactory(brewRun brew.Runner, aptRun apt.Runner, extras ...Installable) RegistryFactory {
-	return RegistryFactory{brewRun: brewRun, aptRun: aptRun, extras: extras}
+func NewRegistryFactory(brewRun brew.Runner, aptKit apt.Kit, extras ...Installable) RegistryFactory {
+	return RegistryFactory{brewRun: brewRun, aptKit: aptKit, extras: extras}
 }
 
 // For returns the curated registry for the given OS. Unsupported OS → empty
@@ -115,16 +115,17 @@ func (f RegistryFactory) wireDarwin(r *DevToolRegistry) {
 }
 
 // linuxAptPackages is the curated list of apt packages installed on Linux.
+// gh is NOT here — Ubuntu's archives don't carry it; see GitHubCLI below.
 var linuxAptPackages = []string{
 	"byobu", "fzf", "ripgrep", "bat",
-	"jq", "gh", "go", "node", "python",
+	"jq", "go", "node", "python",
 }
 
 func (f RegistryFactory) wireLinux(r *DevToolRegistry) {
-	r.Add(apt.NeovimAppImage{})
+	r.Add(apt.NeovimTarball{Fetch: f.aptKit.Fetch, Home: f.aptKit.Home})
 	for _, name := range linuxAptPackages {
-		r.Add(apt.NewPackage(name, f.aptRun))
+		r.Add(apt.NewPackage(name, f.aptKit.Apt))
 	}
-	r.Add(apt.GCloudCLI{})
+	r.Add(apt.NewGitHubCLI(f.aptKit.Cmd))
+	r.Add(apt.NewGCloudCLI(f.aptKit.Cmd))
 }
-

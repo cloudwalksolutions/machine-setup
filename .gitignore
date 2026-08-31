@@ -62,3 +62,5 @@ zsh/zshrc_secret
 cli/tars
 cli/machine-setup
 
+# Local Pi runtime state
+.atl/

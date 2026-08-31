@@ -53,6 +53,18 @@ var _ = Describe("Nvim.Pull", func() {
 		Expect(string(b)).To(Equal("MONOKAI"))
 	})
 
+	It("creates no new backup version when re-pulling an unchanged tree (idempotent)", func() {
+		Expect(components.NewNvim(opts).Pull()).To(Succeed())
+		Expect(components.NewNvim(opts).Pull()).To(Succeed())
+
+		entries, err := os.ReadDir(filepath.Join(opts.BackupRoot, "nvim"))
+		if err != nil {
+			Expect(os.IsNotExist(err)).To(BeTrue(), err)
+		} else {
+			Expect(entries).To(BeEmpty(), "unchanged re-pull must not mint a new backups/nvim/vN")
+		}
+	})
+
 	It("replaces (not merges) the local nvim dir so stale files are removed", func() {
 		// Seed a stale plugin/file that's NOT in the repo tree.
 		stale := filepath.Join(home, ".config", "nvim", "stale", "leftover.lua")

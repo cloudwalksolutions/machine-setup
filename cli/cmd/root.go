@@ -25,6 +25,7 @@ func SetVersion(version, commit, date string) {
 	if version == "" {
 		version = "dev"
 	}
+	binaryVersion = version
 	rootCmd.Version = fmt.Sprintf("%s (commit %s, built %s)", version, commit, date)
 }
 
@@ -36,4 +37,5 @@ func init() {
 	rootCmd.AddCommand(setupCmd)
 	rootCmd.AddCommand(pushCmd)
 	rootCmd.AddCommand(pullCmd)
+	rootCmd.AddCommand(sessionsCmd)
 }

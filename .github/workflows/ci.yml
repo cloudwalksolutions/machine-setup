@@ -48,7 +48,12 @@ jobs:
           working-directory: cli
 
   e2e-linux:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # arm64 exercises the linux/arm64 target goreleaser ships.
+        os: [ubuntu-latest, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       # Assertions run inside the build; a failed assertion fails this step.

@@ -1,10 +1,10 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 
 	"github.com/cloudwalk/machine-setup/internal/components"
 	"github.com/cloudwalk/machine-setup/internal/repo"
@@ -19,14 +19,18 @@ type SequentialPusher struct {
 	Stderr     io.Writer
 }
 
-// PushAll pushes every component, reporting failures inline without aborting.
-func (p SequentialPusher) PushAll() {
+// PushAll pushes every component, reporting failures inline without aborting,
+// and returns an aggregate error naming the components that failed.
+func (p SequentialPusher) PushAll() error {
+	var failed []error
 	for _, c := range p.Components {
 		fmt.Fprintf(p.Stdout, "  → %s\n", c.Name())
 		if err := c.Push(); err != nil {
 			fmt.Fprintf(p.Stderr, "  %s: %v\n", c.Name(), err)
+			failed = append(failed, fmt.Errorf("%s: %w", c.Name(), err))
 		}
 	}
+	return errors.Join(failed...)
 }
 
 var pushCmd = &cobra.Command{
@@ -40,24 +44,29 @@ previous repo copies under backups/<component>-repo/vN.`,
 		if err != nil {
 			return fmt.Errorf("locating home dir: %w", err)
 		}
+		// Push writes into the repo working tree, so it needs a real clone —
+		// the embedded-assets fallback is read-only by design.
 		root, err := repo.Find()
 		if err != nil {
-			return fmt.Errorf("locating repo root: %w", err)
+			return fmt.Errorf("push requires a clone of the repo (set MACHINE_SETUP_REPO or run from inside one): %w", err)
 		}
 		opts := components.Options{
 			RepoRoot:   root,
 			Home:       home,
-			BackupRoot: filepath.Join(root, "backups"),
+			BackupRoot: BackupRoot(home),
 			Stdout:     stdout,
 			Stderr:     stderr,
 		}
 		fmt.Fprintln(stdout, "Pushing configuration files...")
-		SequentialPusher{
+		if err := (SequentialPusher{
 			Components: components.AllPushable(opts),
 			Stdout:     stdout,
 			Stderr:     stderr,
-		}.PushAll()
+		}).PushAll(); err != nil {
+			return fmt.Errorf("push completed with failures: %w", err)
+		}
 		fmt.Fprintln(stdout, "\nPush complete.")
 		return nil
 	},
+	SilenceUsage: true,
 }

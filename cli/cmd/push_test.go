@@ -38,10 +38,22 @@ var _ = Describe("SequentialPusher.PushAll", func() {
 			Stderr: stderr,
 		}
 
-		pusher.PushAll()
+		err := pusher.PushAll()
 
 		Expect(log).To(Equal([]string{"vim", "zsh", "terminal"}))
 		Expect(stderr.String()).To(ContainSubstring("zsh"))
 		Expect(strings.Count(stderr.String(), "boom")).To(Equal(1))
+		Expect(err).To(MatchError(ContainSubstring("zsh")))
+	})
+
+	It("returns nil when every component pushes cleanly", func() {
+		var log []string
+		pusher := cmd.SequentialPusher{
+			Components: []components.Pushable{&spyPushable{name: "vim", log: &log}},
+			Stdout:     &bytes.Buffer{},
+			Stderr:     &bytes.Buffer{},
+		}
+
+		Expect(pusher.PushAll()).To(Succeed())
 	})
 })

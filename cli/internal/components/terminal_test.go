@@ -25,6 +25,7 @@ var _ = Describe("Terminal", func() {
 		t := components.NewTerminalForOS(opts, "darwin")
 		t.CurrentFontFn = func() (string, error) { return "Monaco 12", nil }
 		t.SetFontFn = func(string) error { return nil }
+		t.DefaultProfileFn = func() (string, error) { return "Basic", nil }
 		t.ApplyFn = func(string, string) error { return nil }
 		t.ExportFn = func(string, string) error { return nil }
 		return t
@@ -87,6 +88,16 @@ var _ = Describe("Terminal", func() {
 		Expect(t.Pull()).To(Succeed())
 		Expect(gotPath).To(Equal(filepath.Join(repoRoot, "terminal", "CloudWalk.terminal")))
 		Expect(gotName).To(Equal("CloudWalk"))
+	})
+
+	It("Pull skips the Terminal.app import when CloudWalk is already the default (no window popup)", func() {
+		applyCalls := 0
+		t := newTerm()
+		t.DefaultProfileFn = func() (string, error) { return "CloudWalk", nil }
+		t.ApplyFn = func(string, string) error { applyCalls++; return nil }
+
+		Expect(t.Pull()).To(Succeed())
+		Expect(applyCalls).To(Equal(0))
 	})
 
 	It("Push writes the live iTerm2 font into the repo, archiving the prior value", func() {

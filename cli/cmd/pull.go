@@ -3,10 +3,8 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/cloudwalk/machine-setup/internal/components"
-	"github.com/cloudwalk/machine-setup/internal/repo"
 	"github.com/spf13/cobra"
 )
 
@@ -24,24 +22,27 @@ network — it only lays down configuration, so it's safe to run repeatedly.`,
 		if err != nil {
 			return fmt.Errorf("locating home dir: %w", err)
 		}
-		root, err := repo.Find()
+		root, err := ResolveRepo(home)
 		if err != nil {
 			return fmt.Errorf("locating repo root: %w", err)
 		}
 		opts := components.Options{
 			RepoRoot:   root,
 			Home:       home,
-			BackupRoot: filepath.Join(root, "backups"),
+			BackupRoot: BackupRoot(home),
 			Stdout:     stdout,
 			Stderr:     stderr,
 		}
 		fmt.Fprintln(stdout, "Applying configuration files...")
-		SequentialPuller{
+		if err := (SequentialPuller{
 			Components: components.AllPullable(opts),
 			Stdout:     stdout,
 			Stderr:     stderr,
-		}.PullAll()
+		}).PullAll(); err != nil {
+			return fmt.Errorf("pull completed with failures: %w", err)
+		}
 		fmt.Fprintln(stdout, "\nPull complete.")
 		return nil
 	},
+	SilenceUsage: true,
 }

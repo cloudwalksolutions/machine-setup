@@ -26,6 +26,13 @@ help:            ## Show this help
 build:           ## Build the tars CLI binary (cli/tars)
 	cd $(CLI) && go build -o tars .
 
+.PHONY: sync-assets
+sync-assets:     ## Refresh the dotfiles embedded in the binary (cli/internal/assets/tree)
+	rm -rf $(CLI)/internal/assets/tree
+	mkdir -p $(CLI)/internal/assets/tree
+	cp -R nvim zsh byobu vim fonts terminal $(CLI)/internal/assets/tree/
+	cp monokai.lua $(CLI)/internal/assets/tree/
+
 .PHONY: lint
 lint:            ## Lint the CLI (golangci-lint)
 	cd $(CLI) && golangci-lint run ./...

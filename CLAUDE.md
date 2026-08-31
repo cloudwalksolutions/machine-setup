@@ -15,8 +15,10 @@ fonts, and terminal settings. The user-facing CLI is **`tars`** (Go, in `cli/`).
 - **Bidirectional sync**: `tars pull` applies repo configs to the machine (no installs,
   no network — safe to re-run); `tars push` copies local edits back into the repo.
 - **Versioned backups**: every overwrite is archived first under
-  `backups/<component>/vN/` (and `backups/<component>-repo/vN/` for push). Never
+  `~/.local/state/tars/backups/<component>/vN/` (`<component>-repo/vN/` for push;
+  override with `MACHINE_SETUP_BACKUP_ROOT`). Per-user, never in the repo clone, never
   auto-deleted. Identical files are skipped (no backup, no copy) so re-runs are no-ops.
+  `pull`/`push` exit non-zero when any component fails; `setup` tolerates pull failures.
 - **Self-contained Go**: the CLI reimplements all logic natively. It NEVER shells out to
   repo scripts. (The old `scripts/` bash tooling has been removed; `cli/` is the source
   of truth.)
@@ -29,11 +31,13 @@ fonts, and terminal settings. The user-facing CLI is **`tars`** (Go, in `cli/`).
 ```
 ├── cli/                         # the `tars` Go CLI (module lives here)
 │   ├── main.go                  # entrypoint; version/commit/date injected via ldflags
-│   ├── cmd/                     # cobra commands: setup, pull, push (+ root)
+│   ├── cmd/                     # cobra commands: setup, pull, push, sessions (+ root)
 │   │   ├── setup.go             # Setup orchestrator + SequentialPuller (DI, testable)
 │   │   ├── pull.go / push.go    # apply / capture configs; SequentialPusher
 │   └── internal/
 │       ├── components/          # per-tool Pull/Push: vim, zsh, byobu, nvim, fonts, terminal
+│       ├── sessions/            # declarative byobu sessions: yaml config + idempotent launcher
+│       ├── assets/              # dotfiles embedded in the binary (tree/ mirror; `make sync-assets`)
 │       ├── fsutil/              # Backup + SafeCopy (versioned, idempotent)
 │       ├── paths/               # repo→local file mappings (ForOS: OS-aware)
 │       ├── repo/                # repo-root discovery (markers: cli/go.mod + nvim/)
@@ -50,8 +54,11 @@ fonts, and terminal settings. The user-facing CLI is **`tars`** (Go, in `cli/`).
 ```
 
 The CLI locates the repo root by walking up for `cli/go.mod` + `nvim/`, or via the
-`MACHINE_SETUP_REPO` env var (`cli/internal/repo`). So `tars` must run from inside a
-clone of this repo.
+`MACHINE_SETUP_REPO` env var (`cli/internal/repo`). With no clone at all, `cmd.ResolveRepo`
+falls back to the dotfiles embedded in the binary (`cli/internal/assets`), materialized
+under `~/.local/share/tars/repo` — so a brew-installed `tars` needs no clone. The
+embedded mirror is refreshed with `make sync-assets`; a drift-guard spec fails when a
+dotfile changes without re-syncing. `push` still requires a real clone.
 
 ## Testing Strategy
 
@@ -72,11 +79,14 @@ Tests are layered:
 2. **Integration** (`make integration`) — real external deps: brew installers gated by
    `INTEGRATION=1` (installs/removes `hello`) plus the Neovim config tests (real `nvim`).
    Off by default in `go test`.
-3. **End-to-end** (`make e2e`) — `test/e2e/Dockerfile`: builds `tars`, runs `tars pull`
-   in a non-root container with `HOME` forced to a throwaway dir and `MACHINE_SETUP_REPO=/repo`
-   — **no apt, no sudo, no network at runtime** — then asserts dotfiles/fonts landed, a
-   versioned backup is created on modify-then-repull, and a clean re-pull is idempotent.
-   Assertions are `RUN` lines, so a failure fails `docker build`. Runs in CI on every PR.
+3. **End-to-end** (`make e2e`) — `test/e2e/Dockerfile`: builds `tars` against a
+   **root-owned, read-only** repo clone shared by two non-root users, plus a third user
+   with no clone (embedded-assets path) — **no apt installs, no sudo, no network at
+   runtime**. Asserts all six components land (incl. the exec bit on `byobu/bin`), the
+   pulled shell configs parse (`zsh -ic` / `bash -lc`), backups version under each
+   user's `$HOME`, re-pulls are idempotent (incl. nvim), and a failing pull exits
+   non-zero. Assertions are `RUN` lines, so a failure fails `docker build`. Runs in CI
+   on every PR on amd64 and arm64.
 
 **The seam pattern (critical).** Unit tests must never touch the real system (plists,
 `sudo cp`, network, `/Library/Fonts`). Anything that does is injected behind a seam so a
@@ -90,7 +100,8 @@ spec can drive a fake and still fail red-first:
   so darwin-only paths are exercised on any host. CI also runs a `macos-latest` matrix leg
   so darwin-only code compiles and its unit tests run for real.
 - **Path/env overrides**: `Fonts.LocalOverride`, `MACHINE_SETUP_REPO`,
-  `MACHINE_SETUP_NO_FORM=1` (skips the TUI).
+  `MACHINE_SETUP_NO_FORM=1` (skips the TUIs), `MACHINE_SETUP_CONFIG_PATH`,
+  `MACHINE_SETUP_SESSIONS_PATH`, `MACHINE_SETUP_BACKUP_ROOT`.
 
 **Backup-safety invariant (must hold, is tested).** Any destructive write (e.g.
 `os.RemoveAll` in `nvim` Pull/Push) MUST call `fsutil.Backup(...)` first AND error-check
@@ -157,9 +168,11 @@ section for the one-time tap-repo + `HOMEBREW_TAP_TOKEN` prerequisites. Test loc
 
 - **Never commit secrets.** `.gitignore` excludes `.zshrc_secret`, `backups/`, and build
   artifacts — stay vigilant.
-- **Backups are versioned** (v1, v2, v3…) and never auto-deleted.
-- **macOS-focused.** Homebrew, `/Library/Fonts`, iTerm2/Terminal.app plists are macOS;
-  a partial Linux/apt path exists.
+- **Backups are versioned** (v1, v2, v3…), live under `~/.local/state/tars/backups`,
+  and are never auto-deleted.
+- **macOS-first, Linux-supported.** Homebrew, `/Library/Fonts`, iTerm2/Terminal.app
+  plists are macOS; Linux gets the full dotfile pull plus apt/tarball installs
+  (Neovim tarball, GitHub/GCloud apt repos) suitable for shared bastions.
 - **Neovim is the primary editor**; vim is a minimal fallback. Neovim needs Python3,
   Node.js, and language servers (auto-installed via Mason).
 - **ALWAYS run Neovim tests**: after ANY change to the Neovim config, run `make test-nvim`
