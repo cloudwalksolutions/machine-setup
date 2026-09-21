@@ -6,7 +6,6 @@ on:
   push:
     branches: [main]
 
-# Cancel superseded runs on the same ref to save minutes.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -21,9 +20,10 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     defaults:
       run:
-        working-directory: cli    # go.mod lives in cli/
+        working-directory: cli
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -36,6 +36,7 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -46,9 +47,13 @@ jobs:
         with:
           version: v2.12.2
           working-directory: cli
+      - name: go mod tidy is a no-op
+        working-directory: cli
+        run: go mod tidy -diff
 
   coverage:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write   # badge commit on the badges branch (main only)
     steps:
@@ -71,10 +76,35 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # arm64 exercises the linux/arm64 target goreleaser ships.
         os: [ubuntu-latest, ubuntu-24.04-arm]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      # Assertions run inside the build; a failed assertion fails this step.
       - run: docker build -f test/e2e/Dockerfile -t tars-e2e .
+
+  nvim:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      XDG_CONFIG_HOME: ${{ github.workspace }}   # stdpath("config") → the repo's nvim/
+    steps:
+      - uses: actions/checkout@v4
+      - uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+      - name: Install plugins from lazy-lock.json
+        run: nvim --headless "+Lazy! restore" +qa
+      - name: Headless smoke tests
+        run: nvim -u nvim/init.lua --headless -l nvim/tests/smoke_test.lua
+
+  goreleaser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: goreleaser/goreleaser-action@v7
+        with:
+          version: "~> v2"
+          args: check
