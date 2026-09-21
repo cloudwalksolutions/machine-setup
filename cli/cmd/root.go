@@ -32,7 +32,7 @@ func SetVersion(version, commit, date string) {
 func init() {
 	rootCmd.PersistentFlags().StringVar(
 		&cfgFile, "config", "",
-		"config file (default: ~/.config/.machine-setup/config.yaml; env: MACHINE_SETUP_CONFIG_PATH)",
+		"config file (default: ~/.config/tars/config.yaml; env: TARS_CONFIG_PATH)",
 	)
 	rootCmd.AddCommand(setupCmd)
 	rootCmd.AddCommand(pushCmd)

@@ -207,7 +207,7 @@ var sessionsCmd = &cobra.Command{
 	Aliases: []string{"s", "by"},
 	Short:   "Open byobu sessions from a simple config of dirs (aliases: s, by)",
 	Long: `Manage a set of byobu sessions declared in a simple yaml config
-(~/.config/.machine-setup/sessions.yaml): each session is a name plus a list
+(~/.config/tars/sessions.yaml): each session is a name plus a list
 of dirs, one window per dir. Opening is idempotent — existing sessions are
 attached, never duplicated. Run bare for an interactive picker.`,
 	RunE: sessionsRunE(func(s *Sessions, _ []string) error { return s.PickAndRun() }),

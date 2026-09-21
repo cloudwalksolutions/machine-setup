@@ -17,7 +17,7 @@ Set WindowBar Colorful
 Env HOME "/tmp/tars-demo"
 
 Hide
-Type "rm -rf /tmp/tars-demo && mkdir -p /tmp/tars-demo/work/api /tmp/tars-demo/work/infra /tmp/tars-demo/.config/.machine-setup && cd /tmp/tars-demo && printf 'sessions:\n  - name: cloudwalk\n    dirs:\n      - ~/work/api\n      - ~/work/infra\n' > /tmp/tars-demo/.config/.machine-setup/sessions.yaml && clear"
+Type "rm -rf /tmp/tars-demo && mkdir -p /tmp/tars-demo/work/api /tmp/tars-demo/work/infra /tmp/tars-demo/.config/tars && cd /tmp/tars-demo && printf 'sessions:\n  - name: cloudwalk\n    dirs:\n      - ~/work/api\n      - ~/work/infra\n' > /tmp/tars-demo/.config/tars/sessions.yaml && clear"
 Enter
 Show
 

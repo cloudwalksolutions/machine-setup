@@ -24,7 +24,7 @@ RUN useradd -m usera && useradd -m userb && useradd -m userc
 USER usera
 WORKDIR /home/usera
 ENV HOME=/home/usera
-ENV MACHINE_SETUP_REPO=/repo
+ENV TARS_REPO=/repo
 
 RUN tars pull
 
@@ -74,7 +74,7 @@ RUN tars pull \
 USER userc
 WORKDIR /home/userc
 ENV HOME=/home/userc
-ENV MACHINE_SETUP_REPO=
+ENV TARS_REPO=
 
 RUN tars pull \
  && test -f "$HOME/.local/share/tars/repo/zsh/zshrc" \

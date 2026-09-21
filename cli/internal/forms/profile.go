@@ -9,9 +9,9 @@ import (
 )
 
 // ShowProfileForm asks for a new profile's identity, starting from defaults.
-// When MACHINE_SETUP_NO_FORM=1 it returns defaults unchanged (tests/CI).
+// When TARS_NO_FORM=1 it returns defaults unchanged (tests/CI).
 func ShowProfileForm(defaults profiles.Profile) (profiles.Profile, error) {
-	if os.Getenv("MACHINE_SETUP_NO_FORM") != "" {
+	if os.Getenv("TARS_NO_FORM") != "" {
 		return defaults, nil
 	}
 

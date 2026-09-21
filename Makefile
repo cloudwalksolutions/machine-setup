@@ -1,4 +1,4 @@
-# Makefile for machine-setup.
+# Makefile for tars.
 #
 # Machine provisioning is the `tars` CLI: tars setup | pull | push | sessions (see README).
 # This Makefile is for developing tars + the configs.

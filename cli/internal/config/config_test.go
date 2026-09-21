@@ -12,15 +12,15 @@ import (
 )
 
 var _ = Describe("DefaultConfigPath", func() {
-	It("honors the MACHINE_SETUP_CONFIG_PATH override", func() {
-		GinkgoT().Setenv("MACHINE_SETUP_CONFIG_PATH", "/tmp/custom-config.yaml")
+	It("honors the TARS_CONFIG_PATH override", func() {
+		GinkgoT().Setenv("TARS_CONFIG_PATH", "/tmp/custom-config.yaml")
 		Expect(config.DefaultConfigPath()).To(Equal("/tmp/custom-config.yaml"))
 	})
 
-	It("defaults to ~/.config/.machine-setup/config.yaml", func() {
-		GinkgoT().Setenv("MACHINE_SETUP_CONFIG_PATH", "")
+	It("defaults to ~/.config/tars/config.yaml", func() {
+		GinkgoT().Setenv("TARS_CONFIG_PATH", "")
 		GinkgoT().Setenv("HOME", "/fake/home")
-		Expect(config.DefaultConfigPath()).To(Equal("/fake/home/.config/.machine-setup/config.yaml"))
+		Expect(config.DefaultConfigPath()).To(Equal("/fake/home/.config/tars/config.yaml"))
 	})
 })
 

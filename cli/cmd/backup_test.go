@@ -8,14 +8,14 @@ import (
 )
 
 var _ = Describe("BackupRoot", func() {
-	It("honors the MACHINE_SETUP_BACKUP_ROOT override", func() {
-		GinkgoT().Setenv("MACHINE_SETUP_BACKUP_ROOT", "/mnt/backups")
+	It("honors the TARS_BACKUP_ROOT override", func() {
+		GinkgoT().Setenv("TARS_BACKUP_ROOT", "/mnt/backups")
 
 		Expect(cmd.BackupRoot("/home/u")).To(Equal("/mnt/backups"))
 	})
 
 	It("defaults under the user's home, not the repo clone", func() {
-		GinkgoT().Setenv("MACHINE_SETUP_BACKUP_ROOT", "")
+		GinkgoT().Setenv("TARS_BACKUP_ROOT", "")
 
 		Expect(cmd.BackupRoot("/home/u")).To(Equal("/home/u/.local/state/tars/backups"))
 	})

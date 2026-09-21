@@ -27,17 +27,16 @@ type App struct {
 	Name string `mapstructure:"name" yaml:"name"`
 }
 
-// DefaultConfigPath returns ~/.config/.machine-setup/config.yaml.
-// The MACHINE_SETUP_CONFIG_PATH env var overrides this (used by tests).
+// DefaultConfigPath is ~/.config/tars/config.yaml unless TARS_CONFIG_PATH overrides it.
 func DefaultConfigPath() string {
-	if envPath := os.Getenv("MACHINE_SETUP_CONFIG_PATH"); envPath != "" {
+	if envPath := os.Getenv("TARS_CONFIG_PATH"); envPath != "" {
 		return envPath
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return ".machine-setup/config.yaml"
+		return "tars/config.yaml"
 	}
-	return filepath.Join(home, ".config", ".machine-setup", "config.yaml")
+	return filepath.Join(home, ".config", "tars", "config.yaml")
 }
 
 // Init writes defaults to path if the file does not exist, or loads and

@@ -55,7 +55,7 @@ The installer verifies the release checksum and puts a single binary in
 
 `pull` and `push` exit non-zero when any component fails (each is listed);
 `setup` tolerates config failures so a partial bootstrap stays recoverable.
-Set `MACHINE_SETUP_NO_FORM` (any value) to skip all interactive prompts.
+Set `TARS_NO_FORM` (any value) to skip all interactive prompts.
 
 ## Sessions
 
@@ -63,7 +63,7 @@ Stop rebuilding the same byobu windows after every terminal restart — declare 
 once (`tars s e` seeds the file):
 
 ```yaml
-# ~/.config/.machine-setup/sessions.yaml
+# ~/.config/tars/sessions.yaml
 sessions:
   - name: cloudwalk        # no '.' or ':' in names; at least one dir
     dirs:
@@ -120,7 +120,7 @@ account, so move it into the env file. Keys are never generated or copied; a mis
 ## What it touches
 
 Everything below is archived to `~/.local/state/tars/backups/<component>/vN`
-(override the root with `MACHINE_SETUP_BACKUP_ROOT`) before being replaced:
+(override the root with `TARS_BACKUP_ROOT`) before being replaced:
 
 - `~/.zshrc`, `~/.zshrc_aliases`, and the login profile (`~/.zprofile` on macOS,
   `~/.profile` on Linux)
@@ -145,11 +145,11 @@ version it would mint) or left unchanged, and writes nothing.
 
 | Variable | Effect |
 |---|---|
-| `MACHINE_SETUP_REPO` | Use this clone as the config source (beats discovery) |
-| `MACHINE_SETUP_NO_FORM` | Skip all TUIs (`setup` selects everything; pickers take the first entry; the profile form returns its defaults) |
-| `MACHINE_SETUP_BACKUP_ROOT` | Backup location (default `~/.local/state/tars/backups`) |
-| `MACHINE_SETUP_CONFIG_PATH` | Config file (default `~/.config/.machine-setup/config.yaml`) |
-| `MACHINE_SETUP_SESSIONS_PATH` | Sessions file (default `~/.config/.machine-setup/sessions.yaml`) |
+| `TARS_REPO` | Use this clone as the config source (beats discovery) |
+| `TARS_NO_FORM` | Skip all TUIs (`setup` selects everything; pickers take the first entry; the profile form returns its defaults) |
+| `TARS_BACKUP_ROOT` | Backup location (default `~/.local/state/tars/backups`) |
+| `TARS_CONFIG_PATH` | Config file (default `~/.config/tars/config.yaml`) |
+| `TARS_SESSIONS_PATH` | Sessions file (default `~/.config/tars/sessions.yaml`) |
 | `TARS_PROFILES_PATH` | Profiles file (default `~/.config/tars/profiles.yaml`) |
 | `TARS_INSTALL_DIR` | Where `install.sh` puts the binary |
 

@@ -29,7 +29,7 @@ var pushCmd = &cobra.Command{
 	Short: "Copy local config changes back into the repo (with versioned backups)",
 	Long: `Push local dotfile and terminal configuration into the repo, archiving the
 previous repo copies under ~/.local/state/tars/backups/<component>-repo/vN
-(override the location with MACHINE_SETUP_BACKUP_ROOT).
+(override the location with TARS_BACKUP_ROOT).
 
 Requires a real clone of the repo — the configs embedded in the binary are
 read-only. Exits non-zero when any component fails, listing each failure.`,
@@ -43,7 +43,7 @@ read-only. Exits non-zero when any component fails, listing each failure.`,
 		// the embedded-assets fallback is read-only by design.
 		root, err := repo.Find()
 		if err != nil {
-			return fmt.Errorf("push requires a clone of the repo (set MACHINE_SETUP_REPO or run from inside one): %w", err)
+			return fmt.Errorf("push requires a clone of the repo (set TARS_REPO or run from inside one): %w", err)
 		}
 		opts := components.Options{
 			RepoRoot:   root,

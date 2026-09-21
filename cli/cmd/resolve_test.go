@@ -12,7 +12,7 @@ import (
 
 var _ = Describe("ResolveRepo", func() {
 	It("returns the clone when one is found", func() {
-		GinkgoT().Setenv("MACHINE_SETUP_REPO", "/some/clone")
+		GinkgoT().Setenv("TARS_REPO", "/some/clone")
 
 		root, err := cmd.ResolveRepo(GinkgoT().TempDir())
 		Expect(err).NotTo(HaveOccurred())
@@ -20,7 +20,7 @@ var _ = Describe("ResolveRepo", func() {
 	})
 
 	It("materializes the embedded dotfiles when no clone is found", func() {
-		GinkgoT().Setenv("MACHINE_SETUP_REPO", "")
+		GinkgoT().Setenv("TARS_REPO", "")
 		home := GinkgoT().TempDir()
 
 		// Run from a dir with no repo markers above it so the walk fails.

@@ -19,7 +19,7 @@ session manager. The user-facing CLI is **`tars`** (Go, in `cli/`) with five ver
   no network — safe to re-run); `tars push` copies local edits back into the repo.
 - **Versioned backups**: every overwrite is archived first under
   `~/.local/state/tars/backups/<component>/vN/` (`<component>-repo/vN/` for push;
-  override with `MACHINE_SETUP_BACKUP_ROOT`). Per-user, never in the repo clone, never
+  override with `TARS_BACKUP_ROOT`). Per-user, never in the repo clone, never
   auto-deleted. Identical files are skipped (no backup, no copy) so re-runs are no-ops.
   `pull`/`push` exit non-zero when any component fails; `setup` tolerates pull failures.
 - **Self-contained Go**: the CLI reimplements all logic natively. It NEVER shells out to
@@ -50,7 +50,7 @@ session manager. The user-facing CLI is **`tars`** (Go, in `cli/`) with five ver
 │       ├── paths/               # repo→local file mappings (ForOS: OS-aware)
 │       ├── repo/                # repo-root discovery (markers: cli/go.mod + nvim/)
 │       ├── pkg/                 # installable dev tools (brew/apt/rvm) + registry
-│       ├── forms/               # huh TUI (honors MACHINE_SETUP_NO_FORM=1)
+│       ├── forms/               # huh TUI (honors TARS_NO_FORM=1)
 │       ├── shell/               # oh-my-zsh / powerlevel10k installers
 │       └── config/              # persisted YAML config
 ├── nvim/  zsh/  byobu/  vim/     # the dotfiles tars manages
@@ -62,7 +62,7 @@ session manager. The user-facing CLI is **`tars`** (Go, in `cli/`) with five ver
 ```
 
 The CLI locates the repo root by walking up for `cli/go.mod` + `nvim/`, or via the
-`MACHINE_SETUP_REPO` env var (`cli/internal/repo`). With no clone at all, `cmd.ResolveRepo`
+`TARS_REPO` env var (`cli/internal/repo`). With no clone at all, `cmd.ResolveRepo`
 falls back to the dotfiles embedded in the binary (`cli/internal/assets`), materialized
 under `~/.local/share/tars/repo` — so a brew-installed `tars` needs no clone. The
 embedded mirror is refreshed with `make sync-assets`; a drift-guard spec fails when a
@@ -111,9 +111,9 @@ spec can drive a fake and still fail red-first:
 - **OS override constructors**: `NewFontsForOS(opts, goos)`, `NewTerminalForOS(opts, goos)`
   so darwin-only paths are exercised on any host. CI also runs a `macos-latest` matrix leg
   so darwin-only code compiles and its unit tests run for real.
-- **Path/env overrides**: `Fonts.LocalOverride`, `MACHINE_SETUP_REPO`,
-  `MACHINE_SETUP_NO_FORM=1` (skips the TUIs), `MACHINE_SETUP_CONFIG_PATH`,
-  `MACHINE_SETUP_SESSIONS_PATH`, `TARS_PROFILES_PATH`, `MACHINE_SETUP_BACKUP_ROOT`,
+- **Path/env overrides**: `Fonts.LocalOverride`, `TARS_REPO`,
+  `TARS_NO_FORM=1` (skips the TUIs), `TARS_CONFIG_PATH`,
+  `TARS_SESSIONS_PATH`, `TARS_PROFILES_PATH`, `TARS_BACKUP_ROOT`,
   `Profiles.ConfigPath` (component), and
   `UPDATE_GOLDEN=1` (regenerates `components/testdata/pull_manifest.golden`; review the diff).
 

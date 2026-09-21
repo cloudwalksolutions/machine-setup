@@ -97,7 +97,7 @@ var _ = Describe("composition roots", func() {
 var _ = Describe("FileSessionStore", func() {
 	It("seeds, loads, and reports its path", func() {
 		path := filepath.Join(GinkgoT().TempDir(), "sessions.yaml")
-		GinkgoT().Setenv("MACHINE_SETUP_SESSIONS_PATH", path)
+		GinkgoT().Setenv("TARS_SESSIONS_PATH", path)
 		GinkgoT().Setenv("HOME", GinkgoT().TempDir())
 
 		s, err := cmd.NewSessions(&bytes.Buffer{}, &bytes.Buffer{})

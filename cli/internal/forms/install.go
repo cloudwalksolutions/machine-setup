@@ -7,9 +7,9 @@ import (
 )
 
 // ShowInstallForm displays a multi-select with all dev tool names pre-checked.
-// When MACHINE_SETUP_NO_FORM=1 it returns toolNames unmodified (tests/CI).
+// When TARS_NO_FORM=1 it returns toolNames unmodified (tests/CI).
 func ShowInstallForm(toolNames []string) ([]string, error) {
-	if os.Getenv("MACHINE_SETUP_NO_FORM") != "" {
+	if os.Getenv("TARS_NO_FORM") != "" {
 		result := make([]string, len(toolNames))
 		copy(result, toolNames)
 		return result, nil

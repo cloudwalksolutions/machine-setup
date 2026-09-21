@@ -12,15 +12,15 @@ import (
 )
 
 var _ = Describe("DefaultPath", func() {
-	It("honors the MACHINE_SETUP_SESSIONS_PATH override", func() {
-		GinkgoT().Setenv("MACHINE_SETUP_SESSIONS_PATH", "/tmp/custom.yaml")
+	It("honors the TARS_SESSIONS_PATH override", func() {
+		GinkgoT().Setenv("TARS_SESSIONS_PATH", "/tmp/custom.yaml")
 		Expect(sessions.DefaultPath()).To(Equal("/tmp/custom.yaml"))
 	})
 
-	It("defaults to ~/.config/.machine-setup/sessions.yaml", func() {
-		GinkgoT().Setenv("MACHINE_SETUP_SESSIONS_PATH", "")
+	It("defaults to ~/.config/tars/sessions.yaml", func() {
+		GinkgoT().Setenv("TARS_SESSIONS_PATH", "")
 		GinkgoT().Setenv("HOME", "/fake/home")
-		Expect(sessions.DefaultPath()).To(Equal("/fake/home/.config/.machine-setup/sessions.yaml"))
+		Expect(sessions.DefaultPath()).To(Equal("/fake/home/.config/tars/sessions.yaml"))
 	})
 })
 

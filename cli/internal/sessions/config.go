@@ -21,17 +21,16 @@ type File struct {
 	Sessions []Session `yaml:"sessions"`
 }
 
-// DefaultPath returns ~/.config/.machine-setup/sessions.yaml.
-// The MACHINE_SETUP_SESSIONS_PATH env var overrides this (used by tests).
+// DefaultPath is ~/.config/tars/sessions.yaml unless TARS_SESSIONS_PATH overrides it.
 func DefaultPath() string {
-	if envPath := os.Getenv("MACHINE_SETUP_SESSIONS_PATH"); envPath != "" {
+	if envPath := os.Getenv("TARS_SESSIONS_PATH"); envPath != "" {
 		return envPath
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return ".machine-setup/sessions.yaml"
+		return "tars/sessions.yaml"
 	}
-	return filepath.Join(home, ".config", ".machine-setup", "sessions.yaml")
+	return filepath.Join(home, ".config", "tars", "sessions.yaml")
 }
 
 // Load reads and parses the sessions config at path.
