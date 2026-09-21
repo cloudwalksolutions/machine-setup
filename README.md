@@ -1,6 +1,6 @@
 # tars
 
-[![ci](https://github.com/cloudwalksolutions/machine-setup/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/cloudwalksolutions/machine-setup/actions/workflows/ci.yml)
+[![release](https://github.com/cloudwalksolutions/machine-setup/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/cloudwalksolutions/machine-setup/actions/workflows/release.yml)
 [![release](https://img.shields.io/github/v/release/cloudwalksolutions/machine-setup)](https://github.com/cloudwalksolutions/machine-setup/releases/latest)
 ![coverage](https://raw.githubusercontent.com/cloudwalksolutions/machine-setup/badges/.badges/main/coverage.svg)
 [![go](https://img.shields.io/github/go-mod/go-version/cloudwalksolutions/machine-setup?filename=cli%2Fgo.mod)](cli/go.mod)
@@ -184,7 +184,7 @@ After editing any dotfile under `nvim/ zsh/ byobu/ vim/ fonts/ terminal/ claude/
 `make sync-assets` — a drift guard fails CI otherwise. Every PR runs the race-enabled
 unit suite on Ubuntu + macOS, golangci-lint with gofmt, a `go mod tidy` check, the
 coverage gate, the Docker e2e on amd64 + arm64, the Neovim smoke tests, and
-`goreleaser check`. Releasing:
+`goreleaser check`. Every merge to `main` then releases a new patch version:
 [docs/releasing.md](docs/releasing.md).
 
 ## Known limitations

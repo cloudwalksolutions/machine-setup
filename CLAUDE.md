@@ -200,10 +200,11 @@ Never edit files with `sed`/`awk` stream edits — use proper edits and fix at t
 
 ## Releasing
 
-GoReleaser on a semver tag (`git tag v0.1.0 && git push origin v0.1.0` →
-`.github/workflows/release.yml`): builds darwin/linux × amd64/arm64 archives + checksums,
-publishes a GitHub Release, and updates the Homebrew tap. See the README's "Releasing"
-section for the one-time tap-repo + `HOMEBREW_TAP_TOKEN` prerequisites. Test locally with
+Every merge to `main` deploys: `.github/workflows/release.yml` bumps the patch tag, runs
+GoReleaser (darwin/linux × amd64/arm64 archives + checksums, GitHub Release, Homebrew tap),
+refreshes the coverage badge, and pushes the tag last so a failed run leaves nothing behind.
+Docs-only merges (`**.md`, `docs/`, `vhs/`) skip it. CI (`ci.yml`) runs on PRs only. Minor/major
+bumps are a manual tag push; see `docs/releasing.md`. Test locally with
 `HOMEBREW_TAP_TOKEN=x goreleaser release --snapshot --clean`.
 
 ## Important Notes
