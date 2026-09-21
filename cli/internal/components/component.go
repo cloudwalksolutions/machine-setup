@@ -5,6 +5,7 @@ package components
 import (
 	"io"
 
+	"tars/internal/config"
 	"tars/internal/fsutil"
 )
 
@@ -29,6 +30,8 @@ type Options struct {
 	DryRun     bool      // report intended writes instead of performing them
 	Stdout     io.Writer // progress output
 	Stderr     io.Writer // error/warning output
+
+	Claude config.ClaudeConfig // `tars claude init` choices; zero value = everything on
 }
 
 // copier is the writer every component routes its writes through.
@@ -46,6 +49,7 @@ func AllPullable(opts Options) []Component {
 		NewFonts(opts),
 		NewTerminal(opts),
 		NewProfiles(opts),
+		NewClaude(opts),
 	}
 }
 
@@ -58,5 +62,6 @@ func AllPushable(opts Options) []Pushable {
 		NewByobu(opts),
 		NewNvim(opts),
 		NewTerminal(opts),
+		NewClaude(opts),
 	}
 }

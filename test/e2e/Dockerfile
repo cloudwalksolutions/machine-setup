@@ -28,7 +28,7 @@ ENV TARS_REPO=/repo
 
 RUN tars pull
 
-# All six components landed (terminal is a linux no-op; pull exiting 0 covers it).
+# Every component landed (terminal is a linux no-op; pull exiting 0 covers it).
 RUN test -f "$HOME/.vimrc" \
  && test -f "$HOME/.zshrc" \
  && test -f "$HOME/.zshrc_aliases" \
@@ -36,7 +36,10 @@ RUN test -f "$HOME/.vimrc" \
  && test -f "$HOME/.byobu/.tmux.conf" \
  && test -x "$HOME/.byobu/bin/1_git" \
  && test -d "$HOME/.config/nvim" \
- && ls "$HOME/.local/share/fonts/"*.ttf >/dev/null
+ && ls "$HOME/.local/share/fonts/"*.ttf >/dev/null \
+ && test -x "$HOME/.claude/hooks/block-unreviewable-edits.sh" \
+ && test -f "$HOME/.claude/CLAUDE.md" \
+ && grep -q 'block-unreviewable-edits.sh' "$HOME/.claude/settings.json"
 
 # The pulled shell configs must actually parse on Linux.
 RUN zsh -ic 'exit'
@@ -51,10 +54,25 @@ RUN echo '# e2e local change' >> "$HOME/.zshrc" \
  && test -d "$HOME/.local/state/tars/backups/zsh/v2" \
  && test ! -e /repo/backups
 
-# Idempotency: a clean re-pull adds no new backup version — nvim included.
+# Idempotency: a clean re-pull adds no new backup version — nvim and claude included.
 RUN tars pull \
  && test ! -e "$HOME/.local/state/tars/backups/zsh/v3" \
- && test ! -e "$HOME/.local/state/tars/backups/nvim"
+ && test ! -e "$HOME/.local/state/tars/backups/nvim" \
+ && test ! -e "$HOME/.local/state/tars/backups/claude"
+
+# Machine-local settings survive the merge; the hook entry is added exactly once.
+RUN echo '{"autoMode":{"allow":["x"]}}' > "$HOME/.claude/settings.json" \
+ && tars pull \
+ && grep -q '"autoMode"' "$HOME/.claude/settings.json" \
+ && test "$(grep -c 'block-unreviewable-edits.sh' "$HOME/.claude/settings.json")" = "1" \
+ && test -f "$HOME/.local/state/tars/backups/claude/v1/settings.json"
+
+# The init wizard runs headless and honors its choices on the next pull.
+RUN TARS_NO_FORM=1 tars claude init \
+ && grep -q 'rules:' "$HOME/.config/tars/config.yaml" \
+ && mkdir -p "$HOME/proj" && TARS_NO_FORM=1 tars claude project "$HOME/proj" \
+ && grep -q '^# CLAUDE.md' "$HOME/proj/CLAUDE.md" \
+ && if TARS_NO_FORM=1 tars claude project "$HOME/proj" >/dev/null 2>&1; then echo 'expected refusal without --force' && exit 1; fi
 
 # Failures must surface as a non-zero exit (an unwritable HOME cannot succeed).
 RUN mkdir -p /home/usera/ro && chmod 555 /home/usera/ro \

@@ -101,4 +101,17 @@ var _ = Describe("Save", func() {
 		Expect(string(b)).To(ContainSubstring("keep-me"))
 		Expect(string(b)).To(ContainSubstring("amd64"))
 	})
+
+	It("round-trips the claude section", func() {
+		off := false
+		cfg := &config.Config{Claude: config.ClaudeConfig{Hook: &off, Rules: []string{"10-tdd", "60-simplicity"}}}
+
+		Expect(config.Save(path, cfg)).To(Succeed())
+
+		loaded, err := config.Init(path)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(*loaded.Claude.Hook).To(BeFalse())
+		Expect(loaded.Claude.Settings).To(BeNil())
+		Expect(loaded.Claude.Rules).To(Equal([]string{"10-tdd", "60-simplicity"}))
+	})
 })

@@ -12,7 +12,7 @@ import (
 )
 
 // Dirs are the repo dotfile directories embedded in the binary.
-var Dirs = []string{"nvim", "zsh", "byobu", "vim", "fonts", "terminal"}
+var Dirs = []string{"nvim", "zsh", "byobu", "vim", "fonts", "terminal", "claude"}
 
 // RootFiles are repo-root files components read (paths.go), embedded alongside Dirs.
 var RootFiles = []string{"monokai.lua"}
@@ -59,9 +59,9 @@ func Materialize(dst, version string) error {
 			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 				return err
 			}
-			// go:embed drops file modes; bin/ scripts must stay executable.
+			// go:embed drops file modes; bin/ and hooks/ scripts must stay executable.
 			mode := os.FileMode(0o644)
-			if strings.Contains(rel, "/bin/") {
+			if strings.Contains(rel, "/bin/") || strings.Contains(rel, "/hooks/") {
 				mode = 0o755
 			}
 			if err := os.WriteFile(path, content, mode); err != nil {

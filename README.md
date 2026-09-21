@@ -52,6 +52,8 @@ The installer verifies the release checksum and puts a single binary in
 | `tars push` | | Capture local config edits back into a repo clone |
 | `tars sessions` | `s`, `by` | Open byobu sessions from a simple config |
 | `tars profiles` | `p` | Switch git / GitHub / SSH identity per project dir |
+| `tars claude init` | `c i` | Pick and apply Claude Code pieces: edit-blocking hook, settings, global rules |
+| `tars claude project [dir]` | `c p` | Scaffold a project `CLAUDE.md` from the repo template (`--force` to replace) |
 
 `pull` and `push` exit non-zero when any component fails (each is listed);
 `setup` tolerates config failures so a partial bootstrap stays recoverable.
@@ -131,6 +133,10 @@ Everything below is archived to `~/.local/state/tars/backups/<component>/vN`
 - macOS only: sets the iTerm2 + Terminal.app font/profile
 - With a profiles config: the managed block in `~/.gitconfig` and
   `~/.config/tars/profiles/<alias>.gitconfig`
+- `~/.claude/`: the `block-unreviewable-edits.sh` hook, a `CLAUDE.md` rendered
+  from `claude/rules/`, and a merge of `claude/settings.json` (model, theme,
+  plugins, the hook entry) into `settings.json`. Machine-local keys such as
+  `autoMode` and `permissions` are left alone; `~/.claude.json` is never touched.
 
 Never overwritten: `~/.zshrc_secret` (seeded from a template when absent — put
 API keys and per-account aliases there), `~/.zprofile_local` (seeded once from
@@ -140,6 +146,21 @@ Machine-specific bits belong in these git-ignored files, which the shared config
 
 `tars pull --dry-run` prints what would be created, overwritten (with the backup
 version it would mint) or left unchanged, and writes nothing.
+
+## Claude Code
+
+`tars claude init` asks three things in a form: install the hook that denies
+`sed -i` / heredoc / interpreter writes (so every change is a reviewable Edit or
+Write), merge the shared settings fragment, and which global rules to render
+into `~/.claude/CLAUDE.md`. Choices are saved under `claude:` in the tars config
+and honored by every later `tars pull`; `tars push` carries hook edits and the
+shareable settings keys back into the repo. Add a rule by dropping a short
+`NN-slug.md` into `claude/rules/` and running `make sync-assets`.
+
+`tars claude project [dir]` writes a starter `CLAUDE.md` (overview, philosophy,
+constraints, commands, architecture, testing, secrets, gotchas) from
+`claude/templates/CLAUDE.project.md`, asking for the name, a one-line
+description and the canonical test command.
 
 ## Environment variables
 
@@ -159,8 +180,11 @@ The CLI is Go (module in `cli/`), tested with Ginkgo/Gomega and strict TDD —
 see [CLAUDE.md](CLAUDE.md). Useful targets: `make check` (lint + build + tests),
 `make unit`, `make e2e` (Docker: three users, a root-owned read-only clone, and a
 no-clone install — runs in CI on amd64 + arm64), `make demos` (re-record the GIFs).
-After editing any dotfile under `nvim/ zsh/ byobu/ vim/ fonts/ terminal/`, run
-`make sync-assets` — a drift guard fails CI otherwise. Releasing:
+After editing any dotfile under `nvim/ zsh/ byobu/ vim/ fonts/ terminal/ claude/`, run
+`make sync-assets` — a drift guard fails CI otherwise. Every PR runs the race-enabled
+unit suite on Ubuntu + macOS, golangci-lint with gofmt, a `go mod tidy` check, the
+coverage gate, the Docker e2e on amd64 + arm64, the Neovim smoke tests, and
+`goreleaser check`. Releasing:
 [docs/releasing.md](docs/releasing.md).
 
 ## Known limitations
