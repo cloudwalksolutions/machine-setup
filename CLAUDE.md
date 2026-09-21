@@ -8,7 +8,7 @@ A machine-setup tool for macOS (primary) and Linux (incl. shared bastions). It g
 from a fresh machine to a production-ready dev environment: dev tools, dotfiles
 (Neovim, Zsh, Byobu, Vim), fonts, and terminal settings, plus a declarative byobu
 session manager. The user-facing CLI is **`tars`** (Go, in `cli/`) with five verbs:
-`setup`, `pull`, `push`, `sessions`, `profiles`.
+`setup`, `pull`, `push`, `sessions`, `profiles`, `claude`.
 
 ## Core Philosophy
 
@@ -42,7 +42,7 @@ session manager. The user-facing CLI is **`tars`** (Go, in `cli/`) with five ver
 │   │   ├── backup.go            # BackupRoot: ~/.local/state/tars/backups (+ env override)
 │   │   ├── resolve.go           # ResolveRepo: clone discovery → embedded-assets fallback
 │   └── internal/
-│       ├── components/          # per-tool Pull/Push: vim, zsh, byobu, nvim, fonts, terminal, profiles
+│       ├── components/          # per-tool Pull/Push: vim, zsh, byobu, nvim, fonts, terminal, profiles, claude
 │       ├── sessions/            # declarative byobu sessions: yaml config + idempotent launcher
 │       ├── profiles/            # account identities: yaml config, gitconfig/env rendering, active marker
 │       ├── assets/              # dotfiles embedded in the binary (tree/ mirror; `make sync-assets`)
@@ -54,6 +54,7 @@ session manager. The user-facing CLI is **`tars`** (Go, in `cli/`) with five ver
 │       ├── shell/               # oh-my-zsh / powerlevel10k installers
 │       └── config/              # persisted YAML config
 ├── nvim/  zsh/  byobu/  vim/     # the dotfiles tars manages
+├── claude/                      # Claude Code: settings fragment, hooks/, rules/ (→ ~/.claude/CLAUDE.md), templates/
 ├── fonts/                       # Hack Nerd Font files
 ├── terminal/                    # font string + Terminal.app profile (iTerm2/Terminal.app)
 ├── install.sh                   # curl|sh installer (release binary → ~/.local/bin)
@@ -90,7 +91,8 @@ Tests are layered:
 3. **End-to-end** (`make e2e`) — `test/e2e/Dockerfile`: builds `tars` against a
    **root-owned, read-only** repo clone shared by two non-root users, plus a third user
    with no clone (embedded-assets path) — **no apt installs, no sudo, no network at
-   runtime**. Asserts every component lands (incl. the exec bit on `byobu/bin`), the
+   runtime**. Asserts every component lands (incl. the exec bit on `byobu/bin` and
+   `~/.claude/hooks`, and the settings.json merge keeping local keys), the
    pulled shell configs parse (`zsh -ic` / `bash -lc`), backups version under each
    user's `$HOME`, re-pulls are idempotent (incl. nvim), and a failing pull exits
    non-zero. Assertions are `RUN` lines, so a failure fails `docker build`. Runs in CI
@@ -134,9 +136,14 @@ untested by design — don't chase 100%.
 tests (`nvim/tests/smoke_test.lua`); `make health-nvim` runs checkhealth. `make test-nvim`
 is also run as part of `make integration`.
 
-**CI** (`.github/workflows/ci.yml`, on PR/push to `main`): `test` matrix
-(ubuntu + macOS: `go vet`, `go build`, `go test -race`), `lint`
-(golangci-lint, config `cli/.golangci.yml`), and `e2e-linux` (the Docker build).
+**CI** (`.github/workflows/ci.yml`, on PR/push to `main`) is the documentation of what
+"green" means; its steps are explicit commands, not Makefile recipes. Eight checks:
+`test (ubuntu-latest)` / `test (macos-latest)` (`go vet`, `go build`, `go test -race`),
+`lint` (golangci-lint incl. the gofmt formatter, then `go mod tidy -diff`), `coverage`
+(gate from `cli/.testcoverage.yml`), `e2e-linux (ubuntu-latest)` / `e2e-linux (ubuntu-24.04-arm)`
+(the Docker build), `nvim` (headless Lua smoke tests against the repo's `nvim/` via
+`XDG_CONFIG_HOME`), and `goreleaser` (`goreleaser check`). Reproduce locally from `cli/` with the
+same commands before handing work over; `gh pr checks <n> --watch` is the final gate.
 
 ## Development Patterns (TDD)
 
@@ -161,6 +168,12 @@ Ginkgo/Gomega style and the seam pattern above.
    `"<comp>-repo"`. Put any system side-effects behind a function-typed seam.
 3. Register in `AllPullable` / `AllPushable` (`component.go`) — spec asserts membership.
 4. `gofmt`, then `go test ./... && golangci-lint run ./...` green.
+
+**Adding a global Claude rule**: drop a short `NN-slug.md` (a `##` heading plus a few
+lines) into `claude/rules/`, run `make sync-assets`. The `claude` component renders the
+selected rules into `~/.claude/CLAUDE.md`; `claude/settings.json` holds only the shareable
+keys (model, theme, enabledPlugins, the hook entry) in `json.MarshalIndent` key order so
+`push` round-trips byte-for-byte. Never sync `autoMode`, `permissions`, or `~/.claude.json`.
 
 **Adding an installable tool**: edit the curated lists in
 `cli/internal/pkg/registry.go` (`darwinFormulas` / `darwinCasks` / `darwinTappedFormulas`

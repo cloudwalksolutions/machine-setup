@@ -311,11 +311,7 @@ all dotfile configs — overwriting ~/.zshrc, ~/.config/nvim, ~/.byobu, and
 Also seeds ~/.zshrc_secret from a template when absent and saves the tool
 selection to the tars config file.`,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		cfgPath := config.DefaultConfigPath()
-		if cfgFile != "" {
-			cfgPath = cfgFile
-		}
-		s, err := NewSetup(cmd.OutOrStdout(), cmd.ErrOrStderr(), cfgPath)
+		s, err := NewSetup(cmd.OutOrStdout(), cmd.ErrOrStderr(), configPath())
 		if err != nil {
 			return err
 		}

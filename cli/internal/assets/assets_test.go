@@ -87,6 +87,10 @@ var _ = Describe("Materialize", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(info.Mode().Perm()&0o111).NotTo(BeZero(), "bin scripts must be executable")
 
+		info, err = os.Stat(filepath.Join(dst, "claude", "hooks", "block-unreviewable-edits.sh"))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(info.Mode().Perm()&0o111).NotTo(BeZero(), "hook scripts must be executable")
+
 		marker, err := os.ReadFile(filepath.Join(dst, ".tars-version"))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(string(marker)).To(Equal("v1.2.3"))

@@ -26,12 +26,17 @@ func buildOptions(stdout, stderr io.Writer) (components.Options, error) {
 	if err != nil {
 		return components.Options{}, fmt.Errorf("locating repo root: %w", err)
 	}
+	claude, err := LoadClaudeConfig()
+	if err != nil {
+		return components.Options{}, err
+	}
 	return components.Options{
 		RepoRoot:   root,
 		Home:       home,
 		BackupRoot: BackupRoot(home),
 		Stdout:     stdout,
 		Stderr:     stderr,
+		Claude:     claude,
 	}, nil
 }
 

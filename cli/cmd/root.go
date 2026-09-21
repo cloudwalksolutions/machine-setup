@@ -41,4 +41,5 @@ func init() {
 		"report the writes a pull would make, without changing anything")
 	rootCmd.AddCommand(pullCmd)
 	rootCmd.AddCommand(sessionsCmd)
+	rootCmd.AddCommand(claudeCmd)
 }

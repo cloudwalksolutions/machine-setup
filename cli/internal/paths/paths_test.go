@@ -67,3 +67,21 @@ var _ = Describe("ForOS Terminal", func() {
 		Expect(p.Terminal.ProfileRepo).To(Equal(filepath.Join(repoRoot, "terminal", "tars.terminal")))
 	})
 })
+
+var _ = Describe("ForOS Claude", func() {
+	const (
+		repoRoot = "/repo"
+		home     = "/home/u"
+	)
+
+	It("maps the repo claude/ dir onto ~/.claude", func() {
+		p := paths.ForOS(repoRoot, home, "linux")
+		Expect(p.Claude.SettingsRepo).To(Equal(filepath.Join(repoRoot, "claude", "settings.json")))
+		Expect(p.Claude.SettingsLocal).To(Equal(filepath.Join(home, ".claude", "settings.json")))
+		Expect(p.Claude.HookRepo).To(Equal(filepath.Join(repoRoot, "claude", "hooks", "block-unreviewable-edits.sh")))
+		Expect(p.Claude.HookLocal).To(Equal(filepath.Join(home, ".claude", "hooks", "block-unreviewable-edits.sh")))
+		Expect(p.Claude.RulesRepo).To(Equal(filepath.Join(repoRoot, "claude", "rules")))
+		Expect(p.Claude.ClaudeMDLocal).To(Equal(filepath.Join(home, ".claude", "CLAUDE.md")))
+		Expect(p.Claude.ProjectTemplateRepo).To(Equal(filepath.Join(repoRoot, "claude", "templates", "CLAUDE.project.md")))
+	})
+})

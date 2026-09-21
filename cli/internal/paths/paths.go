@@ -15,6 +15,20 @@ type Paths struct {
 	Fonts    FontsPaths
 	Terminal TerminalPaths
 	Profiles ProfilesPaths
+	Claude   ClaudePaths
+}
+
+// ClaudePaths maps the repo claude/ dir onto ~/.claude: the shareable settings
+// fragment, the edit-blocking hook, the rule files rendered into CLAUDE.md, and
+// the per-project CLAUDE.md template.
+type ClaudePaths struct {
+	SettingsRepo        string
+	SettingsLocal       string
+	HookRepo            string
+	HookLocal           string
+	RulesRepo           string
+	ClaudeMDLocal       string
+	ProjectTemplateRepo string
 }
 
 // ProfilesPaths locates the rendered per-profile files and the gitconfig they hook into.
@@ -157,6 +171,15 @@ func ForOS(repoRoot, home, goos string) Paths {
 		Profiles: ProfilesPaths{
 			Dir:       filepath.Join(home, ".config", "tars", "profiles"),
 			Gitconfig: filepath.Join(home, ".gitconfig"),
+		},
+		Claude: ClaudePaths{
+			SettingsRepo:        filepath.Join(repoRoot, "claude", "settings.json"),
+			SettingsLocal:       filepath.Join(home, ".claude", "settings.json"),
+			HookRepo:            filepath.Join(repoRoot, "claude", "hooks", "block-unreviewable-edits.sh"),
+			HookLocal:           filepath.Join(home, ".claude", "hooks", "block-unreviewable-edits.sh"),
+			RulesRepo:           filepath.Join(repoRoot, "claude", "rules"),
+			ClaudeMDLocal:       filepath.Join(home, ".claude", "CLAUDE.md"),
+			ProjectTemplateRepo: filepath.Join(repoRoot, "claude", "templates", "CLAUDE.project.md"),
 		},
 	}
 }
