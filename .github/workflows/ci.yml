@@ -3,8 +3,6 @@ name: ci
 on:
   pull_request:
     branches: [main]
-  push:
-    branches: [main]
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -54,8 +52,6 @@ jobs:
   coverage:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    permissions:
-      contents: write   # badge commit on the badges branch (main only)
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -65,12 +61,10 @@ jobs:
       - name: Generate coverage profile
         working-directory: cli
         run: go test ./... -coverprofile=cover.out -covermode=atomic -coverpkg=./...
-      - name: Coverage gate + badge
+      - name: Coverage gate
         uses: vladopajic/go-test-coverage@v2
         with:
           config: ./cli/.testcoverage.yml
-          git-token: ${{ github.ref_name == 'main' && secrets.GITHUB_TOKEN || '' }}
-          git-branch: badges
 
   e2e-linux:
     strategy:
