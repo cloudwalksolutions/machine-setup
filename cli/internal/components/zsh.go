@@ -3,7 +3,6 @@ package components
 import (
 	"os"
 
-	"github.com/cloudwalk/machine-setup/internal/fsutil"
 	"github.com/cloudwalk/machine-setup/internal/paths"
 )
 
@@ -29,26 +28,29 @@ func (z *Zsh) Pull() error {
 		{z.p.ProfileRepo, z.p.ProfileLocal},
 	}
 	for _, c := range copies {
-		if err := fsutil.SafeCopy(c.src, c.dst, z.Name(), z.opts.BackupRoot); err != nil {
+		if err := z.opts.copier().SafeCopy(c.src, c.dst, z.Name(), z.opts.BackupRoot); err != nil {
 			return err
 		}
 	}
 	if _, err := os.Stat(z.p.FuncsRepo); err == nil {
-		if err := fsutil.SafeCopy(z.p.FuncsRepo, z.p.FuncsLocal, z.Name(), z.opts.BackupRoot); err != nil {
+		if err := z.opts.copier().SafeCopy(z.p.FuncsRepo, z.p.FuncsLocal, z.Name(), z.opts.BackupRoot); err != nil {
 			return err
 		}
 	}
-	return z.seedSecret()
+	if err := z.seed(z.p.SecretTemplate, z.p.SecretLocal); err != nil {
+		return err
+	}
+	return z.seed(z.p.ProfileLocalTemplate, z.p.ProfileLocalOverride)
 }
 
 // Push copies local zsh files back to the repo, archiving the repo copies under
 // "zsh-repo". Funcs and profile are pushed only when they exist locally.
 func (z *Zsh) Push() error {
 	comp := z.Name() + "-repo"
-	if err := fsutil.SafeCopy(z.p.ZshrcLocal, z.p.ZshrcRepo, comp, z.opts.BackupRoot); err != nil {
+	if err := z.opts.copier().SafeCopy(z.p.ZshrcLocal, z.p.ZshrcRepo, comp, z.opts.BackupRoot); err != nil {
 		return err
 	}
-	if err := fsutil.SafeCopy(z.p.AliasesLocal, z.p.AliasesRepo, comp, z.opts.BackupRoot); err != nil {
+	if err := z.opts.copier().SafeCopy(z.p.AliasesLocal, z.p.AliasesRepo, comp, z.opts.BackupRoot); err != nil {
 		return err
 	}
 	for _, c := range []struct{ local, repo string }{
@@ -61,21 +63,20 @@ func (z *Zsh) Push() error {
 			}
 			return err
 		}
-		if err := fsutil.SafeCopy(c.local, c.repo, comp, z.opts.BackupRoot); err != nil {
+		if err := z.opts.copier().SafeCopy(c.local, c.repo, comp, z.opts.BackupRoot); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// seedSecret copies the template to ~/.zshrc_secret iff the local file does
-// not yet exist. Existing local secrets are left untouched (they hold real keys).
-func (z *Zsh) seedSecret() error {
-	if _, err := os.Stat(z.p.SecretLocal); err == nil {
+// seed copies template to local only when local does not already exist.
+func (z *Zsh) seed(template, local string) error {
+	if _, err := os.Stat(local); err == nil {
 		return nil
 	}
-	if _, err := os.Stat(z.p.SecretTemplate); err != nil {
+	if _, err := os.Stat(template); err != nil {
 		return nil
 	}
-	return fsutil.SafeCopy(z.p.SecretTemplate, z.p.SecretLocal, z.Name(), z.opts.BackupRoot)
+	return z.opts.copier().SafeCopy(template, local, z.Name(), z.opts.BackupRoot)
 }

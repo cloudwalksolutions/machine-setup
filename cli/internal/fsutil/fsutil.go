@@ -14,9 +14,23 @@ import (
 
 var versionRe = regexp.MustCompile(`^v(\d+)$`)
 
+// Copier performs backup-before-overwrite copies. With DryRun set it reports
+// each intended action to Log and writes nothing.
+type Copier struct {
+	DryRun bool
+	Log    io.Writer
+}
+
+func (c Copier) report(format string, args ...any) {
+	if c.Log == nil {
+		return
+	}
+	fmt.Fprintf(c.Log, format+"\n", args...)
+}
+
 // Backup copies src into <backupRoot>/<component>/v<N>/ and returns the v<N> dir.
 // N is the highest existing v<digits> directory under the component dir + 1, or 1.
-func Backup(src, component, backupRoot string) (string, error) {
+func (c Copier) Backup(src, component, backupRoot string) (string, error) {
 	if _, err := os.Stat(src); err != nil {
 		if os.IsNotExist(err) {
 			return "", nil
@@ -29,6 +43,9 @@ func Backup(src, component, backupRoot string) (string, error) {
 		return "", err
 	}
 	dst := filepath.Join(componentDir, fmt.Sprintf("v%d", version))
+	if c.DryRun {
+		return dst, nil
+	}
 	if err := os.MkdirAll(dst, 0o755); err != nil {
 		return "", err
 	}
@@ -37,7 +54,7 @@ func Backup(src, component, backupRoot string) (string, error) {
 
 // SafeCopy validates src exists, backs up dst (if present) under component,
 // then copies src to dst, creating dst's parent if needed.
-func SafeCopy(src, dst, component, backupRoot string) error {
+func (c Copier) SafeCopy(src, dst, component, backupRoot string) error {
 	if _, err := os.Stat(src); err != nil {
 		return err
 	}
@@ -46,18 +63,50 @@ func SafeCopy(src, dst, component, backupRoot string) error {
 		if same, err := SameContent(src, dst); err != nil {
 			return err
 		} else if same {
+			if c.DryRun {
+				c.report("    unchanged  %s", dst)
+			}
 			return nil
 		}
-		if _, err := Backup(dst, component, backupRoot); err != nil {
+		version, err := c.Backup(dst, component, backupRoot)
+		if err != nil {
 			return err
+		}
+		if c.DryRun {
+			c.report("    would overwrite  %s (backup %s)", dst, filepath.Base(version))
+			return nil
 		}
 	} else if !os.IsNotExist(err) {
 		return err
+	} else if c.DryRun {
+		c.report("    would create  %s", dst)
+		return nil
 	}
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
 	}
 	return copyPath(src, dst)
+}
+
+// RemoveAll deletes path, or reports the intent when in dry-run mode.
+func (c Copier) RemoveAll(path string) error {
+	if c.DryRun {
+		if _, err := os.Stat(path); err == nil {
+			c.report("    would remove  %s", path)
+		}
+		return nil
+	}
+	return os.RemoveAll(path)
+}
+
+// Backup is the non-dry-run form of Copier.Backup.
+func Backup(src, component, backupRoot string) (string, error) {
+	return Copier{}.Backup(src, component, backupRoot)
+}
+
+// SafeCopy is the non-dry-run form of Copier.SafeCopy.
+func SafeCopy(src, dst, component, backupRoot string) error {
+	return Copier{}.SafeCopy(src, dst, component, backupRoot)
 }
 
 // SameContent reports whether src and dst are regular files with identical bytes.

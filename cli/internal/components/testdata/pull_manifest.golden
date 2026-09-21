@@ -1,0 +1,46 @@
+# fresh pull onto an empty HOME
+.byobu/.tmux.conf 0644 d4a03817ace6
+.byobu/bin/1_git 0644 0713bb708b93
+.byobu/color.tmux 0644 41081d8e7363
+.byobu/datetime.tmux 0644 107291fd2de3
+.byobu/keybindings.tmux 0644 3fca5061908a
+.byobu/statusrc 0644 0e2929c717af
+.config/nvim/init.lua 0644 8426fe6df433
+.config/nvim/lua/core/settings.lua 0644 02f6ea12816a
+.local/share/fonts/Hack Bold.ttf 0644 b86365a62c45
+.local/share/fonts/Hack Regular.ttf 0644 2f5e9fc87f2f
+.local/share/nvim/site/pack/packer/start/monokai.nvim/lua/monokai.lua 0644 aac4577dd519
+.vim/colors/sublimemonokai.vim 0644 c9a572702858
+.vimrc 0644 fb4dce470882
+.zprofile 0644 52639258e471
+.zprofile_local 0644 c86aa8b1cbd1
+.zshrc 0644 59ff8ec0d0f0
+.zshrc_aliases 0644 b0b9b3f29508
+.zshrc_funcs 0644 871e05629414
+.zshrc_secret 0644 9612a168fdbd
+
+# after re-pull with zsh/zshrc changed upstream
+.byobu/.tmux.conf 0644 d4a03817ace6
+.byobu/bin/1_git 0644 0713bb708b93
+.byobu/color.tmux 0644 41081d8e7363
+.byobu/datetime.tmux 0644 107291fd2de3
+.byobu/keybindings.tmux 0644 3fca5061908a
+.byobu/statusrc 0644 0e2929c717af
+.config/nvim/init.lua 0644 8426fe6df433
+.config/nvim/lua/core/settings.lua 0644 02f6ea12816a
+.local/share/fonts/Hack Bold.ttf 0644 b86365a62c45
+.local/share/fonts/Hack Regular.ttf 0644 2f5e9fc87f2f
+.local/share/nvim/site/pack/packer/start/monokai.nvim/lua/monokai.lua 0644 aac4577dd519
+.vim/colors/sublimemonokai.vim 0644 c9a572702858
+.vimrc 0644 fb4dce470882
+.zprofile 0644 52639258e471
+.zprofile_local 0644 c86aa8b1cbd1
+.zshrc 0644 12086bfc11fc
+.zshrc_aliases 0644 b0b9b3f29508
+.zshrc_funcs 0644 871e05629414
+.zshrc_secret 0644 9612a168fdbd
+
+# backups created
+nvim/v1/nvim/init.lua 0644 8426fe6df433
+nvim/v1/nvim/lua/core/settings.lua 0644 02f6ea12816a
+zsh/v1/.zshrc 0644 59ff8ec0d0f0

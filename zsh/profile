@@ -1,9 +1,31 @@
 # Login-shell profile (deployed to ~/.zprofile on macOS, ~/.profile elsewhere).
 # Keep this machine-agnostic — per-machine bits belong in ~/.zprofile_local.
 
+# vi keybindings on the command line.
+set -o vi
+
+# Default editor. Aliases in zshrc_aliases interpolate $EDITOR at source time,
+# so this must be set here, before those aliases are defined.
+export EDITOR="nvim"
+if [[ -n $SSH_CONNECTION ]]; then
+  export EDITOR="vim"
+fi
+
 # Homebrew: path_helper already adds the bin dir via /etc/paths.d/homebrew, but
 # this also sets HOMEBREW_PREFIX, MANPATH, INFOPATH, etc.
 [ -x /opt/homebrew/bin/brew ] && eval "$(/opt/homebrew/bin/brew shellenv)"
+[ -x /usr/local/bin/brew ] && eval "$(/usr/local/bin/brew shellenv)"
+
+# Go toolchain binaries (go install targets).
+if command -v go >/dev/null 2>&1; then
+  export PATH="$PATH:$(go env GOPATH)/bin"
+fi
+export PATH="$PATH:$HOME/go/bin"
+
+# Project-local binaries.
+export PATH="$PATH:./bin"
+
+export MANPATH="/usr/local/man:${MANPATH}"
 
 # RVM
 export PATH="$PATH:$HOME/.rvm/bin"
@@ -12,5 +34,23 @@ export PATH="$PATH:$HOME/.rvm/bin"
 # LM Studio CLI (lms)
 export PATH="$PATH:$HOME/.lmstudio/bin"
 
-# Machine-specific overrides (git-ignored; JetBrains Toolbox, per-host PATH, etc.)
-[[ -f "$HOME/.zprofile_local" ]] && source "$HOME/.zprofile_local"
+# GKE auth plugin (required by kubectl for GKE clusters).
+export USE_GKE_GCLOUD_AUTH_PLUGIN=True
+
+# kubectl completion.
+if command -v kubectl >/dev/null 2>&1; then
+  source <(kubectl completion zsh) >/dev/null 2>&1
+fi
+
+# Azure CLI ships only a bash completion, so bashcompinit is needed to load it.
+if command -v brew >/dev/null 2>&1 && [ -f "$(brew --prefix)/etc/bash_completion.d/az" ]; then
+  autoload -Uz bashcompinit && bashcompinit
+  source "$(brew --prefix)/etc/bash_completion.d/az" >/dev/null 2>&1
+fi
+
+# Machine-specific overrides (git-ignored; seeded from zsh/zprofile_local.template).
+# Sourced last so it can override anything above. Written as an if-statement
+# rather than `[[ ]] &&` so the profile exits 0 when the file is absent.
+if [[ -f "$HOME/.zprofile_local" ]]; then
+  source "$HOME/.zprofile_local"
+fi

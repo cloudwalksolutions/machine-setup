@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/cloudwalk/machine-setup/internal/fsutil"
 	"github.com/cloudwalk/machine-setup/internal/paths"
 )
 
@@ -32,7 +31,7 @@ func (b *Byobu) Pull() error {
 		{b.p.ColorRepo, b.p.ColorLocal},
 	}
 	for _, c := range copies {
-		if err := fsutil.SafeCopy(c.src, c.dst, b.Name(), b.opts.BackupRoot); err != nil {
+		if err := b.opts.copier().SafeCopy(c.src, c.dst, b.Name(), b.opts.BackupRoot); err != nil {
 			return err
 		}
 	}
@@ -57,7 +56,7 @@ func (b *Byobu) Push() error {
 			}
 			return err
 		}
-		if err := fsutil.SafeCopy(c.src, c.dst, comp, b.opts.BackupRoot); err != nil {
+		if err := b.opts.copier().SafeCopy(c.src, c.dst, comp, b.opts.BackupRoot); err != nil {
 			return err
 		}
 	}
@@ -76,7 +75,7 @@ func (b *Byobu) pushBin(comp string) error {
 	for _, e := range entries {
 		src := filepath.Join(b.p.BinLocal, e.Name())
 		dst := filepath.Join(b.p.BinRepo, e.Name())
-		if err := fsutil.SafeCopy(src, dst, comp, b.opts.BackupRoot); err != nil {
+		if err := b.opts.copier().SafeCopy(src, dst, comp, b.opts.BackupRoot); err != nil {
 			return err
 		}
 	}
@@ -96,7 +95,7 @@ func (b *Byobu) pullBin() error {
 	for _, e := range entries {
 		src := filepath.Join(b.p.BinRepo, e.Name())
 		dst := filepath.Join(b.p.BinLocal, e.Name())
-		if err := fsutil.SafeCopy(src, dst, b.Name(), b.opts.BackupRoot); err != nil {
+		if err := b.opts.copier().SafeCopy(src, dst, b.Name(), b.opts.BackupRoot); err != nil {
 			return err
 		}
 	}

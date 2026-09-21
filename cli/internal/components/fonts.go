@@ -63,6 +63,13 @@ func (f *Fonts) Pull() error {
 		if same, err := fsutil.SameContent(src, dstFile); err == nil && same {
 			continue
 		}
+		if f.opts.DryRun {
+			fmt.Fprintf(f.opts.Stdout, "    would install font  %s\n", dstFile)
+			continue
+		}
+		if _, err := fsutil.Backup(dstFile, f.Name(), f.opts.BackupRoot); err != nil {
+			return fmt.Errorf("backup font %s: %w", e.Name(), err)
+		}
 		if err := f.CopyFn(src, dstFile); err != nil {
 			return fmt.Errorf("install font %s: %w", e.Name(), err)
 		}
@@ -78,6 +85,8 @@ func defaultFontCopy(goos string) func(src, dst string) error {
 			cmd := exec.Command("sudo", "cp", src, dst)
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
+			// Without this, sudo falls back to /dev/tty and hangs when there is none.
+			cmd.Stdin = os.Stdin
 			return cmd.Run()
 		}
 	}

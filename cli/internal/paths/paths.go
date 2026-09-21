@@ -16,12 +16,9 @@ type Paths struct {
 	Terminal TerminalPaths
 }
 
-// TerminalPaths locates the repo-side terminal font artifacts. FontRepo is the
-// plain font string applied to iTerm2; ProfileRepo is the Terminal.app profile
-// carrying the same font as an archived NSFont blob.
+// TerminalPaths locates the font string applied to iTerm2's default profile.
 type TerminalPaths struct {
-	FontRepo    string
-	ProfileRepo string
+	FontRepo string
 }
 
 // FontsPaths holds the font repo→local mapping. Local destination
@@ -47,19 +44,21 @@ type NvimPaths struct {
 	MonokaiLocal string
 }
 
-// ZshPaths holds the zsh repo→local mappings, plus the secret template that
-// setup seeds into ~/.zshrc_secret.
+// ZshPaths holds the zsh repo→local mappings, plus the two create-only
+// templates setup seeds into ~/.zshrc_secret and ~/.zprofile_local.
 type ZshPaths struct {
-	ZshrcRepo      string
-	ZshrcLocal     string
-	AliasesRepo    string
-	AliasesLocal   string
-	FuncsRepo      string
-	FuncsLocal     string
-	ProfileRepo    string
-	ProfileLocal   string
-	SecretTemplate string
-	SecretLocal    string
+	ZshrcRepo            string
+	ZshrcLocal           string
+	AliasesRepo          string
+	AliasesLocal         string
+	FuncsRepo            string
+	FuncsLocal           string
+	ProfileRepo          string
+	ProfileLocal         string
+	ProfileLocalTemplate string
+	ProfileLocalOverride string
+	SecretTemplate       string
+	SecretLocal          string
 }
 
 // ByobuPaths holds the byobu repo→local mappings.
@@ -110,16 +109,18 @@ func ForOS(repoRoot, home, goos string) Paths {
 			MonokaiLocal: filepath.Join(home, ".local", "share", "nvim", "site", "pack", "packer", "start", "monokai.nvim", "lua"),
 		},
 		Zsh: ZshPaths{
-			ZshrcRepo:      filepath.Join(repoRoot, "zsh", "zshrc"),
-			ZshrcLocal:     filepath.Join(home, ".zshrc"),
-			AliasesRepo:    filepath.Join(repoRoot, "zsh", "zshrc_aliases"),
-			AliasesLocal:   filepath.Join(home, ".zshrc_aliases"),
-			FuncsRepo:      filepath.Join(repoRoot, "zsh", "zshrc_funcs"),
-			FuncsLocal:     filepath.Join(home, ".zshrc_funcs"),
-			ProfileRepo:    filepath.Join(repoRoot, "zsh", "profile"),
-			ProfileLocal:   profileLocal,
-			SecretTemplate: filepath.Join(repoRoot, "zsh", "zshrc_secret.template"),
-			SecretLocal:    filepath.Join(home, ".zshrc_secret"),
+			ZshrcRepo:            filepath.Join(repoRoot, "zsh", "zshrc"),
+			ZshrcLocal:           filepath.Join(home, ".zshrc"),
+			AliasesRepo:          filepath.Join(repoRoot, "zsh", "zshrc_aliases"),
+			AliasesLocal:         filepath.Join(home, ".zshrc_aliases"),
+			FuncsRepo:            filepath.Join(repoRoot, "zsh", "zshrc_funcs"),
+			FuncsLocal:           filepath.Join(home, ".zshrc_funcs"),
+			ProfileRepo:          filepath.Join(repoRoot, "zsh", "profile"),
+			ProfileLocal:         profileLocal,
+			ProfileLocalTemplate: filepath.Join(repoRoot, "zsh", "zprofile_local.template"),
+			ProfileLocalOverride: filepath.Join(home, ".zprofile_local"),
+			SecretTemplate:       filepath.Join(repoRoot, "zsh", "zshrc_secret.template"),
+			SecretLocal:          filepath.Join(home, ".zshrc_secret"),
 		},
 		Byobu: ByobuPaths{
 			BinRepo:          filepath.Join(repoRoot, "byobu", "bin"),
@@ -142,8 +143,7 @@ func ForOS(repoRoot, home, goos string) Paths {
 			ColorsLocal: filepath.Join(home, ".vim", "colors", "sublimemonokai.vim"),
 		},
 		Terminal: TerminalPaths{
-			FontRepo:    filepath.Join(repoRoot, "terminal", "font"),
-			ProfileRepo: filepath.Join(repoRoot, "terminal", "CloudWalk.terminal"),
+			FontRepo: filepath.Join(repoRoot, "terminal", "font"),
 		},
 	}
 }

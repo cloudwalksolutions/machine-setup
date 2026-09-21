@@ -35,5 +35,7 @@ func init() {
 	)
 	rootCmd.AddCommand(setupCmd)
 	rootCmd.AddCommand(pushCmd)
+	pullCmd.Flags().BoolVar(&pullDryRun, "dry-run", false,
+		"report the writes a pull would make, without changing anything")
 	rootCmd.AddCommand(pullCmd)
 }

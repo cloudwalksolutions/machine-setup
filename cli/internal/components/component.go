@@ -2,7 +2,11 @@
 // machine, push back to the repo) natively in Go.
 package components
 
-import "io"
+import (
+	"io"
+
+	"github.com/cloudwalk/machine-setup/internal/fsutil"
+)
 
 // Component is the unit the orchestrator iterates over during setup.
 type Component interface {
@@ -22,8 +26,14 @@ type Options struct {
 	RepoRoot   string    // root of the machine-setup repo
 	Home       string    // user's HOME (destination root)
 	BackupRoot string    // <repoRoot>/backups in normal use
+	DryRun     bool      // report intended writes instead of performing them
 	Stdout     io.Writer // progress output
 	Stderr     io.Writer // error/warning output
+}
+
+// copier is the writer every component routes its writes through.
+func (o Options) copier() fsutil.Copier {
+	return fsutil.Copier{DryRun: o.DryRun, Log: o.Stdout}
 }
 
 // AllPullable returns the pullable components in canonical order.

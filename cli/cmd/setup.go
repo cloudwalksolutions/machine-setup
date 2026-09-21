@@ -5,6 +5,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -64,7 +65,7 @@ type Installer interface {
 
 // Puller pulls every dotfile component, reporting failures inline.
 type Puller interface {
-	PullAll()
+	PullAll() error
 }
 
 // ── Setup ────────────────────────────────────────────────────────────────
@@ -153,7 +154,9 @@ func (s *Setup) runShellInstaller(name string, i Installer) {
 
 func (s *Setup) runPull() {
 	fmt.Fprintln(s.Stdout, "\nPulling configuration files...")
-	s.Pull.PullAll()
+	if err := s.Pull.PullAll(); err != nil {
+		fmt.Fprintf(s.Stderr, "  pull completed with errors: %v\n", err)
+	}
 }
 
 func (s *Setup) printNextSteps() {
@@ -230,13 +233,17 @@ type SequentialPuller struct {
 	Stderr     io.Writer
 }
 
-func (p SequentialPuller) PullAll() {
+// PullAll pulls every component, continuing past failures and returning them joined.
+func (p SequentialPuller) PullAll() error {
+	var errs []error
 	for _, c := range p.Components {
 		fmt.Fprintf(p.Stdout, "  → %s\n", c.Name())
 		if err := c.Pull(); err != nil {
 			fmt.Fprintf(p.Stderr, "  %s: %v\n", c.Name(), err)
+			errs = append(errs, fmt.Errorf("%s: %w", c.Name(), err))
 		}
 	}
+	return errors.Join(errs...)
 }
 
 // ── Composition root ─────────────────────────────────────────────────────

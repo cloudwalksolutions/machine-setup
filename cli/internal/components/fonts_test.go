@@ -2,6 +2,7 @@ package components_test
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -68,6 +69,57 @@ var _ = Describe("Fonts.Pull", func() {
 		b, err = os.ReadFile(filepath.Join(localDir, "Hack Bold.ttf"))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(string(b)).To(Equal("FONT_B"))
+	})
+
+	It("backs up an existing font before replacing it", func() {
+		localDir := filepath.Join(tmp, "installed-fonts")
+		Expect(os.MkdirAll(localDir, 0o755)).To(Succeed())
+		Expect(os.WriteFile(filepath.Join(localDir, "Hack Regular.ttf"), []byte("OLD_FONT"), 0o644)).To(Succeed())
+
+		f := components.NewFontsForOS(opts, "linux")
+		f.LocalOverride = localDir
+		f.CopyFn = func(src, dst string) error { return nil }
+
+		Expect(f.Pull()).To(Succeed())
+
+		b, err := os.ReadFile(filepath.Join(opts.BackupRoot, "fonts", "v1", "Hack Regular.ttf"))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(string(b)).To(Equal("OLD_FONT"))
+	})
+
+	It("creates no backup when the font is not already installed", func() {
+		localDir := filepath.Join(tmp, "installed-fonts")
+		Expect(os.MkdirAll(localDir, 0o755)).To(Succeed())
+
+		f := components.NewFontsForOS(opts, "linux")
+		f.LocalOverride = localDir
+		f.CopyFn = func(src, dst string) error { return nil }
+
+		Expect(f.Pull()).To(Succeed())
+
+		_, err := os.Stat(filepath.Join(opts.BackupRoot, "fonts"))
+		Expect(os.IsNotExist(err)).To(BeTrue())
+	})
+
+	It("leaves the backup intact when the copy fails", func() {
+		localDir := filepath.Join(tmp, "installed-fonts")
+		Expect(os.MkdirAll(localDir, 0o755)).To(Succeed())
+		Expect(os.WriteFile(filepath.Join(localDir, "Hack Regular.ttf"), []byte("OLD_FONT"), 0o644)).To(Succeed())
+
+		f := components.NewFontsForOS(opts, "linux")
+		f.LocalOverride = localDir
+		f.CopyFn = func(src, dst string) error {
+			if filepath.Base(dst) == "Hack Regular.ttf" {
+				return errors.New("sudo denied")
+			}
+			return nil
+		}
+
+		Expect(f.Pull()).To(MatchError(ContainSubstring("sudo denied")))
+
+		b, err := os.ReadFile(filepath.Join(opts.BackupRoot, "fonts", "v1", "Hack Regular.ttf"))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(string(b)).To(Equal("OLD_FONT"))
 	})
 
 	It("skips CopyFn for fonts already present and identical (idempotent, no sudo)", func() {

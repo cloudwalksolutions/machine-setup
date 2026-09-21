@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/cloudwalk/machine-setup/internal/fsutil"
 	"github.com/cloudwalk/machine-setup/internal/paths"
 )
 
@@ -27,16 +26,16 @@ func (n *Nvim) Name() string { return "nvim" }
 func (n *Nvim) Pull() error {
 	// Backup the existing local config (no-op if absent), then wipe so the
 	// new tree is a clean replace rather than a merge.
-	if _, err := fsutil.Backup(n.p.Local, n.Name(), n.opts.BackupRoot); err != nil {
+	if _, err := n.opts.copier().Backup(n.p.Local, n.Name(), n.opts.BackupRoot); err != nil {
 		return err
 	}
-	if err := os.RemoveAll(n.p.Local); err != nil {
+	if err := n.opts.copier().RemoveAll(n.p.Local); err != nil {
 		return err
 	}
 	if err := os.MkdirAll(filepath.Dir(n.p.Local), 0o755); err != nil {
 		return err
 	}
-	if err := fsutil.SafeCopy(n.p.Repo, n.p.Local, n.Name(), n.opts.BackupRoot); err != nil {
+	if err := n.opts.copier().SafeCopy(n.p.Repo, n.p.Local, n.Name(), n.opts.BackupRoot); err != nil {
 		return err
 	}
 	// Monokai theme.
@@ -44,21 +43,21 @@ func (n *Nvim) Pull() error {
 		return err
 	}
 	monokaiDst := filepath.Join(n.p.MonokaiLocal, "monokai.lua")
-	return fsutil.SafeCopy(n.p.MonokaiRepo, monokaiDst, n.Name(), n.opts.BackupRoot)
+	return n.opts.copier().SafeCopy(n.p.MonokaiRepo, monokaiDst, n.Name(), n.opts.BackupRoot)
 }
 
 // Push replaces the repo's nvim/ tree with ~/.config/nvim, archiving the old
 // repo tree under "nvim-repo" (clean replace, mirroring Pull).
 func (n *Nvim) Push() error {
 	comp := n.Name() + "-repo"
-	if _, err := fsutil.Backup(n.p.Repo, comp, n.opts.BackupRoot); err != nil {
+	if _, err := n.opts.copier().Backup(n.p.Repo, comp, n.opts.BackupRoot); err != nil {
 		return err
 	}
-	if err := os.RemoveAll(n.p.Repo); err != nil {
+	if err := n.opts.copier().RemoveAll(n.p.Repo); err != nil {
 		return err
 	}
 	if err := os.MkdirAll(filepath.Dir(n.p.Repo), 0o755); err != nil {
 		return err
 	}
-	return fsutil.SafeCopy(n.p.Local, n.p.Repo, comp, n.opts.BackupRoot)
+	return n.opts.copier().SafeCopy(n.p.Local, n.p.Repo, comp, n.opts.BackupRoot)
 }

@@ -26,15 +26,33 @@ var _ = Describe("ForOS Zsh.ProfileLocal", func() {
 	})
 })
 
+var _ = Describe("ForOS Zsh.ProfileLocalOverride", func() {
+	const (
+		repoRoot = "/repo"
+		home     = "/home/u"
+	)
+
+	It("maps the repo template to ~/.zprofile_local on darwin", func() {
+		p := paths.ForOS(repoRoot, home, "darwin")
+		Expect(p.Zsh.ProfileLocalTemplate).To(Equal(filepath.Join(repoRoot, "zsh", "zprofile_local.template")))
+		Expect(p.Zsh.ProfileLocalOverride).To(Equal(filepath.Join(home, ".zprofile_local")))
+	})
+
+	It("maps to the same override name on linux", func() {
+		p := paths.ForOS(repoRoot, home, "linux")
+		Expect(p.Zsh.ProfileLocalTemplate).To(Equal(filepath.Join(repoRoot, "zsh", "zprofile_local.template")))
+		Expect(p.Zsh.ProfileLocalOverride).To(Equal(filepath.Join(home, ".zprofile_local")))
+	})
+})
+
 var _ = Describe("ForOS Terminal", func() {
 	const (
 		repoRoot = "/repo"
 		home     = "/home/u"
 	)
 
-	It("points the repo artifacts at terminal/font and terminal/CloudWalk.terminal", func() {
+	It("points the repo artifact at terminal/font", func() {
 		p := paths.ForOS(repoRoot, home, "darwin")
 		Expect(p.Terminal.FontRepo).To(Equal(filepath.Join(repoRoot, "terminal", "font")))
-		Expect(p.Terminal.ProfileRepo).To(Equal(filepath.Join(repoRoot, "terminal", "CloudWalk.terminal")))
 	})
 })

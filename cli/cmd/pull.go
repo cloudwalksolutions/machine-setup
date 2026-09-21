@@ -10,6 +10,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var pullDryRun bool
+
 var pullCmd = &cobra.Command{
 	Use:   "pull",
 	Short: "Apply repo configs to this machine (dotfiles, fonts, terminals) with versioned backups",
@@ -32,16 +34,27 @@ network — it only lays down configuration, so it's safe to run repeatedly.`,
 			RepoRoot:   root,
 			Home:       home,
 			BackupRoot: filepath.Join(root, "backups"),
+			DryRun:     pullDryRun,
 			Stdout:     stdout,
 			Stderr:     stderr,
 		}
-		fmt.Fprintln(stdout, "Applying configuration files...")
-		SequentialPuller{
+		if pullDryRun {
+			fmt.Fprintln(stdout, "Dry run — no files will be written.")
+		} else {
+			fmt.Fprintln(stdout, "Applying configuration files...")
+		}
+		if err := (SequentialPuller{
 			Components: components.AllPullable(opts),
 			Stdout:     stdout,
 			Stderr:     stderr,
-		}.PullAll()
-		fmt.Fprintln(stdout, "\nPull complete.")
+		}).PullAll(); err != nil {
+			return fmt.Errorf("pull failed: %w", err)
+		}
+		if pullDryRun {
+			fmt.Fprintln(stdout, "\nDry run complete — nothing was written.")
+		} else {
+			fmt.Fprintln(stdout, "\nPull complete.")
+		}
 		return nil
 	},
 }
