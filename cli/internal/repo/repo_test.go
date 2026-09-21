@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/cloudwalk/machine-setup/internal/repo"
+	"tars/internal/repo"
 )
 
 var _ = Describe("Find", func() {

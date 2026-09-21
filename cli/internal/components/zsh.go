@@ -3,7 +3,7 @@ package components
 import (
 	"os"
 
-	"github.com/cloudwalk/machine-setup/internal/paths"
+	"tars/internal/paths"
 )
 
 // Zsh pulls/pushes the zsh dotfiles and seeds the secret template.
@@ -44,7 +44,7 @@ func (z *Zsh) Pull() error {
 }
 
 // Push copies local zsh files back to the repo, archiving the repo copies under
-// "zsh-repo". Funcs and profile are pushed only when they exist locally.
+// "zsh-repo". The profile is pushed only when it exists locally; funcs stay personal.
 func (z *Zsh) Push() error {
 	comp := z.Name() + "-repo"
 	if err := z.opts.copier().SafeCopy(z.p.ZshrcLocal, z.p.ZshrcRepo, comp, z.opts.BackupRoot); err != nil {
@@ -53,21 +53,13 @@ func (z *Zsh) Push() error {
 	if err := z.opts.copier().SafeCopy(z.p.AliasesLocal, z.p.AliasesRepo, comp, z.opts.BackupRoot); err != nil {
 		return err
 	}
-	for _, c := range []struct{ local, repo string }{
-		{z.p.FuncsLocal, z.p.FuncsRepo},
-		{z.p.ProfileLocal, z.p.ProfileRepo},
-	} {
-		if _, err := os.Stat(c.local); err != nil {
-			if os.IsNotExist(err) {
-				continue
-			}
-			return err
+	if _, err := os.Stat(z.p.ProfileLocal); err != nil {
+		if os.IsNotExist(err) {
+			return nil
 		}
-		if err := z.opts.copier().SafeCopy(c.local, c.repo, comp, z.opts.BackupRoot); err != nil {
-			return err
-		}
+		return err
 	}
-	return nil
+	return z.opts.copier().SafeCopy(z.p.ProfileLocal, z.p.ProfileRepo, comp, z.opts.BackupRoot)
 }
 
 // seed copies template to local only when local does not already exist.

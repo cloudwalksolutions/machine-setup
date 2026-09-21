@@ -8,20 +8,18 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"runtime"
 
-	"github.com/cloudwalk/machine-setup/internal/components"
-	"github.com/cloudwalk/machine-setup/internal/config"
-	"github.com/cloudwalk/machine-setup/internal/forms"
-	"github.com/cloudwalk/machine-setup/internal/pkg"
-	"github.com/cloudwalk/machine-setup/internal/pkg/apt"
-	"github.com/cloudwalk/machine-setup/internal/pkg/brew"
-	"github.com/cloudwalk/machine-setup/internal/pkg/rvm"
-	"github.com/cloudwalk/machine-setup/internal/repo"
-	"github.com/cloudwalk/machine-setup/internal/shell"
 	"github.com/spf13/cobra"
+	"tars/internal/components"
+	"tars/internal/config"
+	"tars/internal/forms"
+	"tars/internal/pkg"
+	"tars/internal/pkg/apt"
+	"tars/internal/pkg/brew"
+	"tars/internal/pkg/rvm"
+	"tars/internal/shell"
 )
 
 // ── Interfaces (collaborators of Setup) ──────────────────────────────────
@@ -63,14 +61,15 @@ type Installer interface {
 	Install() error
 }
 
-// Puller pulls every dotfile component, reporting failures inline.
+// Puller pulls every dotfile component, reporting failures inline and
+// returning an aggregate error naming the components that failed.
 type Puller interface {
 	PullAll() error
 }
 
 // ── Setup ────────────────────────────────────────────────────────────────
 
-// Setup orchestrates the `machine-setup setup` flow. All collaborators are
+// Setup orchestrates the `tars setup` flow. All collaborators are
 // injected via interfaces, so tests can substitute spies without mutating
 // package state.
 type Setup struct {
@@ -152,10 +151,12 @@ func (s *Setup) runShellInstaller(name string, i Installer) {
 	}
 }
 
+// runPull applies the configs; failures are non-fatal here — the user can
+// re-run `tars pull` after fixing the cause.
 func (s *Setup) runPull() {
 	fmt.Fprintln(s.Stdout, "\nPulling configuration files...")
-	if err := s.Pull.PullAll(); err != nil {
-		fmt.Fprintf(s.Stderr, "  pull completed with errors: %v\n", err)
+	if s.Pull.PullAll() != nil {
+		fmt.Fprintln(s.Stderr, "  some components failed; re-run `tars pull` after fixing the cause")
 	}
 }
 
@@ -192,7 +193,7 @@ func (FormsPicker) Pick(offered []string) ([]string, error) {
 // FileConfigStore reads/writes the YAML config at a fixed path.
 type FileConfigStore struct{ path string }
 
-func NewFileConfigStore(path string) FileConfigStore  { return FileConfigStore{path: path} }
+func NewFileConfigStore(path string) FileConfigStore    { return FileConfigStore{path: path} }
 func (s FileConfigStore) Load() (*config.Config, error) { return config.Init(s.path) }
 func (s FileConfigStore) Save(cfg *config.Config) error { return config.Save(s.path, cfg) }
 func (s FileConfigStore) Path() string                  { return s.path }
@@ -235,15 +236,22 @@ type SequentialPuller struct {
 
 // PullAll pulls every component, continuing past failures and returning them joined.
 func (p SequentialPuller) PullAll() error {
-	var errs []error
-	for _, c := range p.Components {
-		fmt.Fprintf(p.Stdout, "  → %s\n", c.Name())
-		if err := c.Pull(); err != nil {
-			fmt.Fprintf(p.Stderr, "  %s: %v\n", c.Name(), err)
-			errs = append(errs, fmt.Errorf("%s: %w", c.Name(), err))
+	return runComponents(p.Components, components.Component.Name, components.Component.Pull, p.Stdout, p.Stderr)
+}
+
+// runComponents drives one action across a component list, printing progress,
+// tolerating per-component failures, and returning them aggregated — the shared
+// engine behind SequentialPuller and SequentialPusher (they change together).
+func runComponents[T any](items []T, name func(T) string, act func(T) error, stdout, stderr io.Writer) error {
+	var failed []error
+	for _, c := range items {
+		fmt.Fprintf(stdout, "  → %s\n", name(c))
+		if err := act(c); err != nil {
+			fmt.Fprintf(stderr, "  %s: %v\n", name(c), err)
+			failed = append(failed, fmt.Errorf("%s: %w", name(c), err))
 		}
 	}
-	return errors.Join(errs...)
+	return errors.Join(failed...)
 }
 
 // ── Composition root ─────────────────────────────────────────────────────
@@ -252,31 +260,20 @@ func (p SequentialPuller) PullAll() error {
 // the cli that assembles the dependency graph. The cobra RunE calls it; tests
 // either call it too or construct Setup directly with their own collaborators.
 func NewSetup(stdout, stderr io.Writer, cfgPath string) (*Setup, error) {
-	home, err := os.UserHomeDir()
+	compOpts, err := buildOptions(stdout, stderr)
 	if err != nil {
-		return nil, fmt.Errorf("locating home dir: %w", err)
+		return nil, err
 	}
-	root, err := repo.Find()
-	if err != nil {
-		return nil, fmt.Errorf("locating repo root: %w", err)
-	}
-
-	compOpts := components.Options{
-		RepoRoot:   root,
-		Home:       home,
-		BackupRoot: filepath.Join(root, "backups"),
-		Stdout:     stdout,
-		Stderr:     stderr,
-	}
+	home := compOpts.Home
 	p10kDir := filepath.Join(home, ".oh-my-zsh", "custom", "themes", "powerlevel10k")
 
 	return &Setup{
-		Welcome:   FormsWelcomer{},
-		Picker:    FormsPicker{},
-		Config:    NewFileConfigStore(cfgPath),
+		Welcome: FormsWelcomer{},
+		Picker:  FormsPicker{},
+		Config:  NewFileConfigStore(cfgPath),
 		Registry: pkg.NewRegistryFactory(
 			brew.DefaultRunner(),
-			apt.DefaultRunner(),
+			apt.DefaultKit(),
 			rvm.NewInstaller(filepath.Join(home, ".rvm"), rvm.DefaultRunner()),
 		).For(runtime.GOOS),
 		Installer: IterativeInstaller{Stdout: stdout, Stderr: stderr},
@@ -306,9 +303,13 @@ func NewSetup(stdout, stderr io.Writer, cfgPath string) (*Setup, error) {
 
 var setupCmd = &cobra.Command{
 	Use:   "setup",
-	Short: "Initialize this machine with CloudWalk defaults",
-	Long: `Display a welcome greeting, select dev tools to install, initialize
-the machine-setup config, and install selected packages.`,
+	Short: "Initialize this machine with the tars defaults",
+	Long: `Full machine bootstrap: pick dev tools to install, install them (brew on
+macOS, apt/tarball on Linux), install oh-my-zsh and Powerlevel10k, then apply
+all dotfile configs — overwriting ~/.zshrc, ~/.config/nvim, ~/.byobu, and
+~/.vimrc, each archived first under ~/.local/state/tars/backups/<component>/vN.
+Also seeds ~/.zshrc_secret from a template when absent and saves the tool
+selection to the tars config file.`,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		cfgPath := config.DefaultConfigPath()
 		if cfgFile != "" {

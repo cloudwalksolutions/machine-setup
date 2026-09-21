@@ -1,1 +1,0 @@
-kubectl completion bash

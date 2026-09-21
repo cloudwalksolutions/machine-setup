@@ -11,25 +11,32 @@ import (
 	. "github.com/onsi/gomega"
 	"gopkg.in/yaml.v3"
 
-	"github.com/cloudwalk/machine-setup/cmd"
-	"github.com/cloudwalk/machine-setup/internal/components"
-	"github.com/cloudwalk/machine-setup/internal/config"
-	"github.com/cloudwalk/machine-setup/internal/pkg"
+	"tars/cmd"
+	"tars/internal/components"
+	"tars/internal/config"
+	"tars/internal/pkg"
 )
 
 // ── Test doubles ─────────────────────────────────────────────────────────
 
-type spyWelcome struct{ calls int }
+type spyWelcome struct {
+	calls int
+	err   error
+}
 
-func (s *spyWelcome) Show() error { s.calls++; return nil }
+func (s *spyWelcome) Show() error { s.calls++; return s.err }
 
 type spyPicker struct {
 	offered []string
 	pick    []string
+	err     error
 }
 
 func (s *spyPicker) Pick(offered []string) ([]string, error) {
 	s.offered = offered
+	if s.err != nil {
+		return nil, s.err
+	}
 	if s.pick != nil {
 		return s.pick, nil
 	}
@@ -126,14 +133,14 @@ type recordingPuller struct {
 }
 
 func (p *recordingPuller) PullAll() error {
-	var errs []error
+	var failed []error
 	for _, c := range p.components {
 		if err := c.Pull(); err != nil {
 			fmt.Fprintf(p.stderr, "  %s: %v\n", c.Name(), err)
-			errs = append(errs, err)
+			failed = append(failed, err)
 		}
 	}
-	return errors.Join(errs...)
+	return errors.Join(failed...)
 }
 
 // ── Fixture ──────────────────────────────────────────────────────────────

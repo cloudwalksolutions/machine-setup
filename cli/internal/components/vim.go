@@ -1,7 +1,7 @@
 package components
 
 import (
-	"github.com/cloudwalk/machine-setup/internal/paths"
+	"tars/internal/paths"
 )
 
 // Vim pulls/pushes the vimrc and sublimemonokai color scheme.

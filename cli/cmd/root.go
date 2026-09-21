@@ -10,8 +10,8 @@ var cfgFile string
 
 var rootCmd = &cobra.Command{
 	Use:   "tars",
-	Short: "tars — CloudWalk dev-machine setup CLI",
-	Long:  "Provision and manage a CloudWalk development machine (dotfiles, tools, fonts, terminals).",
+	Short: "tars — dev-machine setup CLI",
+	Long:  "Provision and manage a development machine (dotfiles, tools, fonts, terminals), and open byobu sessions from a simple config.",
 }
 
 // Execute is the single public entry point called by main.go.
@@ -25,17 +25,20 @@ func SetVersion(version, commit, date string) {
 	if version == "" {
 		version = "dev"
 	}
+	binaryVersion = version
 	rootCmd.Version = fmt.Sprintf("%s (commit %s, built %s)", version, commit, date)
 }
 
 func init() {
 	rootCmd.PersistentFlags().StringVar(
 		&cfgFile, "config", "",
-		"config file (default: ~/.config/.machine-setup/config.yaml)",
+		"config file (default: ~/.config/.machine-setup/config.yaml; env: MACHINE_SETUP_CONFIG_PATH)",
 	)
 	rootCmd.AddCommand(setupCmd)
 	rootCmd.AddCommand(pushCmd)
+	rootCmd.AddCommand(profilesCmd)
 	pullCmd.Flags().BoolVar(&pullDryRun, "dry-run", false,
 		"report the writes a pull would make, without changing anything")
 	rootCmd.AddCommand(pullCmd)
+	rootCmd.AddCommand(sessionsCmd)
 }

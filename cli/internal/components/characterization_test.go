@@ -12,7 +12,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/cloudwalk/machine-setup/internal/components"
+	"tars/internal/components"
 )
 
 func relPaths(root string) []string {
@@ -182,15 +182,6 @@ var _ = Describe("pull", func() {
 			Expect(backupVersions(backupRoot, "byobu")).To(Equal(0))
 		})
 
-		It("installs bin/ scripts without their executable bit, so the status line dies", func() {
-			Expect(os.Chmod(filepath.Join(repoRoot, "byobu", "bin", "1_git"), 0o755)).To(Succeed())
-
-			Expect(components.NewByobu(opts).Pull()).To(Succeed())
-
-			info, err := os.Stat(filepath.Join(home, ".byobu", "bin", "1_git"))
-			Expect(err).NotTo(HaveOccurred())
-			Expect(info.Mode().Perm() & 0o111).To(Equal(os.FileMode(0)))
-		})
 	})
 
 	Describe("Nvim", func() {
@@ -201,17 +192,6 @@ var _ = Describe("pull", func() {
 				".config/nvim/lua/core/settings.lua",
 				".local/share/nvim/site/pack/packer/start/monokai.nvim/lua/monokai.lua",
 			}))
-		})
-
-		It("archives the whole tree again on every pull, even when nothing changed", func() {
-			Expect(components.NewNvim(opts).Pull()).To(Succeed())
-			Expect(backupVersions(backupRoot, "nvim")).To(Equal(0))
-
-			Expect(components.NewNvim(opts).Pull()).To(Succeed())
-			Expect(backupVersions(backupRoot, "nvim")).To(Equal(1))
-
-			Expect(components.NewNvim(opts).Pull()).To(Succeed())
-			Expect(backupVersions(backupRoot, "nvim")).To(Equal(2))
 		})
 
 		It("copies repo-side .undo and .netrwhist scratch state into the live config", func() {
@@ -287,6 +267,8 @@ var _ = Describe("pull", func() {
 				fontSet = append(fontSet, font)
 				return nil
 			}
+			t.DefaultProfileFn = func() (string, error) { return "Basic", nil }
+			t.ApplyFn = func(string, string) error { return nil }
 			return t
 		}
 

@@ -4,7 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/cloudwalk/machine-setup/internal/paths"
+	"tars/internal/paths"
 )
 
 // Byobu pulls/pushes the byobu config files and the bin/ scripts.

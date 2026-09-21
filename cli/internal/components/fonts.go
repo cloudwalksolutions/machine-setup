@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/cloudwalk/machine-setup/internal/fsutil"
-	"github.com/cloudwalk/machine-setup/internal/paths"
+	"tars/internal/fsutil"
+	"tars/internal/paths"
 )
 
 // Fonts installs the bundled Nerd Font files into the OS font directory.

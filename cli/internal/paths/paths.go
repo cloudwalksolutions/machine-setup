@@ -14,11 +14,19 @@ type Paths struct {
 	Vim      VimPaths
 	Fonts    FontsPaths
 	Terminal TerminalPaths
+	Profiles ProfilesPaths
+}
+
+// ProfilesPaths locates the rendered per-profile files and the gitconfig they hook into.
+type ProfilesPaths struct {
+	Dir       string
+	Gitconfig string
 }
 
 // TerminalPaths locates the font string applied to iTerm2's default profile.
 type TerminalPaths struct {
-	FontRepo string
+	FontRepo    string
+	ProfileRepo string
 }
 
 // FontsPaths holds the font repo→local mapping. Local destination
@@ -143,7 +151,12 @@ func ForOS(repoRoot, home, goos string) Paths {
 			ColorsLocal: filepath.Join(home, ".vim", "colors", "sublimemonokai.vim"),
 		},
 		Terminal: TerminalPaths{
-			FontRepo: filepath.Join(repoRoot, "terminal", "font"),
+			FontRepo:    filepath.Join(repoRoot, "terminal", "font"),
+			ProfileRepo: filepath.Join(repoRoot, "terminal", "tars.terminal"),
+		},
+		Profiles: ProfilesPaths{
+			Dir:       filepath.Join(home, ".config", "tars", "profiles"),
+			Gitconfig: filepath.Join(home, ".gitconfig"),
 		},
 	}
 }

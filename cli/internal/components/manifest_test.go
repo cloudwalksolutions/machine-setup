@@ -13,7 +13,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/cloudwalk/machine-setup/internal/components"
+	"tars/internal/components"
 )
 
 const goldenPath = "testdata/pull_manifest.golden"
@@ -30,7 +30,15 @@ func manifestLine(root, path string) string {
 	sum := sha256.Sum256(b)
 
 	return fmt.Sprintf("%s %04o %s",
-		filepath.ToSlash(rel), info.Mode().Perm(), hex.EncodeToString(sum[:])[:12])
+		portableName(rel), info.Mode().Perm(), hex.EncodeToString(sum[:])[:12])
+}
+
+func portableName(rel string) string {
+	name := filepath.ToSlash(rel)
+	if name == loginProfile() {
+		return "<login-profile>"
+	}
+	return name
 }
 
 func manifest(root string) []string {

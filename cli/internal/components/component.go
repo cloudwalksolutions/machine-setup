@@ -5,7 +5,7 @@ package components
 import (
 	"io"
 
-	"github.com/cloudwalk/machine-setup/internal/fsutil"
+	"tars/internal/fsutil"
 )
 
 // Component is the unit the orchestrator iterates over during setup.
@@ -45,6 +45,7 @@ func AllPullable(opts Options) []Component {
 		NewNvim(opts),
 		NewFonts(opts),
 		NewTerminal(opts),
+		NewProfiles(opts),
 	}
 }
 

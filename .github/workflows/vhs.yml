@@ -1,0 +1,43 @@
+name: vhs
+
+# Re-record the README demo GIFs whenever a tape changes on main.
+on:
+  push:
+    branches: [main]
+    paths: ["vhs/**.tape"]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  vhs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+      - name: Install byobu for the sessions tape
+        run: sudo apt-get update && sudo apt-get install -y byobu tmux
+      - name: Build tars onto PATH
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          (cd cli && go build -o "$RUNNER_TEMP/bin/tars" .)
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - uses: charmbracelet/vhs-action@v2
+        with:
+          path: vhs/demo.tape
+      - uses: charmbracelet/vhs-action@v2
+        with:
+          path: vhs/sessions.tape
+      # main is branch-protected, so regenerated GIFs arrive as a PR.
+      - uses: peter-evans/create-pull-request@v7
+        with:
+          add-paths: vhs/*.gif
+          commit-message: "Re-record VHS demos"
+          title: "Re-record VHS demos"
+          body: "Automated re-recording — a tape under vhs/ changed on main."
+          branch: vhs-rerecord
+          delete-branch: true

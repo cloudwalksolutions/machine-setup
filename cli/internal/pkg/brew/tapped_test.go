@@ -2,16 +2,17 @@ package brew_test
 
 import (
 	"bytes"
+	"errors"
 	"io"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/cloudwalk/machine-setup/internal/pkg/brew"
+	"tars/internal/pkg/brew"
 )
 
 var _ = Describe("TappedFormula.Install", func() {
-	It("first taps the source, then installs the fully-qualified name", func() {
+	It("taps the repository, then installs the tapped formula", func() {
 		var calls [][]string
 		spy := func(args []string, _, _ io.Writer) error {
 			calls = append(calls, args)
@@ -26,5 +27,19 @@ var _ = Describe("TappedFormula.Install", func() {
 			{"tap", "hashicorp/tap"},
 			{"install", "hashicorp/tap/terraform"},
 		}))
+	})
+
+	It("stops when the tap step fails", func() {
+		calls := 0
+		spy := func(args []string, _, _ io.Writer) error {
+			calls++
+			return errors.New("tap failed")
+		}
+
+		err := brew.NewTappedFormula("terraform", "hashicorp/tap", spy).
+			Install(&bytes.Buffer{}, &bytes.Buffer{})
+
+		Expect(err).To(MatchError(ContainSubstring("tap failed")))
+		Expect(calls).To(Equal(1))
 	})
 })

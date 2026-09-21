@@ -47,8 +47,33 @@ jobs:
           version: v2.12.2
           working-directory: cli
 
-  e2e-linux:
+  coverage:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # badge commit on the badges branch (main only)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+      - name: Generate coverage profile
+        working-directory: cli
+        run: go test ./... -coverprofile=cover.out -covermode=atomic -coverpkg=./...
+      - name: Coverage gate + badge
+        uses: vladopajic/go-test-coverage@v2
+        with:
+          config: ./cli/.testcoverage.yml
+          git-token: ${{ github.ref_name == 'main' && secrets.GITHUB_TOKEN || '' }}
+          git-branch: badges
+
+  e2e-linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        # arm64 exercises the linux/arm64 target goreleaser ships.
+        os: [ubuntu-latest, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       # Assertions run inside the build; a failed assertion fails this step.

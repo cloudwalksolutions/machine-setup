@@ -27,7 +27,7 @@ func ShowInstallForm(toolNames []string) ([]string, error) {
 		huh.NewGroup(
 			huh.NewMultiSelect[string]().
 				Title("Select dev tools to install").
-				Description("All CloudWalk defaults are pre-selected. Space to toggle, Enter to confirm.").
+				Description("All defaults are pre-selected. Space to toggle, Enter to confirm.").
 				Options(options...).
 				Value(&selected),
 		),

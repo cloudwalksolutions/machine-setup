@@ -8,7 +8,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/cloudwalk/machine-setup/internal/components"
+	"tars/internal/components"
 )
 
 var _ = Describe("Zsh.Pull seeding ~/.zprofile_local", func() {

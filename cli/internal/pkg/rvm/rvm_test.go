@@ -9,7 +9,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/cloudwalk/machine-setup/internal/pkg/rvm"
+	"tars/internal/pkg/rvm"
 )
 
 var _ = Describe("rvm.Installer.Install", func() {

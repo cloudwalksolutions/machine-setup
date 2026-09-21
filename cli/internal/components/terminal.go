@@ -9,20 +9,25 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cloudwalk/machine-setup/internal/fsutil"
-	"github.com/cloudwalk/machine-setup/internal/paths"
+	"tars/internal/fsutil"
+	"tars/internal/paths"
 )
 
-// Terminal points iTerm2's default profile at the font shipped by Fonts.
-// macOS-only; a no-op elsewhere.
+// terminalProfileName is the Terminal.app window-settings profile the CLI manages.
+const terminalProfileName = "tars"
+
+// Terminal points iTerm2 and Terminal.app at the font shipped by Fonts (darwin only).
 type Terminal struct {
 	opts Options
 	p    paths.TerminalPaths
 	goos string
 
-	CurrentFontFn func() (string, error)
-	SetFontFn     func(font string) error
-	IsRunningFn   func() bool
+	CurrentFontFn    func() (string, error)
+	SetFontFn        func(font string) error
+	IsRunningFn      func() bool
+	DefaultProfileFn func() (string, error)
+	ApplyFn          func(profilePath, name string) error
+	ExportFn         func(name, dst string) error
 }
 
 // NewTerminal returns a Terminal component with platform defaults for the current OS.
@@ -33,19 +38,22 @@ func NewTerminal(opts Options) *Terminal {
 // NewTerminalForOS is the OS-explicit form, useful for tests.
 func NewTerminalForOS(opts Options, goos string) *Terminal {
 	return &Terminal{
-		opts:          opts,
-		p:             paths.ForOS(opts.RepoRoot, opts.Home, goos).Terminal,
-		goos:          goos,
-		CurrentFontFn: itermCurrentFont,
-		SetFontFn:     itermSetFont,
-		IsRunningFn:   itermIsRunning,
+		opts:             opts,
+		p:                paths.ForOS(opts.RepoRoot, opts.Home, goos).Terminal,
+		goos:             goos,
+		CurrentFontFn:    itermCurrentFont,
+		SetFontFn:        itermSetFont,
+		IsRunningFn:      itermIsRunning,
+		DefaultProfileFn: terminalAppDefaultProfile,
+		ApplyFn:          terminalAppApply,
+		ExportFn:         terminalAppExport,
 	}
 }
 
 // Name returns "terminal".
 func (t *Terminal) Name() string { return "terminal" }
 
-// Pull applies the repo's font to iTerm2 (idempotent).
+// Pull applies the repo's font to iTerm2 and Terminal.app (idempotent).
 func (t *Terminal) Pull() error {
 	if t.goos != "darwin" {
 		return nil
@@ -60,9 +68,15 @@ func (t *Terminal) Pull() error {
 	if err != nil {
 		return err
 	}
-	if cur == want {
-		return nil
+	if cur != want {
+		if err := t.setItermFont(cur, want); err != nil {
+			return err
+		}
 	}
+	return t.importTerminalAppProfile()
+}
+
+func (t *Terminal) setItermFont(cur, want string) error {
 	if t.opts.DryRun {
 		fmt.Fprintf(t.opts.Stdout, "    would set terminal font  %s → %s\n", cur, want)
 		return nil
@@ -73,12 +87,22 @@ func (t *Terminal) Pull() error {
 	if err := t.SetFontFn(want); err != nil {
 		return err
 	}
-	// A running iTerm2 rewrites its prefs from memory on quit, reverting this.
 	if t.IsRunningFn != nil && t.IsRunningFn() {
 		fmt.Fprintln(t.opts.Stderr,
 			"  terminal: iTerm2 is running — quit and reopen it for the font change to stick")
 	}
 	return nil
+}
+
+func (t *Terminal) importTerminalAppProfile() error {
+	if current, err := t.DefaultProfileFn(); err == nil && current == terminalProfileName {
+		return nil
+	}
+	if t.opts.DryRun {
+		fmt.Fprintf(t.opts.Stdout, "    would import Terminal.app profile  %s\n", terminalProfileName)
+		return nil
+	}
+	return t.ApplyFn(t.p.ProfileRepo, terminalProfileName)
 }
 
 // Push captures the live terminal font settings back into the repo.
@@ -100,7 +124,10 @@ func (t *Terminal) Push() error {
 	if err := os.MkdirAll(filepath.Dir(t.p.FontRepo), 0o755); err != nil {
 		return err
 	}
-	return os.WriteFile(t.p.FontRepo, []byte(cur+"\n"), 0o644)
+	if err := os.WriteFile(t.p.FontRepo, []byte(cur+"\n"), 0o644); err != nil {
+		return err
+	}
+	return t.ExportFn(terminalProfileName, t.p.ProfileRepo)
 }
 
 // archiveFont snapshots the current font string into a versioned backup dir.
@@ -177,5 +204,41 @@ func itermSetFont(font string) error {
 			}
 		}
 	}
+	return plistBuddy("-c", "Set :'New Bookmarks':"+idx+":'Use Non-ASCII Font' true").Run()
+}
+
+// terminalAppDefaultProfile reads Terminal.app's default window profile name.
+func terminalAppDefaultProfile() (string, error) {
+	out, err := exec.Command("defaults", "read", "com.apple.Terminal", "Default Window Settings").Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+func terminalAppApply(profilePath, name string) error {
+	// -g keeps Terminal.app in the background, -j hides the imported window.
+	if err := exec.Command("open", "-g", "-j", profilePath).Run(); err != nil {
+		return err
+	}
+	for _, key := range []string{"Default Window Settings", "Startup Window Settings"} {
+		if err := exec.Command("defaults", "write", "com.apple.Terminal", key, "-string", name).Run(); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+func terminalAppExport(name, dst string) error {
+	out, err := exec.Command("/usr/libexec/PlistBuddy", "-x", "-c",
+		"Print :'Window Settings':'"+name+"'", terminalDefaultsPlist()).Output()
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(dst, out, 0o644)
+}
+
+func terminalDefaultsPlist() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, "Library", "Preferences", "com.apple.Terminal.plist")
 }
