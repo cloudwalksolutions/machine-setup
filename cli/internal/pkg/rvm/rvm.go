@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"tars/internal/pkg"
 )
 
 // installScript is the official RVM bootstrap command. Piped through bash with
@@ -36,6 +37,14 @@ func (i Installer) Install(stdout, stderr io.Writer) error {
 		return nil
 	}
 	return i.Runner(stdout, stderr)
+}
+
+// Status returns the current installation status of RVM.
+func (i Installer) Status() (pkg.InstallStatus, string, error) {
+	if _, err := os.Stat(i.Dir); err == nil {
+		return pkg.StatusUpToDate, "installed", nil
+	}
+	return pkg.StatusNotInstalled, "", nil
 }
 
 // DefaultRunner returns the production Runner: a bash pipe of the official

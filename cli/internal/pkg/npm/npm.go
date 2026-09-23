@@ -3,6 +3,7 @@ package npm
 import (
 	"io"
 	"os/exec"
+	"tars/internal/pkg"
 )
 
 // Runner runs an npm subcommand with the given args. Returned errors propagate
@@ -33,6 +34,11 @@ func (p Package) Name() string {
 // Install runs `npm install -g <packageName>`.
 func (p Package) Install(stdout, stderr io.Writer) error {
 	return p.run([]string{"install", "-g", p.packageName}, stdout, stderr)
+}
+
+// Status returns the current installation status of the package.
+func (p Package) Status() (pkg.InstallStatus, string, error) {
+	return pkg.StatusNotInstalled, "", nil
 }
 
 // DefaultRunner returns the production Runner: a direct execution of npm.

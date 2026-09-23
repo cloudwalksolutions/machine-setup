@@ -1,6 +1,7 @@
-package pkg
+package registry
 
 import (
+	"tars/internal/pkg"
 	"tars/internal/pkg/apt"
 	"tars/internal/pkg/brew"
 )
@@ -10,7 +11,7 @@ import (
 // the registry is one-way (Add/AddAll only) so consumers can rely on the list
 // being append-only after construction.
 type DevToolRegistry struct {
-	tools []Installable
+	tools []pkg.Installable
 }
 
 // NewDevToolRegistry returns an empty registry.
@@ -19,18 +20,18 @@ func NewDevToolRegistry() *DevToolRegistry {
 }
 
 // Installables returns the registered installables in declaration order.
-func (r *DevToolRegistry) Installables() []Installable {
+func (r *DevToolRegistry) Installables() []pkg.Installable {
 	return r.tools
 }
 
 // Add appends an installable; returns the receiver for chaining.
-func (r *DevToolRegistry) Add(t Installable) *DevToolRegistry {
+func (r *DevToolRegistry) Add(t pkg.Installable) *DevToolRegistry {
 	r.tools = append(r.tools, t)
 	return r
 }
 
 // AddAll appends a batch of installables in order; returns the receiver.
-func (r *DevToolRegistry) AddAll(ts []Installable) *DevToolRegistry {
+func (r *DevToolRegistry) AddAll(ts []pkg.Installable) *DevToolRegistry {
 	r.tools = append(r.tools, ts...)
 	return r
 }
@@ -51,12 +52,12 @@ func (r *DevToolRegistry) Names() []string {
 type RegistryFactory struct {
 	brewRun brew.Runner
 	aptKit  apt.Kit
-	extras  []Installable
+	extras  []pkg.Installable
 }
 
 // NewRegistryFactory captures the platform runners and any cross-platform
 // extras. The extras are appended to every recognized-OS registry.
-func NewRegistryFactory(brewRun brew.Runner, aptKit apt.Kit, extras ...Installable) RegistryFactory {
+func NewRegistryFactory(brewRun brew.Runner, aptKit apt.Kit, extras ...pkg.Installable) RegistryFactory {
 	return RegistryFactory{brewRun: brewRun, aptKit: aptKit, extras: extras}
 }
 

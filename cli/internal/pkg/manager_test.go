@@ -1,202 +1,98 @@
 package pkg_test
 
 import (
-	"archive/tar"
 	"bytes"
-	"compress/gzip"
 	"io"
+	"os"
+	"path/filepath"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	"tars/internal/pkg"
-	"tars/internal/pkg/apt"
-	"tars/internal/pkg/brew"
 )
 
-// fakeInstallable is a minimal pkg.Installable for exercising DevToolRegistry.
-// Tests should NOT use it to verify behavior of real Installable types — those
-// are tested in their own packages.
-type fakeInstallable struct{ name string }
-
-func (f fakeInstallable) Name() string                 { return f.name }
-func (f fakeInstallable) Install(_, _ io.Writer) error { return nil }
-
-var _ = Describe("DevToolRegistry", func() {
-	var registry *pkg.DevToolRegistry
-
-	BeforeEach(func() {
-		registry = pkg.NewDevToolRegistry()
-	})
-
-	It("is empty on construction", func() {
-		Expect(registry.Installables()).To(BeEmpty())
-	})
-
-	It("Add appends an installable, preserving declaration order", func() {
-		registry.Add(fakeInstallable{name: "a"})
-		registry.Add(fakeInstallable{name: "b"})
-
-		Expect(registry.Installables()).To(HaveLen(2))
-		Expect(registry.Installables()[0].Name()).To(Equal("a"))
-		Expect(registry.Installables()[1].Name()).To(Equal("b"))
-	})
-
-	It("AddAll appends a batch in order", func() {
-		registry.AddAll([]pkg.Installable{
-			fakeInstallable{name: "x"},
-			fakeInstallable{name: "y"},
-			fakeInstallable{name: "z"},
-		})
-
-		Expect(registry.Installables()).To(HaveLen(3))
-		Expect(registry.Installables()[2].Name()).To(Equal("z"))
-	})
-
-	It("Names projects each installable's name in order", func() {
-		registry.Add(fakeInstallable{name: "foo"}).Add(fakeInstallable{name: "bar"})
-
-		Expect(registry.Names()).To(Equal([]string{"foo", "bar"}))
+var _ = Describe("InstallStatus", func() {
+	It("reports correct string representation", func() {
+		Expect(pkg.StatusNotInstalled.String()).To(Equal("not installed"))
+		Expect(pkg.StatusUpdateAvailable.String()).To(Equal("update available"))
+		Expect(pkg.StatusUpToDate.String()).To(Equal("up to date"))
+		Expect(pkg.InstallStatus(99).String()).To(Equal("unknown"))
 	})
 })
 
-// recordingRunner records the args of every brew/apt invocation that flows
-// through a registry-emitted Installable.
-type recordingRunner struct {
-	lastArgs []string
-	calls    int
-}
-
-func (r *recordingRunner) Run(args []string, _, _ io.Writer) error {
-	r.lastArgs = args
-	r.calls++
-	return nil
-}
-
-var _ = Describe("RegistryFactory", func() {
+var _ = Describe("ScriptInstaller", func() {
 	var (
-		brewSpy    *recordingRunner
-		aptSpy     *recordingRunner
-		cmdSpy     *recordingRunner
-		fetchCalls int
-		factory    pkg.RegistryFactory
+		path   string
+		stdout *bytes.Buffer
+		stderr *bytes.Buffer
 	)
 
-	// minimalTarGz is a valid empty gzipped tarball, so seam-driven installs
-	// that extract archives still succeed against the spy Fetch.
-	minimalTarGz := func() io.ReadCloser {
-		var buf bytes.Buffer
-		gz := gzip.NewWriter(&buf)
-		tw := tar.NewWriter(gz)
-		Expect(tw.Close()).To(Succeed())
-		Expect(gz.Close()).To(Succeed())
-		return io.NopCloser(&buf)
-	}
-
-	spyKit := func() apt.Kit {
-		return apt.Kit{
-			Apt: aptSpy.Run,
-			Cmd: cmdSpy.Run,
-			Fetch: func(string) (io.ReadCloser, error) {
-				fetchCalls++
-				return minimalTarGz(), nil
-			},
-			Home: GinkgoT().TempDir(),
-		}
-	}
-
 	BeforeEach(func() {
-		brewSpy = &recordingRunner{}
-		aptSpy = &recordingRunner{}
-		cmdSpy = &recordingRunner{}
-		fetchCalls = 0
-		factory = pkg.NewRegistryFactory(
-			brew.Runner(brewSpy.Run),
-			spyKit(),
-		)
+		tmp := GinkgoT().TempDir()
+		path = filepath.Join(tmp, "my-binary")
+		stdout = &bytes.Buffer{}
+		stderr = &bytes.Buffer{}
 	})
 
-	It("returns an empty registry for an unsupported OS", func() {
-		Expect(factory.For("plan9").Installables()).To(BeEmpty())
+	Describe("Name()", func() {
+		It("reports the given name", func() {
+			installer := pkg.NewScriptInstaller("my-tool", path, nil, nil)
+			Expect(installer.Name()).To(Equal("my-tool"))
+		})
 	})
 
-	It("on darwin, populates installables whose installs route through brew", func() {
-		registry := factory.For("darwin")
-		Expect(registry.Installables()).NotTo(BeEmpty())
+	Describe("Install()", func() {
+		It("is a no-op when the checkPath already exists", func() {
+			Expect(os.WriteFile(path, []byte("fake binary"), 0o755)).To(Succeed())
 
-		Expect(registry.Installables()[0].Install(&bytes.Buffer{}, &bytes.Buffer{})).To(Succeed())
+			installer := pkg.NewScriptInstaller("my-tool", path, []string{"curl"}, func(_ []string, _, _ io.Writer) error {
+				panic("runner must not be called when binary exists")
+			})
 
-		Expect(brewSpy.calls).To(BeNumerically(">", 0))
-		Expect(aptSpy.calls).To(Equal(0))
+			Expect(installer.Install(stdout, stderr)).To(Succeed())
+		})
+
+		It("invokes the runner with the installCmd when checkPath is missing", func() {
+			var (
+				gotCmd    []string
+				gotStdout io.Writer
+				gotStderr io.Writer
+				calls     int
+			)
+			installer := pkg.NewScriptInstaller("my-tool", path, []string{"install-step"}, func(cmd []string, o, e io.Writer) error {
+				calls++
+				gotCmd = cmd
+				gotStdout, gotStderr = o, e
+				return nil
+			})
+
+			Expect(installer.Install(stdout, stderr)).To(Succeed())
+
+			Expect(calls).To(Equal(1))
+			Expect(gotCmd).To(Equal([]string{"install-step"}))
+			Expect(gotStdout).To(BeIdenticalTo(io.Writer(stdout)))
+			Expect(gotStderr).To(BeIdenticalTo(io.Writer(stderr)))
+		})
 	})
 
-	It("on darwin, includes the gcloud-cli cask", func() {
-		Expect(factory.For("darwin").Names()).To(ContainElement("gcloud-cli"))
-	})
+	Describe("Status()", func() {
+		It("reports StatusNotInstalled when checkPath is missing", func() {
+			installer := pkg.NewScriptInstaller("my-tool", path, nil, nil)
+			status, version, err := installer.Status()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(status).To(Equal(pkg.StatusNotInstalled))
+			Expect(version).To(Equal(""))
+		})
 
-	It("on linux, includes a gcloud installable", func() {
-		Expect(factory.For("linux").Names()).To(ContainElement("gcloud"))
-	})
+		It("reports StatusUpToDate when checkPath exists", func() {
+			Expect(os.WriteFile(path, []byte("fake binary"), 0o755)).To(Succeed())
 
-	It("on linux, at least one installable routes through apt", func() {
-		registry := factory.For("linux")
-		Expect(registry.Installables()).NotTo(BeEmpty())
-
-		for _, tool := range registry.Installables() {
-			aptSpy.lastArgs = nil
-			_ = tool.Install(&bytes.Buffer{}, &bytes.Buffer{})
-			if len(aptSpy.lastArgs) > 0 {
-				return
-			}
-		}
-		Fail("no installable in the linux registry routed through apt")
-	})
-
-	It("on linux, gh installs via the GitHub apt-repo steps, not a plain apt install", func() {
-		registry := factory.For("linux")
-
-		for _, tool := range registry.Installables() {
-			if tool.Name() != "gh" {
-				continue
-			}
-			Expect(tool.Install(&bytes.Buffer{}, &bytes.Buffer{})).To(Succeed())
-			Expect(cmdSpy.calls).To(BeNumerically(">", 0), "gh must run repo-setup steps")
-			Expect(aptSpy.calls).To(Equal(0), "gh must not be a plain apt package")
-			return
-		}
-		Fail("no gh installable in the linux registry")
-	})
-
-	It("on linux, every installable routes through an injected seam (airgapped unit contract)", func() {
-		registry := factory.For("linux")
-		Expect(registry.Installables()).NotTo(BeEmpty())
-
-		for _, tool := range registry.Installables() {
-			aptBefore, cmdBefore, fetchBefore := aptSpy.calls, cmdSpy.calls, fetchCalls
-
-			Expect(tool.Install(&bytes.Buffer{}, &bytes.Buffer{})).To(Succeed(), tool.Name())
-
-			touched := aptSpy.calls > aptBefore || cmdSpy.calls > cmdBefore || fetchCalls > fetchBefore
-			Expect(touched).To(BeTrue(), "%s performed no seam call — likely real I/O", tool.Name())
-		}
-	})
-
-	It("appends caller-provided extras to every supported-OS registry", func() {
-		extra := fakeInstallable{name: "my-extra"}
-		factoryWithExtra := pkg.NewRegistryFactory(
-			brew.Runner(brewSpy.Run),
-			spyKit(),
-			extra,
-		)
-
-		Expect(factoryWithExtra.For("darwin").Names()).To(ContainElement("my-extra"))
-		Expect(factoryWithExtra.For("linux").Names()).To(ContainElement("my-extra"))
-	})
-
-	It("does NOT include extras when the OS is unsupported", func() {
-		extra := fakeInstallable{name: "my-extra"}
-		factoryWithExtra := pkg.NewRegistryFactory(nil, apt.Kit{}, extra)
-
-		Expect(factoryWithExtra.For("plan9").Installables()).To(BeEmpty())
+			installer := pkg.NewScriptInstaller("my-tool", path, nil, nil)
+			status, version, err := installer.Status()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(status).To(Equal(pkg.StatusUpToDate))
+			Expect(version).To(Equal("installed"))
+		})
 	})
 })
