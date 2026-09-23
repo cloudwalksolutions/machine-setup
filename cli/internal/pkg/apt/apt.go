@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"tars/internal/pkg"
 )
 
 // Runner runs an apt subcommand. Production wiring shells out to
@@ -104,6 +105,11 @@ func (p Package) Install(stdout, stderr io.Writer) error {
 	return p.run([]string{"install", "-y", resolved}, stdout, stderr)
 }
 
+// Status returns the current installation status of the package.
+func (p Package) Status() (pkg.InstallStatus, string, error) {
+	return pkg.StatusNotInstalled, "", nil
+}
+
 // Fetcher performs an HTTP GET and returns the body — the seam for downloads.
 type Fetcher func(url string) (io.ReadCloser, error)
 
@@ -133,6 +139,15 @@ type NeovimTarball struct {
 
 // Name reports "neovim" to match its brew counterpart for the form display.
 func (NeovimTarball) Name() string { return "neovim" }
+
+// Status returns the current installation status of Neovim.
+func (n NeovimTarball) Status() (pkg.InstallStatus, string, error) {
+	destRoot := filepath.Join(n.Home, ".local", "nvim")
+	if _, err := os.Stat(destRoot); err == nil {
+		return pkg.StatusUpToDate, "v0.11.6", nil
+	}
+	return pkg.StatusNotInstalled, "", nil
+}
 
 // Install downloads and extracts the tarball, then links the binary onto PATH.
 func (n NeovimTarball) Install(stdout, stderr io.Writer) error {
@@ -268,6 +283,11 @@ func (g GCloudCLI) Install(stdout, stderr io.Writer) error {
 	return runSteps("gcloud", steps, g.Run, stdout, stderr)
 }
 
+// Status returns the current installation status of GCloudCLI.
+func (g GCloudCLI) Status() (pkg.InstallStatus, string, error) {
+	return pkg.StatusNotInstalled, "", nil
+}
+
 // GitHubCLI installs gh on Debian/Ubuntu by adding GitHub's apt repository
 // (gh is not in the default archives). Mirrors the documented steps at
 // https://github.com/cli/cli/blob/trunk/docs/install_linux.md.
@@ -292,6 +312,11 @@ func (g GitHubCLI) Install(stdout, stderr io.Writer) error {
 		SudoAptArgs([]string{"install", "-y", "gh"}),
 	}
 	return runSteps("gh", steps, g.Run, stdout, stderr)
+}
+
+// Status returns the current installation status of GitHubCLI.
+func (g GitHubCLI) Status() (pkg.InstallStatus, string, error) {
+	return pkg.StatusNotInstalled, "", nil
 }
 
 // runSteps drives each step through run (or the production runner when nil).

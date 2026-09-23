@@ -18,7 +18,9 @@ import (
 	"tars/internal/pkg"
 	"tars/internal/pkg/apt"
 	"tars/internal/pkg/brew"
+	"tars/internal/pkg/claudecode"
 	"tars/internal/pkg/npm"
+	"tars/internal/pkg/registry"
 	"tars/internal/pkg/rvm"
 	"tars/internal/shell"
 )
@@ -272,11 +274,13 @@ func NewSetup(stdout, stderr io.Writer, cfgPath string) (*Setup, error) {
 		Welcome: FormsWelcomer{},
 		Picker:  FormsPicker{},
 		Config:  NewFileConfigStore(cfgPath),
-		Registry: pkg.NewRegistryFactory(
+		Registry: registry.NewRegistryFactory(
 			brew.DefaultRunner(),
 			apt.DefaultKit(),
 			rvm.NewInstaller(filepath.Join(home, ".rvm"), rvm.DefaultRunner()),
 			npm.NewPackage("gemini-cli", "@google/gemini-cli", npm.DefaultRunner()),
+			claudecode.NewInstaller(filepath.Join(home, ".local", "bin", "claude"), claudecode.DefaultRunner()),
+			npm.NewPackage("pi", "@earendil-works/pi-coding-agent", npm.DefaultRunner()),
 		).For(runtime.GOOS),
 		Installer: IterativeInstaller{Stdout: stdout, Stderr: stderr},
 		OhMyZsh: shell.OhMyZshInstaller{
