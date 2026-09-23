@@ -6,39 +6,20 @@ import (
 	"github.com/charmbracelet/huh"
 )
 
-var packageCategories = map[string]string{
-	"claude-code":   "Agentic Coding Tools",
-	"gemini-cli":    "Agentic Coding Tools",
-	"pi":            "Agentic Coding Tools",
-
-	"neovim":        "Terminal Utilities & Editors",
-	"byobu":         "Terminal Utilities & Editors",
-	"fzf":           "Terminal Utilities & Editors",
-	"ripgrep":       "Terminal Utilities & Editors",
-	"bat":           "Terminal Utilities & Editors",
-	"eza":           "Terminal Utilities & Editors",
-	"jq":            "Terminal Utilities & Editors",
-	"gh":            "Terminal Utilities & Editors",
-	"lazygit":       "Terminal Utilities & Editors",
-	"lazydocker":    "Terminal Utilities & Editors",
-	"k9s":           "Terminal Utilities & Editors",
-	"k3d":           "Terminal Utilities & Editors",
-	"golangci-lint": "Terminal Utilities & Editors",
-
-	"go":            "Languages & Runtimes",
-	"node":          "Languages & Runtimes",
-	"python":        "Languages & Runtimes",
-	"yarn":          "Languages & Runtimes",
-	"n":             "Languages & Runtimes",
-	"rustup":        "Languages & Runtimes",
-	"ghcup":         "Languages & Runtimes",
-	"ruby":          "Languages & Runtimes",
-	"rvm":           "Languages & Runtimes",
-
-	"terraform":     "DevOps & Infrastructure",
-	"ansible":       "DevOps & Infrastructure",
-	"gcloud-cli":    "DevOps & Infrastructure",
-	"gcloud":        "DevOps & Infrastructure",
+var categorizedPackages = map[string][]string{
+	"Agentic Coding Tools": {
+		"claude-code", "gemini-cli", "pi",
+	},
+	"Terminal Utilities & Editors": {
+		"neovim", "byobu", "fzf", "ripgrep", "bat", "eza",
+		"jq", "gh", "lazygit", "lazydocker", "k9s", "k3d", "golangci-lint",
+	},
+	"Languages & Runtimes": {
+		"go", "node", "python", "yarn", "n", "rustup", "ghcup", "ruby", "rvm",
+	},
+	"DevOps & Infrastructure": {
+		"terraform", "ansible", "gcloud-cli", "gcloud",
+	},
 }
 
 // ShowInstallForm displays a multi-select with all dev tool names grouped by category.
@@ -58,10 +39,18 @@ func ShowInstallForm(toolNames []string) ([]string, error) {
 		"Other Tools",
 	}
 
+	// Invert categorizedPackages map for fast O(1) runtime lookups
+	packageToCategory := make(map[string]string)
+	for cat, pkgs := range categorizedPackages {
+		for _, pkgName := range pkgs {
+			packageToCategory[pkgName] = cat
+		}
+	}
+
 	// Map each tool name to its category
 	categorizedTools := make(map[string][]string)
 	for _, name := range toolNames {
-		cat := packageCategories[name]
+		cat := packageToCategory[name]
 		if cat == "" {
 			cat = "Other Tools"
 		}
