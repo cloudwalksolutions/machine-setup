@@ -26,6 +26,6 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # PAT with write access to cloudwalksolutions/homebrew-tap (see README
-          # "Releasing"). Required for the Homebrew cask push on a full release.
+          # PAT with write access to cloudwalksolutions/homebrew-tap (see
+          # docs/releasing.md). Required for the Homebrew cask push on a full release.
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}

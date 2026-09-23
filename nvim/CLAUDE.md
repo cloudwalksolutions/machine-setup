@@ -211,7 +211,7 @@ Both are registered in which-key for discoverability. Press the prefix key to se
 
 ### Testing System
 - Smoke tests in `nvim/tests/smoke_test.lua`
-- Run via `make test-nvim` from machine-setup root
+- Run via `make test-nvim` from the repo root
 - Tests validate:
   - Config loads without Lua errors
   - Critical plugins exist (lazy, lspconfig, cmp, telescope, etc.)
@@ -258,12 +258,10 @@ Both are registered in which-key for discoverability. Press the prefix key to se
 4. Verify no keybinding conflicts between prefixes
 5. Always test fixes with smoke tests
 
-### Machine Setup Integration
-- This nvim config is part of the machine-setup repository AND is embedded in the
-  `tars` binary (`cli/internal/assets/tree/nvim/`) — after ANY edit under `nvim/`,
-  run `make sync-assets` or the drift-guard spec fails CI
-- `tars pull` applies the repo config to `~/.config/nvim/`; `tars push` captures
-  local edits back into the repo
-- Backups are semantically versioned (v1, v2, v3, …) under
-  `~/.local/state/tars/backups/nvim/`
-- See the root README.md for full tars commands
+### tars Integration
+- This nvim config lives in the tars repository AND is embedded in the `tars`
+  binary (`cli/internal/assets/tree/nvim/`) — after ANY edit under `nvim/`, run
+  `make sync-assets` or the drift-guard spec fails CI
+- `tars pull` applies it to `~/.config/nvim/` (archived first, sequentially versioned
+  under `~/.local/state/tars/backups/nvim/`); `tars push` captures local edits back.
+  Full command reference: the root README.md

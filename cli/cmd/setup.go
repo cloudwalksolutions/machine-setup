@@ -308,8 +308,9 @@ var setupCmd = &cobra.Command{
 macOS, apt/tarball on Linux), install oh-my-zsh and Powerlevel10k, then apply
 all dotfile configs — overwriting ~/.zshrc, ~/.config/nvim, ~/.byobu, and
 ~/.vimrc, each archived first under ~/.local/state/tars/backups/<component>/vN.
-Also seeds ~/.zshrc_secret from a template when absent and saves the tool
-selection to the tars config file.`,
+Also installs fonts, points iTerm2/Terminal.app at them (macOS), renders any
+configured profiles, seeds ~/.zshrc_secret and ~/.zprofile_local from templates
+when absent, and saves the tool selection to ~/.config/tars/config.yaml.`,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		cfgPath := config.DefaultConfigPath()
 		if cfgFile != "" {

@@ -1,0 +1,4 @@
+#!/bin/sh
+# Demo stand-in for gh: prints what a real `gh auth switch --user X` prints.
+while [ $# -gt 1 ]; do [ "$1" = "--user" ] && user=$2; shift; done
+echo "✓ Switched active account for github.com to ${user:-$1}"

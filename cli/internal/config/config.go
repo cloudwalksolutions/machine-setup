@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-// Config is the top-level machine-setup configuration.
+// Config is the persisted tars configuration (~/.config/tars/config.yaml).
 type Config struct {
 	Architecture string    `mapstructure:"architecture" yaml:"architecture"`
 	Sources      []string  `mapstructure:"sources"      yaml:"sources"`

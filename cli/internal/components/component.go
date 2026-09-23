@@ -23,9 +23,9 @@ type Pushable interface {
 
 // Options is the per-run configuration every component needs.
 type Options struct {
-	RepoRoot   string    // root of the machine-setup repo
+	RepoRoot   string    // root of the tars repo (clone or materialized embedded assets)
 	Home       string    // user's HOME (destination root)
-	BackupRoot string    // <repoRoot>/backups in normal use
+	BackupRoot string    // ~/.local/state/tars/backups in normal use (cmd.BackupRoot)
 	DryRun     bool      // report intended writes instead of performing them
 	Stdout     io.Writer // progress output
 	Stderr     io.Writer // error/warning output

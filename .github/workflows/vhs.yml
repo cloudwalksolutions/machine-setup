@@ -1,10 +1,11 @@
 name: vhs
 
-# Re-record the README demo GIFs whenever a tape changes on main.
+# Re-record the README demo GIFs whenever the recording setup changes on main.
 on:
   push:
     branches: [main]
-    paths: ["vhs/**.tape"]
+    paths: ["vhs/**", "!vhs/*.gif"]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -15,29 +16,41 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-go@v5
         with:
           go-version-file: cli/go.mod
           cache-dependency-path: cli/go.sum
-      - name: Install byobu for the sessions tape
-        run: sudo apt-get update && sudo apt-get install -y byobu tmux
+      - name: Install byobu for the sessions tape; put the gh stand-in ahead of the runner's gh
+        run: |
+          sudo apt-get update && sudo apt-get install -y byobu tmux
+          chmod +x vhs/bin/gh && echo "$GITHUB_WORKSPACE/vhs/bin" >> "$GITHUB_PATH"
       - name: Build tars onto PATH
         run: |
           mkdir -p "$RUNNER_TEMP/bin"
-          (cd cli && go build -o "$RUNNER_TEMP/bin/tars" .)
+          version=$(git describe --tags --abbrev=0 2>/dev/null || echo dev)
+          (cd cli && go build -ldflags "-s -w -X main.version=$version -X main.commit=${GITHUB_SHA::7} -X main.date=$(date -u +%Y-%m-%d)" -o "$RUNNER_TEMP/bin/tars" .)
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      # Pinned to match vhs/Dockerfile: v0.12.0 reports success but writes no GIF.
       - uses: charmbracelet/vhs-action@v2
         with:
+          version: v0.10.0
           path: vhs/demo.tape
       - uses: charmbracelet/vhs-action@v2
         with:
+          version: v0.10.0
           path: vhs/sessions.tape
+      - uses: charmbracelet/vhs-action@v2
+        with:
+          version: v0.10.0
+          path: vhs/profiles.tape
       # main is branch-protected, so regenerated GIFs arrive as a PR.
       - uses: peter-evans/create-pull-request@v7
         with:
           add-paths: vhs/*.gif
           commit-message: "Re-record VHS demos"
           title: "Re-record VHS demos"
-          body: "Automated re-recording — a tape under vhs/ changed on main."
+          body: "Automated re-recording — the recording setup under vhs/ changed on main."
           branch: vhs-rerecord
           delete-branch: true

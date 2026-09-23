@@ -160,13 +160,38 @@ var _ = Describe("Profiles.PickAndRun", func() {
 var _ = Describe("Profiles.Add", func() {
 	It("appends the prompted profile to the config and re-renders", func() {
 		f := newProfilesFixture()
-		newProfile := profiles.Profile{Name: "lab", Alias: "lab", Email: "me@lab.example", GitHub: "me-lab"}
+		newProfile := profiles.Profile{Name: "lab", Alias: "lab", Email: "me@lab.example", GitHub: "me-lab", FullName: "Ada L."}
 		f.p.Prompt = func(profiles.Profile) (profiles.Profile, error) { return newProfile, nil }
 
 		Expect(f.p.Add()).To(Succeed())
 
 		Expect(f.store.appended).To(Equal([]profiles.Profile{newProfile}))
 		Expect(f.log).To(Equal([]string{"apply"}))
+	})
+
+	It("refuses to append an incomplete profile, naming what is missing", func() {
+		f := newProfilesFixture()
+		f.p.Prompt = func(profiles.Profile) (profiles.Profile, error) {
+			return profiles.Profile{Name: "lab", Alias: "lab"}, nil
+		}
+
+		err := f.p.Add()
+
+		Expect(err).To(MatchError(ContainSubstring("email")))
+		Expect(f.store.appended).To(BeEmpty())
+		Expect(f.log).To(BeEmpty())
+	})
+
+	It("lets a new profile inherit the shared full_name", func() {
+		f := newProfilesFixture()
+		f.store.file.FullName = "Ada Lovelace"
+		f.p.Prompt = func(profiles.Profile) (profiles.Profile, error) {
+			return profiles.Profile{Name: "lab", Alias: "lab", Email: "me@lab.example", GitHub: "me-lab"}, nil
+		}
+
+		Expect(f.p.Add()).To(Succeed())
+
+		Expect(f.store.appended).To(HaveLen(1))
 	})
 
 	It("stops on a prompt error without touching the config", func() {
