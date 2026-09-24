@@ -24,7 +24,7 @@ func (c Cask) Install(stdout, stderr io.Writer) error {
 	return c.run([]string{"install", "--cask", c.name}, stdout, stderr)
 }
 
-// Status returns the current installation status of the cask.
+// Status reports the installed version via `brew list --versions --cask <name>`.
 func (c Cask) Status() (pkg.InstallStatus, string, error) {
-	return pkg.StatusNotInstalled, "", nil
+	return listedVersion(c.run, "list", "--versions", "--cask", c.name)
 }

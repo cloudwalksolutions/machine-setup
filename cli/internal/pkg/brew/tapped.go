@@ -31,7 +31,7 @@ func (t TappedFormula) Install(stdout, stderr io.Writer) error {
 	return t.run([]string{"install", t.tap + "/" + t.name}, stdout, stderr)
 }
 
-// Status returns the current installation status of the tapped formula.
+// Status reports the installed version via `brew list --versions <name>`.
 func (t TappedFormula) Status() (pkg.InstallStatus, string, error) {
-	return pkg.StatusNotInstalled, "", nil
+	return listedVersion(t.run, "list", "--versions", t.name)
 }

@@ -7,6 +7,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	"tars/internal/pkg"
 	"tars/internal/pkg/brew"
 )
 
@@ -22,5 +23,23 @@ var _ = Describe("Cask.Install", func() {
 
 		Expect(err).NotTo(HaveOccurred())
 		Expect(gotArgs).To(Equal([]string{"install", "--cask", "rustup"}))
+	})
+})
+
+var _ = Describe("Cask.Status", func() {
+	It("reports the installed version from `brew list --versions --cask`", func() {
+		var gotArgs []string
+		fake := func(args []string, stdout, _ io.Writer) error {
+			gotArgs = args
+			_, _ = io.WriteString(stdout, "gcloud-cli 540.0.0\n")
+			return nil
+		}
+
+		status, version, err := brew.NewCask("gcloud-cli", fake).Status()
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(gotArgs).To(Equal([]string{"list", "--versions", "--cask", "gcloud-cli"}))
+		Expect(status).To(Equal(pkg.StatusUpToDate))
+		Expect(version).To(Equal("540.0.0"))
 	})
 })

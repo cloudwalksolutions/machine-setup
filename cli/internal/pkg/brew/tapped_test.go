@@ -8,6 +8,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	"tars/internal/pkg"
 	"tars/internal/pkg/brew"
 )
 
@@ -41,5 +42,23 @@ var _ = Describe("TappedFormula.Install", func() {
 
 		Expect(err).To(MatchError(ContainSubstring("tap failed")))
 		Expect(calls).To(Equal(1))
+	})
+})
+
+var _ = Describe("TappedFormula.Status", func() {
+	It("reports the installed version from `brew list --versions <name>`", func() {
+		var gotArgs []string
+		fake := func(args []string, stdout, _ io.Writer) error {
+			gotArgs = args
+			_, _ = io.WriteString(stdout, "terraform 1.9.8\n")
+			return nil
+		}
+
+		status, version, err := brew.NewTappedFormula("terraform", "hashicorp/tap", fake).Status()
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(gotArgs).To(Equal([]string{"list", "--versions", "terraform"}))
+		Expect(status).To(Equal(pkg.StatusUpToDate))
+		Expect(version).To(Equal("1.9.8"))
 	})
 })

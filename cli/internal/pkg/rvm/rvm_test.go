@@ -14,15 +14,16 @@ import (
 )
 
 var _ = Describe("rvm.Installer.Status", func() {
-	It("reports up to date when the rvm dir exists", func() {
+	It("reports the version from <dir>/VERSION when the rvm dir exists", func() {
 		dir := filepath.Join(GinkgoT().TempDir(), ".rvm")
 		Expect(os.MkdirAll(dir, 0o755)).To(Succeed())
+		Expect(os.WriteFile(filepath.Join(dir, "VERSION"), []byte("1.29.12\n"), 0o644)).To(Succeed())
 
 		status, detail, err := rvm.NewInstaller(dir, nil).Status()
 
 		Expect(err).NotTo(HaveOccurred())
 		Expect(status).To(Equal(pkg.StatusUpToDate))
-		Expect(detail).To(Equal("installed"))
+		Expect(detail).To(Equal("1.29.12"))
 	})
 
 	It("reports not installed when the rvm dir is missing", func() {

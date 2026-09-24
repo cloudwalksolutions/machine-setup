@@ -5,6 +5,9 @@ import (
 	"bytes"
 	"compress/gzip"
 	"io"
+	"os"
+	"path/filepath"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -15,12 +18,30 @@ import (
 	"tars/internal/pkg/registry"
 )
 
-type fakeInstallable struct{ name string }
+type fakeInstallable struct {
+	name    string
+	version string
+}
 
 func (f fakeInstallable) Name() string                 { return f.name }
 func (f fakeInstallable) Install(_, _ io.Writer) error { return nil }
 func (f fakeInstallable) Status() (pkg.InstallStatus, string, error) {
+	if f.version != "" {
+		return pkg.StatusUpToDate, f.version, nil
+	}
 	return pkg.StatusNotInstalled, "", nil
+}
+
+type slowInstallable struct {
+	name  string
+	delay time.Duration
+}
+
+func (s slowInstallable) Name() string                 { return s.name }
+func (s slowInstallable) Install(_, _ io.Writer) error { return nil }
+func (s slowInstallable) Status() (pkg.InstallStatus, string, error) {
+	time.Sleep(s.delay)
+	return pkg.StatusUpToDate, "1.0", nil
 }
 
 var _ = Describe("DevToolRegistry", func() {
@@ -54,6 +75,30 @@ var _ = Describe("DevToolRegistry", func() {
 		Expect(reg.Installables()[2].Name()).To(Equal("z"))
 	})
 
+	It("Catalog projects name, description, installed state and version in order", func() {
+		reg := registry.NewDevToolRegistry().
+			Add(fakeInstallable{name: "neovim", version: "0.12.5"}).
+			Add(fakeInstallable{name: "fzf"})
+
+		Expect(reg.Catalog()).To(Equal([]pkg.ToolInfo{
+			{Name: "neovim", Description: registry.Describe("neovim"), Installed: true, Version: "0.12.5"},
+			{Name: "fzf", Description: registry.Describe("fzf")},
+		}))
+	})
+
+	It("Catalog queries statuses concurrently so slow package managers do not stall the form", func() {
+		for _, name := range []string{"a", "b", "c", "d", "e"} {
+			reg.Add(slowInstallable{name: name, delay: 100 * time.Millisecond})
+		}
+
+		start := time.Now()
+		infos := reg.Catalog()
+
+		Expect(time.Since(start)).To(BeNumerically("<", 300*time.Millisecond))
+		Expect(infos).To(HaveLen(5))
+		Expect(infos[4].Name).To(Equal("e"))
+	})
+
 	It("Names projects each installable's name in order", func() {
 		reg.Add(fakeInstallable{name: "foo"}).Add(fakeInstallable{name: "bar"})
 
@@ -69,6 +114,16 @@ type recordingRunner struct {
 func (r *recordingRunner) Run(args []string, _, _ io.Writer) error {
 	r.lastArgs = args
 	r.calls++
+	return nil
+}
+
+func byName(reg *registry.DevToolRegistry, name string) pkg.Installable {
+	for _, t := range reg.Installables() {
+		if t.Name() == name {
+			return t
+		}
+	}
+	Fail("no installable named " + name)
 	return nil
 }
 
@@ -127,6 +182,68 @@ var _ = Describe("RegistryFactory", func() {
 		Expect(aptSpy.calls).To(Equal(0))
 	})
 
+	It("on darwin, lists the formulas by popularity: editors and terminal first, fzf/ripgrep last, then languages, then devops", func() {
+		names := factory.For("darwin").Names()
+
+		Expect(names[:22]).To(Equal([]string{
+			"neovim", "byobu", "gh", "lazygit", "jq", "bat", "eza", "k9s", "lazydocker", "k3d", "golangci-lint", "fzf", "ripgrep",
+			"go", "node", "python", "ruby", "rustup", "ghcup", "yarn", "n",
+			"ansible",
+		}))
+	})
+
+	It("on darwin, rustup bootstraps the stable toolchain right after brew installs it", func() {
+		var steps [][]string
+		factory = registry.NewRegistryFactory(brew.Runner(brewSpy.Run), apt.Kit{
+			Cmd: func(argv []string, _, _ io.Writer) error { steps = append(steps, argv); return nil },
+		})
+
+		tool := byName(factory.For("darwin"), "rustup")
+		Expect(tool.Install(&bytes.Buffer{}, &bytes.Buffer{})).To(Succeed())
+
+		Expect(brewSpy.lastArgs).To(Equal([]string{"install", "rustup"}))
+		Expect(steps).To(Equal([][]string{
+			{"rustup", "install", "stable"},
+			{"rustup", "default", "stable"},
+		}))
+	})
+
+	It("on darwin, ghcup installs and selects the recommended GHC right after brew installs it", func() {
+		var steps [][]string
+		factory = registry.NewRegistryFactory(brew.Runner(brewSpy.Run), apt.Kit{
+			Cmd: func(argv []string, _, _ io.Writer) error { steps = append(steps, argv); return nil },
+		})
+
+		tool := byName(factory.For("darwin"), "ghcup")
+		Expect(tool.Install(&bytes.Buffer{}, &bytes.Buffer{})).To(Succeed())
+
+		Expect(brewSpy.lastArgs).To(Equal([]string{"install", "ghcup"}))
+		Expect(steps).To(Equal([][]string{
+			{"ghcup", "install", "ghc", "recommended"},
+			{"ghcup", "set", "ghc", "recommended"},
+		}))
+	})
+
+	It("on linux, lists tools in the same popularity order", func() {
+		Expect(factory.For("linux").Names()).To(Equal([]string{
+			"neovim", "byobu", "gh", "jq", "bat", "fzf", "ripgrep",
+			"go", "node", "python",
+			"gcloud",
+		}))
+	})
+
+	It("describes every tool on both platforms plus the cross-platform extras", func() {
+		var names []string
+		names = append(names, factory.For("darwin").Names()...)
+		names = append(names, factory.For("linux").Names()...)
+		names = append(names, "claude-code", "gemini-cli", "pi", "rvm")
+
+		for _, n := range names {
+			Expect(registry.Describe(n)).NotTo(BeEmpty(), n)
+			Expect(len(registry.Describe(n))).To(BeNumerically("<=", 48), n)
+		}
+	})
+
 	It("on darwin, includes the gcloud-cli cask", func() {
 		Expect(factory.For("darwin").Names()).To(ContainElement("gcloud-cli"))
 	})
@@ -175,6 +292,19 @@ var _ = Describe("RegistryFactory", func() {
 
 			touched := aptSpy.calls > aptBefore || cmdSpy.calls > cmdBefore || fetchCalls > fetchBefore
 			Expect(touched).To(BeTrue(), "%s performed no seam call — likely real I/O", tool.Name())
+		}
+	})
+
+	It("on linux, every installable reports its status through the injected command seam", func() {
+		kit := spyKit()
+		Expect(os.MkdirAll(filepath.Join(kit.Home, ".local", "nvim"), 0o755)).To(Succeed())
+		reg := registry.NewRegistryFactory(brew.Runner(brewSpy.Run), kit).For("linux")
+
+		for _, tool := range reg.Installables() {
+			before := cmdSpy.calls
+			_, _, err := tool.Status()
+			Expect(err).NotTo(HaveOccurred(), tool.Name())
+			Expect(cmdSpy.calls).To(BeNumerically(">", before), "%s did not query through the seam", tool.Name())
 		}
 	})
 

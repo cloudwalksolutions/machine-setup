@@ -57,6 +57,34 @@ var _ = Describe("Package.Install", func() {
 	})
 })
 
+var _ = Describe("Package.Status", func() {
+	It("reads the installed version of the resolved apt name via dpkg-query", func() {
+		var gotArgv []string
+		query := func(argv []string, stdout, _ io.Writer) error {
+			gotArgv = argv
+			_, _ = io.WriteString(stdout, "2:1.22.4-1ubuntu1")
+			return nil
+		}
+
+		status, version, err := apt.NewPackage("go", nil, query).Status()
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(gotArgv).To(Equal([]string{"dpkg-query", "-W", "-f=${Version}", "golang"}))
+		Expect(status).To(Equal(pkg.StatusUpToDate))
+		Expect(version).To(Equal("2:1.22.4-1ubuntu1"))
+	})
+
+	It("reports not installed when dpkg-query exits non-zero", func() {
+		query := func(_ []string, _, _ io.Writer) error { return errors.New("exit status 1") }
+
+		status, version, err := apt.NewPackage("byobu", nil, query).Status()
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(status).To(Equal(pkg.StatusNotInstalled))
+		Expect(version).To(BeEmpty())
+	})
+})
+
 // fakeNvimTarball builds an in-memory tar.gz shaped like the upstream release:
 // one top-level dir containing bin/nvim (0755) and a share file.
 func fakeNvimTarball(topDir string) io.ReadCloser {
@@ -82,15 +110,22 @@ func fakeNvimTarball(topDir string) io.ReadCloser {
 }
 
 var _ = Describe("NeovimTarball.Status", func() {
-	It("reports up to date once ~/.local/nvim exists", func() {
+	It("reports the version printed by ~/.local/nvim/bin/nvim once it exists", func() {
 		home := GinkgoT().TempDir()
 		Expect(os.MkdirAll(filepath.Join(home, ".local", "nvim"), 0o755)).To(Succeed())
+		var gotArgv []string
+		spy := func(argv []string, stdout, _ io.Writer) error {
+			gotArgv = argv
+			_, _ = io.WriteString(stdout, "NVIM v0.12.0\nBuild type: Release\n")
+			return nil
+		}
 
-		status, detail, err := apt.NeovimTarball{Home: home}.Status()
+		status, detail, err := apt.NeovimTarball{Home: home, Cmd: spy}.Status()
 
 		Expect(err).NotTo(HaveOccurred())
+		Expect(gotArgv).To(Equal([]string{filepath.Join(home, ".local", "nvim", "bin", "nvim"), "--version"}))
 		Expect(status).To(Equal(pkg.StatusUpToDate))
-		Expect(detail).To(HavePrefix("v"))
+		Expect(detail).To(Equal("v0.12.0"))
 	})
 
 	It("reports not installed on a fresh home", func() {
@@ -232,6 +267,22 @@ var _ = Describe("GitHubCLI", func() {
 		Expect(apt.GitHubCLI{}.Name()).To(Equal("gh"))
 	})
 
+	It("reads the installed gh version via dpkg-query on its runner", func() {
+		var gotArgv []string
+		spy := func(argv []string, stdout, _ io.Writer) error {
+			gotArgv = argv
+			_, _ = io.WriteString(stdout, "2.60.1")
+			return nil
+		}
+
+		status, version, err := apt.NewGitHubCLI(spy).Status()
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(gotArgv).To(Equal([]string{"dpkg-query", "-W", "-f=${Version}", "gh"}))
+		Expect(status).To(Equal(pkg.StatusUpToDate))
+		Expect(version).To(Equal("2.60.1"))
+	})
+
 	It("adds GitHub's apt repo non-interactively, then installs gh", func() {
 		var steps [][]string
 		spy := func(argv []string, _, _ io.Writer) error {
@@ -257,6 +308,22 @@ var _ = Describe("GitHubCLI", func() {
 var _ = Describe("GCloudCLI", func() {
 	It("reports the name gcloud", func() {
 		Expect(apt.GCloudCLI{}.Name()).To(Equal("gcloud"))
+	})
+
+	It("reads the installed google-cloud-cli version via dpkg-query on its runner", func() {
+		var gotArgv []string
+		spy := func(argv []string, stdout, _ io.Writer) error {
+			gotArgv = argv
+			_, _ = io.WriteString(stdout, "540.0.0-0")
+			return nil
+		}
+
+		status, version, err := apt.NewGCloudCLI(spy).Status()
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(gotArgv).To(Equal([]string{"dpkg-query", "-W", "-f=${Version}", "google-cloud-cli"}))
+		Expect(status).To(Equal(pkg.StatusUpToDate))
+		Expect(version).To(Equal("540.0.0-0"))
 	})
 
 	It("drives the injected runner through the documented apt steps", func() {

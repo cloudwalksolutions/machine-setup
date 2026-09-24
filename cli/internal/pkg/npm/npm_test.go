@@ -8,6 +8,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	"tars/internal/pkg"
 	"tars/internal/pkg/npm"
 )
 
@@ -63,6 +64,37 @@ var _ = Describe("npm.Package", func() {
 
 			pkg := npm.NewPackage("gemini-cli", "@google/gemini-cli", runner)
 			Expect(pkg.Install(stdout, stderr)).To(MatchError(expectedErr))
+		})
+	})
+
+	Describe("Status()", func() {
+		It("reads the global version from `npm ls -g --depth=0 --json <packageName>`", func() {
+			var gotArgs []string
+			runner := func(args []string, o, _ io.Writer) error {
+				gotArgs = args
+				_, _ = io.WriteString(o, `{"dependencies":{"@google/gemini-cli":{"version":"0.5.3"}}}`)
+				return nil
+			}
+
+			status, version, err := npm.NewPackage("gemini-cli", "@google/gemini-cli", runner).Status()
+
+			Expect(err).NotTo(HaveOccurred())
+			Expect(gotArgs).To(Equal([]string{"ls", "-g", "--depth=0", "--json", "@google/gemini-cli"}))
+			Expect(status).To(Equal(pkg.StatusUpToDate))
+			Expect(version).To(Equal("0.5.3"))
+		})
+
+		It("reports not installed when the package is absent from the listing", func() {
+			runner := func(_ []string, o, _ io.Writer) error {
+				_, _ = io.WriteString(o, `{"dependencies":{}}`)
+				return errors.New("exit status 1")
+			}
+
+			status, version, err := npm.NewPackage("gemini-cli", "@google/gemini-cli", runner).Status()
+
+			Expect(err).NotTo(HaveOccurred())
+			Expect(status).To(Equal(pkg.StatusNotInstalled))
+			Expect(version).To(BeEmpty())
 		})
 	})
 })

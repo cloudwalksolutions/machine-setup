@@ -33,10 +33,14 @@ type Welcomer interface {
 	Show() error
 }
 
-// ToolPicker presents the multi-select install form and returns the chosen
-// names (a subset of the offered names).
+// ToolPicker presents a multi-select over names and returns the chosen subset.
 type ToolPicker interface {
 	Pick(offered []string) ([]string, error)
+}
+
+// InstallPicker presents the install form over the catalog and returns the chosen names.
+type InstallPicker interface {
+	Pick(offered []pkg.ToolInfo) ([]string, error)
 }
 
 // ConfigStore loads, saves, and reports the path of the persistent config.
@@ -47,10 +51,10 @@ type ConfigStore interface {
 }
 
 // Registry exposes both the curated install list (for the installer) and the
-// list's names (for the picker form).
+// catalog (for the picker form).
 type Registry interface {
 	Installables() []pkg.Installable
-	Names() []string
+	Catalog() []pkg.ToolInfo
 }
 
 // PackageInstaller installs the named subset of available installables.
@@ -83,7 +87,7 @@ type NamedInit struct {
 // package state.
 type Setup struct {
 	Welcome   Welcomer
-	Picker    ToolPicker
+	Picker    InstallPicker
 	Config    ConfigStore
 	Registry  Registry
 	Installer PackageInstaller
@@ -164,9 +168,9 @@ func (s *Setup) greet() error {
 	return fmt.Errorf("welcome: %w", err)
 }
 
-// pickTools offers the registry's names to the picker; user-aborted is non-fatal.
+// pickTools offers the registry's catalog to the picker; user-aborted is non-fatal.
 func (s *Setup) pickTools() ([]string, error) {
-	selected, err := s.Picker.Pick(s.Registry.Names())
+	selected, err := s.Picker.Pick(s.Registry.Catalog())
 	if err != nil && err.Error() != "user aborted" {
 		return nil, fmt.Errorf("tool picker: %w", err)
 	}
@@ -197,8 +201,6 @@ func (s *Setup) runPull() {
 func (s *Setup) printNextSteps() {
 	fmt.Fprintln(s.Stdout, "\nNext steps:")
 	fmt.Fprintln(s.Stdout, "  • Open a new terminal — Powerlevel10k launches its configuration wizard")
-	fmt.Fprintln(s.Stdout, "  • Run `rustup install stable && rustup default stable` to bootstrap the Rust toolchain")
-	fmt.Fprintln(s.Stdout, "  • Run `ghcup tui` to pick GHC / Cabal / HLS versions")
 }
 
 // packagesFromNames builds the persistable config slice from selected names.
@@ -220,7 +222,7 @@ func (FormsWelcomer) Show() error { return forms.ShowWelcome() }
 // FormsPicker wraps forms.ShowInstallForm.
 type FormsPicker struct{}
 
-func (FormsPicker) Pick(offered []string) ([]string, error) {
+func (FormsPicker) Pick(offered []pkg.ToolInfo) ([]string, error) {
 	return forms.ShowInstallForm(offered)
 }
 

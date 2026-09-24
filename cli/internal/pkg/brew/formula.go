@@ -1,7 +1,10 @@
 package brew
 
 import (
+	"bytes"
 	"io"
+	"strings"
+
 	"tars/internal/pkg"
 )
 
@@ -28,7 +31,20 @@ func (f Formula) Install(stdout, stderr io.Writer) error {
 	return f.run([]string{"install", f.name}, stdout, stderr)
 }
 
-// Status returns the current installation status of the formula.
+// Status reports the installed version via `brew list --versions <name>`.
 func (f Formula) Status() (pkg.InstallStatus, string, error) {
-	return pkg.StatusNotInstalled, "", nil
+	return listedVersion(f.run, "list", "--versions", f.name)
+}
+
+// listedVersion parses `<name> <version>` from brew's stdout; a non-zero exit means not installed.
+func listedVersion(run Runner, args ...string) (pkg.InstallStatus, string, error) {
+	var out bytes.Buffer
+	if err := run(args, &out, io.Discard); err != nil {
+		return pkg.StatusNotInstalled, "", nil
+	}
+	fields := strings.Fields(out.String())
+	if len(fields) < 2 {
+		return pkg.StatusNotInstalled, "", nil
+	}
+	return pkg.StatusUpToDate, fields[len(fields)-1], nil
 }

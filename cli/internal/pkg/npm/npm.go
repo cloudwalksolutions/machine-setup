@@ -1,8 +1,11 @@
 package npm
 
 import (
+	"bytes"
+	"encoding/json"
 	"io"
 	"os/exec"
+
 	"tars/internal/pkg"
 )
 
@@ -36,9 +39,21 @@ func (p Package) Install(stdout, stderr io.Writer) error {
 	return p.run([]string{"install", "-g", p.packageName}, stdout, stderr)
 }
 
-// Status returns the current installation status of the package.
+// Status reads the globally installed version from `npm ls -g --json`; npm exits non-zero when absent.
 func (p Package) Status() (pkg.InstallStatus, string, error) {
-	return pkg.StatusNotInstalled, "", nil
+	var out bytes.Buffer
+	_ = p.run([]string{"ls", "-g", "--depth=0", "--json", p.packageName}, &out, io.Discard)
+	var listing struct {
+		Dependencies map[string]struct{ Version string } `json:"dependencies"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &listing); err != nil {
+		return pkg.StatusNotInstalled, "", nil
+	}
+	dep, ok := listing.Dependencies[p.packageName]
+	if !ok || dep.Version == "" {
+		return pkg.StatusNotInstalled, "", nil
+	}
+	return pkg.StatusUpToDate, dep.Version, nil
 }
 
 // DefaultRunner returns the production Runner: a direct execution of npm.

@@ -2,9 +2,11 @@ package pkg_test
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -18,6 +20,51 @@ var _ = Describe("InstallStatus", func() {
 		Expect(pkg.StatusUpdateAvailable.String()).To(Equal("update available"))
 		Expect(pkg.StatusUpToDate.String()).To(Equal("up to date"))
 		Expect(pkg.InstallStatus(99).String()).To(Equal("unknown"))
+	})
+})
+
+type fakeInstallable struct {
+	name string
+	log  *[]string
+	err  error
+}
+
+func (f fakeInstallable) Name() string { return f.name }
+func (f fakeInstallable) Install(_, _ io.Writer) error {
+	*f.log = append(*f.log, "install "+f.name)
+	return f.err
+}
+func (f fakeInstallable) Status() (pkg.InstallStatus, string, error) {
+	return pkg.StatusUpToDate, "9.9.9", nil
+}
+
+var _ = Describe("WithPostInstall", func() {
+	var log []string
+	steps := [][]string{{"rustup", "install", "stable"}, {"rustup", "default", "stable"}}
+	run := func(cmd []string, _, _ io.Writer) error {
+		log = append(log, strings.Join(cmd, " "))
+		return nil
+	}
+
+	BeforeEach(func() { log = nil })
+
+	It("runs the steps in order after a successful install and delegates Name and Status", func() {
+		wrapped := pkg.WithPostInstall(fakeInstallable{name: "rustup", log: &log}, steps, run)
+
+		Expect(wrapped.Install(&bytes.Buffer{}, &bytes.Buffer{})).To(Succeed())
+
+		Expect(log).To(Equal([]string{"install rustup", "rustup install stable", "rustup default stable"}))
+		Expect(wrapped.Name()).To(Equal("rustup"))
+		_, version, _ := wrapped.Status()
+		Expect(version).To(Equal("9.9.9"))
+	})
+
+	It("skips the steps when the install fails", func() {
+		wrapped := pkg.WithPostInstall(fakeInstallable{name: "rustup", log: &log, err: errors.New("brew failed")}, steps, run)
+
+		Expect(wrapped.Install(&bytes.Buffer{}, &bytes.Buffer{})).To(MatchError("brew failed"))
+
+		Expect(log).To(Equal([]string{"install rustup"}))
 	})
 })
 
@@ -85,14 +132,21 @@ var _ = Describe("ScriptInstaller", func() {
 			Expect(version).To(Equal(""))
 		})
 
-		It("reports StatusUpToDate when checkPath exists", func() {
+		It("reports the first word of `<checkPath> --version` when checkPath exists", func() {
 			Expect(os.WriteFile(path, []byte("fake binary"), 0o755)).To(Succeed())
+			var gotCmd []string
+			installer := pkg.NewScriptInstaller("my-tool", path, nil, func(cmd []string, o, _ io.Writer) error {
+				gotCmd = cmd
+				_, _ = io.WriteString(o, "2.1.0 (Claude Code)\n")
+				return nil
+			})
 
-			installer := pkg.NewScriptInstaller("my-tool", path, nil, nil)
 			status, version, err := installer.Status()
+
 			Expect(err).NotTo(HaveOccurred())
+			Expect(gotCmd).To(Equal([]string{path, "--version"}))
 			Expect(status).To(Equal(pkg.StatusUpToDate))
-			Expect(version).To(Equal("installed"))
+			Expect(version).To(Equal("2.1.0"))
 		})
 	})
 })
