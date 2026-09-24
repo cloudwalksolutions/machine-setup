@@ -4,7 +4,7 @@ import (
 	"os"
 	"slices"
 
-	"github.com/charmbracelet/huh"
+	"charm.land/huh/v2"
 
 	"tars/internal/config"
 )
@@ -26,7 +26,7 @@ func ShowPiInitForm(ollamaModels, packages []string, previous config.PiConfig) (
 	fields := []huh.Field{
 		huh.NewMultiSelect[string]().
 			Title("pi packages to install").
-			Description("Subagents, MCP adapter, web search, bigpowers skills, permission system, plannotator plan review, live todo overlay, ponytail YAGNI, ask-user-question forms, clipboard image paste, context-mode output sandboxing. Space toggles, Enter confirms.").
+			Description("Subagents, MCP adapter, web search, bigpowers skills, permission system, plannotator plan review, live todo overlay, ponytail YAGNI, ask-user-question forms, clipboard image paste, context-mode output sandboxing.").
 			Options(pkgOptions...).
 			Value(&cfg.Packages),
 	}

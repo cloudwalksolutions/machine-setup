@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/charmbracelet/huh"
+	"charm.land/huh/v2"
 
 	"tars/internal/pkg"
 )
@@ -67,7 +67,7 @@ func ShowInstallForm(tools []pkg.ToolInfo) ([]string, error) {
 		groups = append(groups, huh.NewGroup(
 			huh.NewMultiSelect[string]().
 				Title(cat).
-				Description("Installed tools show their version and start unchecked. Space to toggle, Enter to confirm.").
+				Description("Installed tools show their version and start unchecked.").
 				Options(options...).
 				Value(&selected),
 		))

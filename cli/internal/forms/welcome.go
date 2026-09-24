@@ -3,7 +3,7 @@ package forms
 import (
 	"os"
 
-	"github.com/charmbracelet/huh"
+	"charm.land/huh/v2"
 )
 
 // ShowWelcome displays a full-screen welcome Note using huh.
