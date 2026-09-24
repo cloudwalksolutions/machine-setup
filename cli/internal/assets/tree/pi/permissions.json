@@ -1,0 +1,21 @@
+{
+  "permission": {
+    "*": "allow",
+    "bash": {
+      "*": "allow",
+      "rm -rf /*": "deny",
+      "rm -rf ~*": "deny",
+      "git push --force*": "deny",
+      "git push -f*": "deny",
+      "git reset --hard*": "deny"
+    },
+    "path_read": {
+      "~/.ssh/*": "deny"
+    },
+    "path_write": {
+      "~/.ssh/*": "deny",
+      "~/.zshrc_secret": "deny",
+      "*.env": "deny"
+    }
+  }
+}

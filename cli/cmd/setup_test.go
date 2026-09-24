@@ -82,6 +82,9 @@ func (s *spyInstallable) Install(_, _ io.Writer) error {
 	*s.log = append(*s.log, s.name)
 	return s.err
 }
+func (s *spyInstallable) Status() (pkg.InstallStatus, string, error) {
+	return pkg.StatusNotInstalled, "", nil
+}
 
 type recordingInstaller struct {
 	available []pkg.Installable

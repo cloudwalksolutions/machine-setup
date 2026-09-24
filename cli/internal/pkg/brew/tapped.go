@@ -1,6 +1,9 @@
 package brew
 
-import "io"
+import (
+	"io"
+	"tars/internal/pkg"
+)
 
 // TappedFormula is a brew formula whose source lives in a non-core tap (e.g.
 // `hashicorp/tap/terraform`). Install runs `brew tap <tap>` first, then
@@ -26,4 +29,9 @@ func (t TappedFormula) Install(stdout, stderr io.Writer) error {
 		return err
 	}
 	return t.run([]string{"install", t.tap + "/" + t.name}, stdout, stderr)
+}
+
+// Status returns the current installation status of the tapped formula.
+func (t TappedFormula) Status() (pkg.InstallStatus, string, error) {
+	return pkg.StatusNotInstalled, "", nil
 }

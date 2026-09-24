@@ -8,6 +8,7 @@ import (
 
 	"tars/internal/assets"
 	"tars/internal/components"
+	"tars/internal/config"
 	"tars/internal/repo"
 )
 
@@ -26,9 +27,9 @@ func buildOptions(stdout, stderr io.Writer) (components.Options, error) {
 	if err != nil {
 		return components.Options{}, fmt.Errorf("locating repo root: %w", err)
 	}
-	claude, err := LoadClaudeConfig()
+	cfg, err := config.Init(configPath())
 	if err != nil {
-		return components.Options{}, err
+		return components.Options{}, fmt.Errorf("loading config: %w", err)
 	}
 	return components.Options{
 		RepoRoot:   root,
@@ -36,7 +37,8 @@ func buildOptions(stdout, stderr io.Writer) (components.Options, error) {
 		BackupRoot: BackupRoot(home),
 		Stdout:     stdout,
 		Stderr:     stderr,
-		Claude:     claude,
+		Claude:     cfg.Claude,
+		Pi:         cfg.Pi,
 	}, nil
 }
 

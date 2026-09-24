@@ -74,6 +74,18 @@ RUN TARS_NO_FORM=1 tars claude init \
  && grep -q '^# CLAUDE.md' "$HOME/proj/CLAUDE.md" \
  && if TARS_NO_FORM=1 tars claude project "$HOME/proj" >/dev/null 2>&1; then echo 'expected refusal without --force' && exit 1; fi
 
+# pi: agent, prompts, edit guard, permissions and AGENTS.md land from pull alone;
+# providers are never written without saved choices.
+RUN test -f "$HOME/.pi/agent/agents/tars.md" \
+ && test -f "$HOME/.pi/agent/prompts/tdd.md" \
+ && test -f "$HOME/.pi/agent/extensions/block-unreviewable-edits.ts" \
+ && test -f "$HOME/.pi/agent/extensions/pi-permission-system/config.json" \
+ && grep -q '^# Working rules' "$HOME/.pi/agent/AGENTS.md" \
+ && grep -q 'npm:pi-subagents' "$HOME/.pi/agent/settings.json" \
+ && test ! -e "$HOME/.pi/agent/models.json" \
+ && tars pull >/dev/null \
+ && test ! -e "$HOME/.local/state/tars/backups/pi"
+
 # Failures must surface as a non-zero exit (an unwritable HOME cannot succeed).
 RUN mkdir -p /home/usera/ro && chmod 555 /home/usera/ro \
  && if HOME=/home/usera/ro tars pull >/dev/null 2>&1; then echo 'expected tars pull to fail' && exit 1; fi

@@ -13,6 +13,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	"tars/internal/pkg"
 	"tars/internal/pkg/apt"
 )
 
@@ -79,6 +80,27 @@ func fakeNvimTarball(topDir string) io.ReadCloser {
 	ExpectWithOffset(1, gz.Close()).To(Succeed())
 	return io.NopCloser(&buf)
 }
+
+var _ = Describe("NeovimTarball.Status", func() {
+	It("reports up to date once ~/.local/nvim exists", func() {
+		home := GinkgoT().TempDir()
+		Expect(os.MkdirAll(filepath.Join(home, ".local", "nvim"), 0o755)).To(Succeed())
+
+		status, detail, err := apt.NeovimTarball{Home: home}.Status()
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(status).To(Equal(pkg.StatusUpToDate))
+		Expect(detail).To(HavePrefix("v"))
+	})
+
+	It("reports not installed on a fresh home", func() {
+		status, detail, err := apt.NeovimTarball{Home: GinkgoT().TempDir()}.Status()
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(status).To(Equal(pkg.StatusNotInstalled))
+		Expect(detail).To(BeEmpty())
+	})
+})
 
 var _ = Describe("NeovimTarball", func() {
 	It("downloads the arch tarball, extracts it to ~/.local/nvim, and links ~/.local/bin/nvim", func() {

@@ -48,6 +48,18 @@ func loadSettings(path string) (settings, error) {
 	return s, nil
 }
 
+// strings returns a string-array key, ignoring anything that is not a string.
+func (s settings) strings(key string) []string {
+	var out []string
+	list, _ := s[key].([]any)
+	for _, v := range list {
+		if str, ok := v.(string); ok {
+			out = append(out, str)
+		}
+	}
+	return out
+}
+
 func (s settings) events() []string {
 	hooks, _ := s["hooks"].(map[string]any)
 	events := make([]string, 0, len(hooks))

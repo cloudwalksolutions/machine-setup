@@ -32,6 +32,7 @@ type Options struct {
 	Stderr     io.Writer // error/warning output
 
 	Claude config.ClaudeConfig // `tars claude init` choices; zero value = everything on
+	Pi     config.PiConfig     // `tars pi init` choices; zero value = files only, no providers
 }
 
 // copier is the writer every component routes its writes through.
@@ -50,6 +51,7 @@ func AllPullable(opts Options) []Component {
 		NewTerminal(opts),
 		NewProfiles(opts),
 		NewClaude(opts),
+		NewPi(opts),
 	}
 }
 
@@ -63,5 +65,6 @@ func AllPushable(opts Options) []Pushable {
 		NewNvim(opts),
 		NewTerminal(opts),
 		NewClaude(opts),
+		NewPi(opts),
 	}
 }

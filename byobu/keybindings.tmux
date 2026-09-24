@@ -37,20 +37,6 @@ bind-key A     command-prompt -I "#W" { rename-window "%%" }
 unbind-key -n F8
 bind-key -n F8 command-prompt -p "(rename-window) " -I "#W" { rename-window "%%" }
 
-# Free Option/Alt+arrows so the shell gets them for word-by-word movement
-unbind-key -n M-Left
-unbind-key -n M-Right
-unbind-key -n M-Up
-unbind-key -n M-Down
-
-# Ctrl+Option/Alt+arrows: switch windows (left/right) and sessions (up/down)
-bind-key -n C-M-Left previous-window
-bind-key -n C-M-Right next-window
-bind-key -n C-M-Up switch-client -p
-bind-key -n C-M-Down switch-client -n
-
-# Shift+Option/Alt+arrows: resize panes (byobu's default, restated so it survives overrides)
-bind-key -n M-S-Left resize-pane -L
-bind-key -n M-S-Right resize-pane -R
-bind-key -n M-S-Up resize-pane -U
-bind-key -n M-S-Down resize-pane -D
+# Arrows stay on byobu's defaults: Option switches windows/sessions, Shift+Option
+# resizes. Ctrl+Option+Left/Right are left unbound so the shell gets them for
+# word-by-word movement (see zsh/zshrc).

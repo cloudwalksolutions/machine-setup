@@ -1,4 +1,4 @@
-# tars
+TS# tars
 
 [![release](https://github.com/cloudwalksolutions/machine-setup/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/cloudwalksolutions/machine-setup/actions/workflows/release.yml)
 [![release](https://img.shields.io/github/v/release/cloudwalksolutions/machine-setup)](https://github.com/cloudwalksolutions/machine-setup/releases/latest)
@@ -75,6 +75,7 @@ The installer verifies the release checksum; override the directory with
 | `tars profiles` | `p` | Switch git, GitHub and SSH identity per project dir |
 | `tars claude init` | `c i` | Pick and apply Claude Code pieces: edit-blocking hook, settings, global rules |
 | `tars claude project [dir]` | `c p` | Scaffold a project `CLAUDE.md` from the repo template (`--force` to replace) |
+| `tars pi init` | `pi i` | Set up the pi coding agent: packages, model providers (ollama / llama.cpp / any OpenAI-compatible), baseline agent |
 
 `tars --version` prints the build; `--config <file>` overrides the tool-selection
 config. `pull` and `push` exit non-zero when any component fails; `setup` tolerates

@@ -16,6 +16,24 @@ type Paths struct {
 	Terminal TerminalPaths
 	Profiles ProfilesPaths
 	Claude   ClaudePaths
+	Pi       PiPaths
+}
+
+// PiPaths maps the repo pi/ dir onto ~/.pi/agent; models.json and AGENTS.md are
+// rendered locally and have no repo counterpart.
+type PiPaths struct {
+	SettingsRepo     string
+	SettingsLocal    string
+	ModelsLocal      string
+	AgentRepo        string
+	AgentLocal       string
+	PromptsRepo      string
+	PromptsLocal     string
+	ExtensionRepo    string
+	ExtensionLocal   string
+	PermissionsRepo  string
+	PermissionsLocal string
+	AgentsMDLocal    string
 }
 
 // ClaudePaths maps the repo claude/ dir onto ~/.claude: the shareable settings
@@ -97,6 +115,23 @@ type ByobuPaths struct {
 	StatusrcLocal    string
 	ColorRepo        string
 	ColorLocal       string
+}
+
+func piPaths(repoRoot, agent string) PiPaths {
+	return PiPaths{
+		SettingsRepo:     filepath.Join(repoRoot, "pi", "settings.json"),
+		SettingsLocal:    filepath.Join(agent, "settings.json"),
+		ModelsLocal:      filepath.Join(agent, "models.json"),
+		AgentRepo:        filepath.Join(repoRoot, "pi", "agents", "tars.md"),
+		AgentLocal:       filepath.Join(agent, "agents", "tars.md"),
+		PromptsRepo:      filepath.Join(repoRoot, "pi", "prompts"),
+		PromptsLocal:     filepath.Join(agent, "prompts"),
+		ExtensionRepo:    filepath.Join(repoRoot, "pi", "extensions", "block-unreviewable-edits.ts"),
+		ExtensionLocal:   filepath.Join(agent, "extensions", "block-unreviewable-edits.ts"),
+		PermissionsRepo:  filepath.Join(repoRoot, "pi", "permissions.json"),
+		PermissionsLocal: filepath.Join(agent, "extensions", "pi-permission-system", "config.json"),
+		AgentsMDLocal:    filepath.Join(agent, "AGENTS.md"),
+	}
 }
 
 // For builds a Paths bundle rooted at the given repo and home directories,
@@ -181,5 +216,6 @@ func ForOS(repoRoot, home, goos string) Paths {
 			ClaudeMDLocal:       filepath.Join(home, ".claude", "CLAUDE.md"),
 			ProjectTemplateRepo: filepath.Join(repoRoot, "claude", "templates", "CLAUDE.project.md"),
 		},
+		Pi: piPaths(repoRoot, filepath.Join(home, ".pi", "agent")),
 	}
 }
