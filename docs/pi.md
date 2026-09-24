@@ -9,7 +9,8 @@
    `subagent` tool), `pi-mcp-adapter` (MCP servers), `pi-web-access` (`web_search`,
    `fetch_content`), `bigpowers` (skills pack), `@gotgenes/pi-permission-system`,
    `@plannotator/pi-extension` (plan mode with browser-side plan approval, `/plannotator-review`
-   code review and markdown annotation UIs).
+   code review and markdown annotation UIs), `@juicesharp/rpiv-todo` (a `todo` tool and a
+   live task overlay that survives `/reload` and compaction; `/todos` lists them).
 2. Asks whether to remove `gentle-pi` if it is installed. It injects its own persona and
    rewrites `~/.pi/agent` at startup, which conflicts with a curated agent; its files are
    backed up under `~/.local/state/tars/backups/pi/` before removal.

@@ -6,6 +6,7 @@
     "npm:pi-web-access",
     "npm:bigpowers",
     "npm:@gotgenes/pi-permission-system",
-    "npm:@plannotator/pi-extension"
+    "npm:@plannotator/pi-extension",
+    "npm:@juicesharp/rpiv-todo"
   ]
 }
