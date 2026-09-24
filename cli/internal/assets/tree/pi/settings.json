@@ -7,6 +7,7 @@
     "npm:bigpowers",
     "npm:@gotgenes/pi-permission-system",
     "npm:@plannotator/pi-extension",
-    "npm:@juicesharp/rpiv-todo"
+    "npm:@juicesharp/rpiv-todo",
+    "npm:pi-lens"
   ]
 }
