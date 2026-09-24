@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -120,6 +121,9 @@ func (r *recordingRunner) Run(args []string, _, _ io.Writer) error {
 	return nil
 }
 
+// nothingOnPath keeps specs hermetic: no binary is ever found on PATH.
+var nothingOnPath = pkg.PathProbe{LookPath: func(string) (string, error) { return "", errors.New("not found") }}
+
 func byName(reg *registry.DevToolRegistry, name string) pkg.Installable {
 	for _, t := range reg.Installables() {
 		if t.Name() == name {
@@ -168,6 +172,7 @@ var _ = Describe("RegistryFactory", func() {
 		factory = registry.NewRegistryFactory(
 			brew.Runner(brewSpy.Run),
 			spyKit(),
+			nothingOnPath,
 		)
 	})
 
@@ -185,6 +190,23 @@ var _ = Describe("RegistryFactory", func() {
 		Expect(aptSpy.calls).To(Equal(0))
 	})
 
+	It("on darwin, asks PATH for each tool's binary when brew does not list it", func() {
+		brewMissing := func(_ []string, _, _ io.Writer) error { return errors.New("exit status 1") }
+		var asked []string
+		probe := pkg.PathProbe{LookPath: func(file string) (string, error) {
+			asked = append(asked, file)
+			return "", errors.New("not found")
+		}}
+		reg := registry.NewRegistryFactory(brew.Runner(brewMissing), spyKit(), probe).For("darwin")
+
+		for _, name := range []string{"gcloud-cli", "neovim", "ripgrep", "python", "terraform", "byobu"} {
+			_, _, err := byName(reg, name).Status()
+			Expect(err).NotTo(HaveOccurred())
+		}
+
+		Expect(asked).To(Equal([]string{"gcloud", "nvim", "rg", "python3", "terraform", "byobu"}))
+	})
+
 	It("on darwin, lists the formulas by popularity: editors and terminal first, fzf/ripgrep last, then languages, then devops", func() {
 		names := factory.For("darwin").Names()
 
@@ -199,7 +221,7 @@ var _ = Describe("RegistryFactory", func() {
 		var steps [][]string
 		factory = registry.NewRegistryFactory(brew.Runner(brewSpy.Run), apt.Kit{
 			Cmd: func(argv []string, _, _ io.Writer) error { steps = append(steps, argv); return nil },
-		})
+		}, nothingOnPath)
 
 		tool := byName(factory.For("darwin"), "rustup")
 		Expect(tool.Install(&bytes.Buffer{}, &bytes.Buffer{})).To(Succeed())
@@ -215,7 +237,7 @@ var _ = Describe("RegistryFactory", func() {
 		var steps [][]string
 		factory = registry.NewRegistryFactory(brew.Runner(brewSpy.Run), apt.Kit{
 			Cmd: func(argv []string, _, _ io.Writer) error { steps = append(steps, argv); return nil },
-		})
+		}, nothingOnPath)
 
 		tool := byName(factory.For("darwin"), "ghcup")
 		Expect(tool.Install(&bytes.Buffer{}, &bytes.Buffer{})).To(Succeed())
@@ -300,7 +322,7 @@ var _ = Describe("RegistryFactory", func() {
 	It("on linux, every installable reports its status through the injected command seam", func() {
 		kit := spyKit()
 		Expect(os.MkdirAll(filepath.Join(kit.Home, ".local", "nvim"), 0o755)).To(Succeed())
-		reg := registry.NewRegistryFactory(brew.Runner(brewSpy.Run), kit).For("linux")
+		reg := registry.NewRegistryFactory(brew.Runner(brewSpy.Run), kit, nothingOnPath).For("linux")
 
 		for _, tool := range reg.Installables() {
 			before := cmdSpy.calls
@@ -315,6 +337,7 @@ var _ = Describe("RegistryFactory", func() {
 		factoryWithExtra := registry.NewRegistryFactory(
 			brew.Runner(brewSpy.Run),
 			spyKit(),
+			nothingOnPath,
 			extra,
 		)
 
@@ -324,7 +347,7 @@ var _ = Describe("RegistryFactory", func() {
 
 	It("does NOT include extras when the OS is unsupported", func() {
 		extra := fakeInstallable{name: "my-extra"}
-		factoryWithExtra := registry.NewRegistryFactory(nil, apt.Kit{}, extra)
+		factoryWithExtra := registry.NewRegistryFactory(nil, apt.Kit{}, nothingOnPath, extra)
 
 		Expect(factoryWithExtra.For("plan9").Installables()).To(BeEmpty())
 	})

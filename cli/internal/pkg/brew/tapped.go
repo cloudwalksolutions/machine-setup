@@ -14,6 +14,7 @@ type TappedFormula struct {
 	description string
 	tap         string
 	run         Runner
+	Probe       pkg.PathProbe
 }
 
 // NewTappedFormula binds a name + its tap to a runner.
@@ -35,7 +36,10 @@ func (t TappedFormula) Install(stdout, stderr io.Writer) error {
 	return t.run([]string{"install", t.tap + "/" + t.name}, stdout, stderr)
 }
 
-// Status reports the installed version via `brew list --versions <name>`.
+// Status reports the brew-listed version, else whatever the binary on PATH reports.
 func (t TappedFormula) Status() (pkg.InstallStatus, string, error) {
-	return listedVersion(t.run, "list", "--versions", t.name)
+	if version, ok := listedVersion(t.run, "list", "--versions", t.name); ok {
+		return pkg.StatusUpToDate, version, nil
+	}
+	return t.Probe.Status(t.name)
 }

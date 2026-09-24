@@ -76,13 +76,14 @@ func (r *DevToolRegistry) Catalog() []pkg.ToolInfo {
 type RegistryFactory struct {
 	brewRun brew.Runner
 	aptKit  apt.Kit
+	probe   pkg.PathProbe
 	extras  []pkg.Installable
 }
 
-// NewRegistryFactory captures the platform runners and any cross-platform
-// extras. The extras are appended to every recognized-OS registry.
-func NewRegistryFactory(brewRun brew.Runner, aptKit apt.Kit, extras ...pkg.Installable) RegistryFactory {
-	return RegistryFactory{brewRun: brewRun, aptKit: aptKit, extras: extras}
+// NewRegistryFactory captures the platform runners, the PATH probe used when a
+// package manager does not know a tool, and any cross-platform extras.
+func NewRegistryFactory(brewRun brew.Runner, aptKit apt.Kit, probe pkg.PathProbe, extras ...pkg.Installable) RegistryFactory {
+	return RegistryFactory{brewRun: brewRun, aptKit: aptKit, probe: probe, extras: extras}
 }
 
 // For returns the curated registry for the given OS. Unsupported OS → empty
@@ -101,36 +102,37 @@ func (f RegistryFactory) For(goos string) *DevToolRegistry {
 	return r
 }
 
-// tool is one curated entry: the package name and the blurb the picker shows next to it.
+// tool is one curated entry: the package name, the blurb the picker shows next to it,
+// and the binary to look for on PATH when it differs from the name.
 type tool struct {
-	name, description string
+	name, description, bin string
 }
 
 // darwinFormulas is the curated list of brew formulas installed on macOS, most used
 // first within each group. Tapped formulas go in darwinTappedFormulas instead.
 var darwinFormulas = []tool{
-	{"neovim", "Modern Vim: LSP, treesitter, Lua config"},
-	{"byobu", "tmux sessions with a status bar and F-keys"},
-	{"gh", "GitHub from the terminal: PRs, issues, runs"},
-	{"lazygit", "Keyboard git UI for staging, log, rebase"},
-	{"jq", "Query and reshape JSON on the command line"},
-	{"bat", "cat with syntax highlighting and git marks"},
-	{"eza", "ls with colors, icons and git status"},
-	{"k9s", "Kubernetes cluster TUI"},
-	{"lazydocker", "Docker containers and logs TUI"},
-	{"k3d", "Local k3s Kubernetes clusters in Docker"},
-	{"golangci-lint", "Go linter aggregator used by CI"},
-	{"fzf", "Fuzzy finder for files, history, anything"},
-	{"ripgrep", "Fast recursive grep (rg)"},
-	{"go", "Go toolchain"},
-	{"node", "Node.js runtime"},
-	{"python", "Python 3 interpreter"},
-	{"ruby", "Ruby interpreter"},
-	{"rustup", "Rust toolchain manager (installs stable)"},
-	{"ghcup", "Haskell toolchain manager (installs GHC)"},
-	{"yarn", "JavaScript package manager"},
-	{"n", "Switch Node.js versions"},
-	{"ansible", "Agentless config management and playbooks"},
+	{name: "neovim", description: "Modern Vim: LSP, treesitter, Lua config", bin: "nvim"},
+	{name: "byobu", description: "tmux sessions with a status bar and F-keys"},
+	{name: "gh", description: "GitHub from the terminal: PRs, issues, runs"},
+	{name: "lazygit", description: "Keyboard git UI for staging, log, rebase"},
+	{name: "jq", description: "Query and reshape JSON on the command line"},
+	{name: "bat", description: "cat with syntax highlighting and git marks"},
+	{name: "eza", description: "ls with colors, icons and git status"},
+	{name: "k9s", description: "Kubernetes cluster TUI"},
+	{name: "lazydocker", description: "Docker containers and logs TUI"},
+	{name: "k3d", description: "Local k3s Kubernetes clusters in Docker"},
+	{name: "golangci-lint", description: "Go linter aggregator used by CI"},
+	{name: "fzf", description: "Fuzzy finder for files, history, anything"},
+	{name: "ripgrep", description: "Fast recursive grep (rg)", bin: "rg"},
+	{name: "go", description: "Go toolchain"},
+	{name: "node", description: "Node.js runtime"},
+	{name: "python", description: "Python 3 interpreter", bin: "python3"},
+	{name: "ruby", description: "Ruby interpreter"},
+	{name: "rustup", description: "Rust toolchain manager (installs stable)"},
+	{name: "ghcup", description: "Haskell toolchain manager (installs GHC)"},
+	{name: "yarn", description: "JavaScript package manager"},
+	{name: "n", description: "Switch Node.js versions"},
+	{name: "ansible", description: "Agentless config management and playbooks"},
 }
 
 // darwinTappedFormulas need `brew tap <tap>` first; installed as <tap>/<name>.
@@ -138,12 +140,12 @@ var darwinTappedFormulas = []struct {
 	tool
 	tap string
 }{
-	{tool{"terraform", "Infrastructure as code (HashiCorp tap)"}, "hashicorp/tap"},
+	{tool{name: "terraform", description: "Infrastructure as code (HashiCorp tap)"}, "hashicorp/tap"},
 }
 
 // darwinCasks is the curated list of brew casks installed on macOS.
 var darwinCasks = []tool{
-	{"gcloud-cli", "Google Cloud SDK and gcloud command"},
+	{name: "gcloud-cli", description: "Google Cloud SDK and gcloud command", bin: "gcloud"},
 }
 
 // postInstallSteps finish a toolchain manager's setup so no manual step is left to the user.
@@ -155,6 +157,7 @@ var postInstallSteps = map[string][][]string{
 func (f RegistryFactory) wireDarwin(r *DevToolRegistry) {
 	for _, t := range darwinFormulas {
 		formula := brew.NewFormula(t.name, t.description, f.brewRun)
+		formula.Binary, formula.Probe = t.bin, f.probe
 		if steps, ok := postInstallSteps[t.name]; ok {
 			r.Add(pkg.WithPostInstall(formula, steps, f.aptKit.Cmd))
 			continue
@@ -162,23 +165,27 @@ func (f RegistryFactory) wireDarwin(r *DevToolRegistry) {
 		r.Add(formula)
 	}
 	for _, t := range darwinTappedFormulas {
-		r.Add(brew.NewTappedFormula(t.name, t.description, t.tap, f.brewRun))
+		tapped := brew.NewTappedFormula(t.name, t.description, t.tap, f.brewRun)
+		tapped.Probe = f.probe
+		r.Add(tapped)
 	}
 	for _, t := range darwinCasks {
-		r.Add(brew.NewCask(t.name, t.description, f.brewRun))
+		cask := brew.NewCask(t.name, t.description, f.brewRun)
+		cask.Binary, cask.Probe = t.bin, f.probe
+		r.Add(cask)
 	}
 }
 
 // linuxAptPackages is the curated list of apt packages installed on Linux.
 // gh is NOT here — Ubuntu's archives don't carry it; see GitHubCLI.
 var linuxAptPackages = []tool{
-	{"jq", "Query and reshape JSON on the command line"},
-	{"bat", "cat with syntax highlighting and git marks"},
-	{"fzf", "Fuzzy finder for files, history, anything"},
-	{"ripgrep", "Fast recursive grep (rg)"},
-	{"go", "Go toolchain"},
-	{"node", "Node.js runtime"},
-	{"python", "Python 3 interpreter"},
+	{name: "jq", description: "Query and reshape JSON on the command line"},
+	{name: "bat", description: "cat with syntax highlighting and git marks"},
+	{name: "fzf", description: "Fuzzy finder for files, history, anything"},
+	{name: "ripgrep", description: "Fast recursive grep (rg)"},
+	{name: "go", description: "Go toolchain"},
+	{name: "node", description: "Node.js runtime"},
+	{name: "python", description: "Python 3 interpreter"},
 }
 
 func (f RegistryFactory) wireLinux(r *DevToolRegistry) {

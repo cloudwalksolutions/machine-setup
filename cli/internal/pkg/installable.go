@@ -1,11 +1,9 @@
 package pkg
 
 import (
-	"bytes"
 	"io"
 	"os"
 	"os/exec"
-	"strings"
 )
 
 // InstallStatus represents the current installation/update status of a package.
@@ -119,18 +117,11 @@ func (s ScriptInstaller) Install(stdout, stderr io.Writer) error {
 	return s.run(s.installCmd, stdout, stderr)
 }
 
-// Status reports the first word of `<checkPath> --version` when checkPath exists.
+// Status reports the version `<checkPath> --version` prints when checkPath exists.
 func (s ScriptInstaller) Status() (InstallStatus, string, error) {
 	if _, err := os.Stat(s.checkPath); err != nil {
 		return StatusNotInstalled, "", nil
 	}
-	var out bytes.Buffer
-	if err := s.run([]string{s.checkPath, "--version"}, &out, io.Discard); err != nil {
-		return StatusUpToDate, "", nil
-	}
-	fields := strings.Fields(out.String())
-	if len(fields) == 0 {
-		return StatusUpToDate, "", nil
-	}
-	return StatusUpToDate, fields[0], nil
+	probe := PathProbe{LookPath: func(string) (string, error) { return s.checkPath, nil }, Run: s.run}
+	return probe.Status(s.checkPath)
 }

@@ -317,6 +317,7 @@ func NewSetup(stdout, stderr io.Writer, cfgPath string) (*Setup, error) {
 		Registry: registry.NewRegistryFactory(
 			brew.DefaultRunner(),
 			apt.DefaultKit(),
+			pkg.PathProbe{},
 			rvm.NewInstaller(filepath.Join(home, ".rvm"), rvm.DefaultRunner()),
 			npm.NewPackage("gemini-cli", "@google/gemini-cli", "Google's Gemini CLI agent", npm.DefaultRunner()),
 			pkg.NewScriptInstaller(

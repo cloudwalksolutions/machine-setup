@@ -110,12 +110,13 @@ Tests are layered:
    on every PR on amd64 and arm64.
 
 **The seam pattern (critical).** Unit tests must never touch the real system (plists,
-`sudo cp`, network, `/Library/Fonts`). Anything that does is injected behind a seam so a
+network, package managers, PATH lookups). Anything that does is injected behind a seam so a
 spec can drive a fake and still fail red-first:
 
-- **Function-typed fields** for side-effecting ops, e.g. `Fonts.CopyFn(src,dst)` (real:
-  `sudo cp`), and `Terminal.CurrentFontFn / SetFontFn / IsRunningFn / DefaultProfileFn /
-  ApplyFn / ExportFn` (real: PlistBuddy / `pgrep` / `open` / `defaults`). Tests assign
+- **Function-typed fields** for side-effecting ops, e.g. `pkg.PathProbe{LookPath, Run}`
+  (real: `exec.LookPath` + `<bin> --version`), and `Terminal.CurrentFontFn / SetFontFn /
+  IsRunningFn / DefaultProfileFn / ApplyFn / ExportFn` (real: PlistBuddy / `pgrep` /
+  `open` / `defaults`). Tests assign
   fakes; the real impl is left untested by unit tests and validated via the E2E and
   manual runs.
 - **Dry-run seam**: every component writes through `Options.copier()` → `fsutil.Copier`;
@@ -240,9 +241,10 @@ bumps are a manual tag push; see `docs/releasing.md`. Test locally with
   artifacts — stay vigilant.
 - **Backups are versioned** (v1, v2, v3…), live under `~/.local/state/tars/backups`,
   and are never auto-deleted.
-- **macOS-first, Linux-supported.** Homebrew, `/Library/Fonts`, iTerm2/Terminal.app
+- **macOS-first, Linux-supported.** Homebrew, `~/Library/Fonts`, iTerm2/Terminal.app
   plists are macOS; Linux gets the full dotfile pull plus apt/tarball installs
-  (Neovim tarball, GitHub/GCloud apt repos) suitable for shared bastions.
+  (Neovim tarball, GitHub/GCloud apt repos) suitable for shared bastions. Nothing
+  tars does needs sudo except apt installs.
 - **Neovim is the primary editor**; vim is a minimal fallback. Neovim needs Python3,
   Node.js, and language servers (auto-installed via Mason).
 - **ALWAYS run Neovim tests**: after ANY change to the Neovim config, run `make test-nvim`
