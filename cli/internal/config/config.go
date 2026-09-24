@@ -23,7 +23,6 @@ type Config struct {
 // into ~/.pi/agent/models.json, never stored in the repo.
 type PiConfig struct {
 	Packages        []string     `mapstructure:"packages"         yaml:"packages"`
-	RemoveGentle    *bool        `mapstructure:"remove_gentle"    yaml:"remove_gentle"`
 	Providers       []PiProvider `mapstructure:"providers"        yaml:"providers"`
 	DefaultProvider string       `mapstructure:"default_provider" yaml:"default_provider"`
 	DefaultModel    string       `mapstructure:"default_model"    yaml:"default_model"`

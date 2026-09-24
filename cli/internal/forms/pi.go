@@ -12,41 +12,45 @@ import (
 
 // PiDetected is what init found on the machine before asking anything.
 type PiDetected struct {
-	Providers    []config.PiProvider // parsed from the existing ~/.pi/agent/models.json
+	Providers    []config.PiProvider // parsed from an existing ~/.pi/agent/models.json
 	OllamaModels []string            // from `ollama list`; empty when ollama is absent
-	HasGentle    bool                // gentle-pi currently installed
 }
 
-// ShowPiInitForm asks which packages to install, whether to drop gentle-pi, and which
-// model providers to configure. When TARS_NO_FORM=1 it installs every package, removes
-// gentle-pi, keeps the detected providers, and pins no default.
-func ShowPiInitForm(d PiDetected, packages []string) (config.PiConfig, error) {
-	remove := d.HasGentle
-	cfg := config.PiConfig{Packages: append([]string{}, packages...), RemoveGentle: &remove, Providers: d.Providers}
+// PiAnswers separates what is persisted (Config) from what only goes to ~/.zshrc_secret.
+type PiAnswers struct {
+	Config  config.PiConfig
+	Secrets map[string]string // env var name → API key, for variables not exported yet
+}
+
+// ShowPiInitForm asks which packages to install and which model providers to
+// configure. When TARS_NO_FORM=1 it installs every package, keeps the detected
+// providers, pins no default, and collects no secrets.
+func ShowPiInitForm(d PiDetected, packages []string) (PiAnswers, error) {
+	answers := PiAnswers{
+		Config:  config.PiConfig{Packages: append([]string{}, packages...), Providers: d.Providers},
+		Secrets: map[string]string{},
+	}
 	if os.Getenv("TARS_NO_FORM") != "" {
-		return cfg, nil
+		return answers, nil
 	}
 
 	pkgOptions := make([]huh.Option[string], len(packages))
 	for i, p := range packages {
 		pkgOptions[i] = huh.NewOption(p, p).Selected(true)
 	}
-	kinds := []string{}
+	var kinds []string
 	if len(d.OllamaModels) > 0 {
 		kinds = append(kinds, "ollama")
 	}
-	for _, p := range d.Providers {
-		if p.Kind == "openai" {
-			kinds = append(kinds, "openai")
-			break
-		}
+	if detected(d.Providers, "openai").Name != "" {
+		kinds = append(kinds, "openai")
 	}
-	groups := []*huh.Group{huh.NewGroup(
+	err := huh.NewForm(huh.NewGroup(
 		huh.NewMultiSelect[string]().
 			Title("pi packages to install").
-			Description("Subagents, MCP adapter, web search, bigpowers skills, permission system, plannotator plan review, live todo overlay, pi-lens diagnostics. Space toggles, Enter confirms.").
+			Description("Subagents, MCP adapter, web search, bigpowers skills, permission system, plannotator plan review, live todo overlay, pi-lens diagnostics, ponytail YAGNI. Space toggles, Enter confirms.").
 			Options(pkgOptions...).
-			Value(&cfg.Packages),
+			Value(&answers.Config.Packages),
 		huh.NewMultiSelect[string]().
 			Title("Model providers to configure").
 			Description("ollama and llama.cpp are local; openai is any OpenAI-compatible endpoint with a key from ~/.zshrc_secret.").
@@ -56,31 +60,22 @@ func ShowPiInitForm(d PiDetected, packages []string) (config.PiConfig, error) {
 				huh.NewOption("OpenAI-compatible endpoint", "openai").Selected(contains(kinds, "openai")),
 			).
 			Value(&kinds),
-	)}
-	if d.HasGentle {
-		groups = append(groups, huh.NewGroup(
-			huh.NewConfirm().
-				Title("Remove gentle-pi?").
-				Description("It injects its own persona and rewrites ~/.pi/agent at startup, which conflicts with the tars agent. Its files are backed up first.").
-				Value(&remove),
-		))
-	}
-	if err := huh.NewForm(groups...).Run(); err != nil {
-		return cfg, err
-	}
-	cfg.RemoveGentle = &remove
-
-	providers, err := askProviders(kinds, d)
+	)).Run()
 	if err != nil {
-		return cfg, err
+		return answers, err
 	}
-	cfg.Providers = providers
-	cfg.DefaultProvider, cfg.DefaultModel, err = askDefault(providers)
-	return cfg, err
+
+	answers.Config.Providers, err = askProviders(kinds, d, answers.Secrets)
+	if err != nil {
+		return answers, err
+	}
+	answers.Config.DefaultProvider, answers.Config.DefaultModel, err = askDefault(answers.Config.Providers)
+	return answers, err
 }
 
 // askProviders collects one PiProvider per chosen kind, pre-filled from detection.
-func askProviders(kinds []string, d PiDetected) ([]config.PiProvider, error) {
+// An openai provider whose env var is not exported also asks for the key itself.
+func askProviders(kinds []string, d PiDetected, secrets map[string]string) ([]config.PiProvider, error) {
 	var out []config.PiProvider
 	for _, kind := range kinds {
 		p := detected(d.Providers, kind)
@@ -117,7 +112,7 @@ func askProviders(kinds []string, d PiDetected) ([]config.PiProvider, error) {
 			if err := huh.NewForm(huh.NewGroup(
 				huh.NewInput().Title("Provider name").Value(&p.Name),
 				huh.NewInput().Title("Base URL (…/v1)").Value(&p.BaseURL),
-				huh.NewInput().Title("Env var holding the API key").Description("Exported from ~/.zshrc_secret; a literal key already in models.json is moved there.").Value(&p.KeyEnv),
+				huh.NewInput().Title("Env var holding the API key").Description("Exported from ~/.zshrc_secret.").Value(&p.KeyEnv),
 				huh.NewInput().Title("Model ids, comma-separated").Value(&models),
 			)).Run(); err != nil {
 				return nil, err
@@ -125,6 +120,19 @@ func askProviders(kinds []string, d PiDetected) ([]config.PiProvider, error) {
 			p.Models = splitList(models)
 			if p.KeyEnv == "" {
 				p.KeyEnv = config.KeyEnvFor(p.Name)
+			}
+			if os.Getenv(p.KeyEnv) == "" {
+				var key string
+				if err := huh.NewForm(huh.NewGroup(
+					huh.NewInput().Title("API key for " + p.Name).
+						Description(p.KeyEnv + " is not exported; the key is stored in ~/.zshrc_secret, never in the repo. Leave empty to add it yourself later.").
+						EchoMode(huh.EchoModePassword).Value(&key),
+				)).Run(); err != nil {
+					return nil, err
+				}
+				if key != "" {
+					secrets[p.KeyEnv] = key
+				}
 			}
 		}
 		out = append(out, p)

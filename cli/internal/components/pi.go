@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"tars/internal/config"
@@ -36,35 +37,6 @@ func defaultRun(name string, args ...string) (string, error) {
 	return string(out), err
 }
 
-// gentleLeftovers are the paths gentle-pi seeds into ~/.pi/agent at startup.
-var gentleLeftovers = []string{"agents/sdd-*.md", "agents/jd-*.md", "agents/review-*.md", "agents/gentle-ai-*.md", "chains", "gentle-ai", "gentle-agents"}
-
-// RemoveGentle uninstalls gentle-pi and clears what it seeded into ~/.pi, each path backed up first.
-func (c *Pi) RemoveGentle() error {
-	if out, err := c.Run("pi", "remove", "npm:gentle-pi"); err != nil {
-		return fmt.Errorf("pi remove npm:gentle-pi: %w\n%s", err, out)
-	}
-	agent := filepath.Dir(c.p.SettingsLocal)
-	targets := []string{filepath.Join(filepath.Dir(agent), "gentle-ai")}
-	for _, pattern := range gentleLeftovers {
-		matches, _ := filepath.Glob(filepath.Join(agent, pattern))
-		targets = append(targets, matches...)
-	}
-	cp := c.opts.copier()
-	for _, t := range targets {
-		if _, err := os.Stat(t); err != nil {
-			continue
-		}
-		if _, err := cp.Backup(t, c.Name(), c.opts.BackupRoot); err != nil {
-			return err
-		}
-		if err := cp.RemoveAll(t); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // Packages lists the packages the repo fragment installs.
 func (c *Pi) Packages() []string {
 	fragment, err := loadSettings(c.p.SettingsRepo)
@@ -72,12 +44,6 @@ func (c *Pi) Packages() []string {
 		return nil
 	}
 	return fragment.strings("packages")
-}
-
-// HasPackage reports whether `pi list` shows src.
-func (c *Pi) HasPackage(src string) bool {
-	out, err := c.Run("pi", "list")
-	return err == nil && strings.Contains(out, src)
 }
 
 // DetectProviders reads the existing models.json into PiProvider entries so the
@@ -144,24 +110,16 @@ func (c *Pi) InstallPackages(selected []string) error {
 	return nil
 }
 
-// RelocateKeys moves literal API keys of configured openai providers out of
-// models.json into ~/.zshrc_secret, so the next Pull replaces them with env references.
-func (c *Pi) RelocateKeys() error {
-	models, err := loadSettings(c.p.ModelsLocal)
-	if os.IsNotExist(err) {
-		return nil
+// StoreKeys appends API keys to ~/.zshrc_secret as exports so models.json can
+// reference them as $VAR; variables already present are left untouched.
+func (c *Pi) StoreKeys(keys map[string]string) error {
+	names := make([]string, 0, len(keys))
+	for name := range keys {
+		names = append(names, name)
 	}
-	if err != nil {
-		return err
-	}
-	providers, _ := models["providers"].(map[string]any)
-	for _, p := range c.cfg.Providers {
-		entry, _ := providers[p.Name].(map[string]any)
-		key, _ := entry["apiKey"].(string)
-		if p.Kind != "openai" || p.KeyEnv == "" || key == "" || strings.HasPrefix(key, "$") || strings.HasPrefix(key, "!") {
-			continue
-		}
-		if err := c.appendSecret(p.KeyEnv, key); err != nil {
+	sort.Strings(names)
+	for _, name := range names {
+		if err := c.appendSecret(name, keys[name]); err != nil {
 			return err
 		}
 	}

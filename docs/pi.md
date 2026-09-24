@@ -12,23 +12,25 @@
    code review and markdown annotation UIs), `@juicesharp/rpiv-todo` (a `todo` tool and a
    live task overlay that survives `/reload` and compaction; `/todos` lists them), `pi-lens`
    (LSP diagnostics, linters, formatters and type-checking as the agent edits, `symbol_search`,
-   `/lens-map` dependency map; needs Node ≥ 22.19).
-2. Asks whether to remove `gentle-pi` if it is installed. It injects its own persona and
-   rewrites `~/.pi/agent` at startup, which conflicts with a curated agent; its files are
-   backed up under `~/.local/state/tars/backups/pi/` before removal.
-3. Asks which model providers to configure, pre-filled from your existing `models.json`
+   `/lens-map` dependency map; needs Node ≥ 22.19), `@dietrichgebert/ponytail` (YAGNI decision
+   ladder: reuse, stdlib and native features before new code; `/ponytail-review` flags
+   over-engineering in diffs).
+2. Asks which model providers to configure, pre-filled from any existing `models.json`
    and a running `ollama`:
    - **ollama**: `http://localhost:11434/v1`, pick the models to expose.
    - **llama.cpp**: server URL; `pi-llama-cpp` registers the provider from the running
      `llama-server`, pick a model with `/models` inside pi.
-   - **OpenAI-compatible endpoint**: name, base URL, model ids, and the env var that
-     holds the key. A literal key already in `models.json` is moved into `~/.zshrc_secret`
-     and replaced by `$THAT_VAR`.
-4. Saves the choices under `pi:` in `~/.config/tars/config.yaml`, pulls the files, installs
+   - **OpenAI-compatible endpoint**: name, base URL, model ids, and the env var that holds
+     the key. If that variable is not exported yet, the form asks for the key and init
+     stores it as an `export` in `~/.zshrc_secret`; `models.json` only ever holds `$THAT_VAR`.
+3. Saves the choices under `pi:` in `~/.config/tars/config.yaml`, pulls the files, installs
    the missing packages, and prints what to do next (usually `exec zsh`).
 
-`TARS_NO_FORM=1 tars pi init` takes every default: all packages, remove gentle-pi, keep the
-detected providers, no default model pinned.
+`TARS_NO_FORM=1 tars pi init` takes every default: all packages, the detected providers, no
+default model pinned, no secrets written.
+
+Packages you no longer want are yours to remove (`pi remove npm:<name>`); tars never
+uninstalls anything.
 
 ## What lands in `~/.pi/agent`
 

@@ -204,65 +204,23 @@ var _ = Describe("Pi.Pull", func() {
 		})
 	})
 
-	Describe("RemoveGentle", func() {
-		It("removes the package and backs up then deletes the files gentle-pi seeded, keeping ours", func() {
-			for _, rel := range []string{
-				".pi/agent/agents/sdd-init.md", ".pi/agent/agents/jd-judge-a.md", ".pi/agent/agents/review-risk.md",
-				".pi/agent/agents/gentle-ai-worker.md", ".pi/agent/agents/tars.md",
-				".pi/agent/chains/sdd-full.chain.md", ".pi/agent/gentle-ai/managed-assets.json",
-				".pi/agent/gentle-agents/presence/x", ".pi/gentle-ai/persona.json",
-			} {
-				p := filepath.Join(home, rel)
-				Expect(os.MkdirAll(filepath.Dir(p), 0o755)).To(Succeed())
-				Expect(os.WriteFile(p, []byte(rel), 0o644)).To(Succeed())
-			}
-			var calls []string
-			pi := components.NewPi(opts)
-			pi.Run = func(name string, args ...string) (string, error) {
-				calls = append(calls, name+" "+strings.Join(args, " "))
-				return "", nil
-			}
-
-			Expect(pi.RemoveGentle()).To(Succeed())
-
-			Expect(calls).To(Equal([]string{"pi remove npm:gentle-pi"}))
-			for _, gone := range []string{"agents/sdd-init.md", "agents/jd-judge-a.md", "agents/review-risk.md", "agents/gentle-ai-worker.md", "chains", "gentle-ai", "gentle-agents"} {
-				Expect(filepath.Join(agent, gone)).NotTo(BeAnExistingFile(), gone)
-			}
-			Expect(filepath.Join(home, ".pi", "gentle-ai")).NotTo(BeAnExistingFile())
-			Expect(filepath.Join(agent, "agents", "tars.md")).To(BeARegularFile())
-			backedUp := func(rel string) []string {
-				m, err := filepath.Glob(filepath.Join(opts.BackupRoot, "pi", "v*", rel))
-				Expect(err).NotTo(HaveOccurred())
-				return m
-			}
-			Expect(backedUp("sdd-init.md")).To(HaveLen(1))
-			Expect(read(backedUp("sdd-init.md")[0])).To(Equal(".pi/agent/agents/sdd-init.md"))
-			Expect(backedUp(filepath.Join("chains", "sdd-full.chain.md"))).To(HaveLen(1))
-		})
-	})
-
-	Describe("RelocateKeys", func() {
-		It("moves a literal apiKey into ~/.zshrc_secret as the provider's env var", func() {
-			Expect(os.MkdirAll(agent, 0o755)).To(Succeed())
-			Expect(os.WriteFile(filepath.Join(agent, "models.json"), []byte(`{"providers":{"remote":{"apiKey":"literal-secret"}}}`), 0o644)).To(Succeed())
+	Describe("StoreKeys", func() {
+		It("appends each secret as an export to ~/.zshrc_secret, backing the file up first", func() {
+			Expect(os.MkdirAll(home, 0o755)).To(Succeed())
 			Expect(os.WriteFile(filepath.Join(home, ".zshrc_secret"), []byte("# secrets\n"), 0o644)).To(Succeed())
-			opts.Pi = config.PiConfig{Providers: []config.PiProvider{{Name: "remote", Kind: "openai", BaseURL: "https://llm/v1", KeyEnv: "REMOTE_LLM_API_KEY"}}}
 
-			Expect(components.NewPi(opts).RelocateKeys()).To(Succeed())
+			Expect(components.NewPi(opts).StoreKeys(map[string]string{"REMOTE_LLM_API_KEY": "s3cret"})).To(Succeed())
 
-			Expect(read(filepath.Join(home, ".zshrc_secret"))).To(Equal("# secrets\nexport REMOTE_LLM_API_KEY=\"literal-secret\"\n"))
+			Expect(read(filepath.Join(home, ".zshrc_secret"))).To(Equal("# secrets\nexport REMOTE_LLM_API_KEY=\"s3cret\"\n"))
 			Expect(read(filepath.Join(opts.BackupRoot, "pi", "v1", ".zshrc_secret"))).To(Equal("# secrets\n"))
 		})
 
-		It("leaves the secret file alone when the key is already an env reference", func() {
-			Expect(os.MkdirAll(agent, 0o755)).To(Succeed())
-			Expect(os.WriteFile(filepath.Join(agent, "models.json"), []byte(`{"providers":{"remote":{"apiKey":"$REMOTE_LLM_API_KEY"}}}`), 0o644)).To(Succeed())
-			opts.Pi = config.PiConfig{Providers: []config.PiProvider{{Name: "remote", Kind: "openai", KeyEnv: "REMOTE_LLM_API_KEY"}}}
+		It("creates the secret file when missing and never duplicates a variable", func() {
+			pi := components.NewPi(opts)
+			Expect(pi.StoreKeys(map[string]string{"A_API_KEY": "1"})).To(Succeed())
+			Expect(pi.StoreKeys(map[string]string{"A_API_KEY": "2"})).To(Succeed())
 
-			Expect(components.NewPi(opts).RelocateKeys()).To(Succeed())
-
-			Expect(filepath.Join(home, ".zshrc_secret")).NotTo(BeAnExistingFile())
+			Expect(read(filepath.Join(home, ".zshrc_secret"))).To(Equal("export A_API_KEY=\"1\"\n"))
 		})
 	})
 

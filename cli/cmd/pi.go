@@ -13,15 +13,14 @@ import (
 
 // PiAsker presents the `tars pi init` form.
 type PiAsker interface {
-	Ask() (config.PiConfig, error)
+	Ask() (forms.PiAnswers, error)
 }
 
 // PiOps are the machine-touching steps of init, in the order Run calls them.
 type PiOps interface {
+	StoreKeys(map[string]string) error
 	Pull(config.PiConfig) error
-	RelocateKeys(config.PiConfig) error
 	InstallPackages([]string) error
-	RemoveGentle() error
 }
 
 // PiInit orchestrates `tars pi init`: ask, persist the choices, then apply them.
@@ -47,27 +46,21 @@ func (p *PiInit) Run() error {
 	if err != nil {
 		return fmt.Errorf("pi form: %w", err)
 	}
-	cfg.Pi = answer
+	cfg.Pi = answer.Config
 	if err := p.Config.Save(cfg); err != nil {
 		return fmt.Errorf("saving config: %w", err)
 	}
 	fmt.Fprintf(p.Stdout, "Choices saved to %s\n", p.Config.Path())
-	// Keys move to ~/.zshrc_secret before Pull rewrites models.json with env references.
-	if err := p.Ops.RelocateKeys(answer); err != nil {
+	if err := p.Ops.StoreKeys(answer.Secrets); err != nil {
 		return err
 	}
-	if err := p.Ops.Pull(answer); err != nil {
+	if err := p.Ops.Pull(answer.Config); err != nil {
 		return err
 	}
-	if err := p.Ops.InstallPackages(answer.Packages); err != nil {
+	if err := p.Ops.InstallPackages(answer.Config.Packages); err != nil {
 		return err
 	}
-	if answer.RemoveGentle != nil && *answer.RemoveGentle {
-		if err := p.Ops.RemoveGentle(); err != nil {
-			return err
-		}
-	}
-	p.printNextSteps(answer)
+	p.printNextSteps(answer.Config)
 	return nil
 }
 
@@ -89,12 +82,8 @@ func (p *PiInit) printNextSteps(cfg config.PiConfig) {
 // FormsPiAsker wraps forms.ShowPiInitForm, detecting the machine's state first.
 type FormsPiAsker struct{ pi *components.Pi }
 
-func (a FormsPiAsker) Ask() (config.PiConfig, error) {
-	detected := forms.PiDetected{
-		Providers:    a.pi.DetectProviders(),
-		OllamaModels: a.pi.OllamaModels(),
-		HasGentle:    a.pi.HasPackage("npm:gentle-pi"),
-	}
+func (a FormsPiAsker) Ask() (forms.PiAnswers, error) {
+	detected := forms.PiDetected{Providers: a.pi.DetectProviders(), OllamaModels: a.pi.OllamaModels()}
 	return forms.ShowPiInitForm(detected, a.pi.Packages())
 }
 
@@ -114,11 +103,12 @@ func (o componentPiOps) with(cfg config.PiConfig) *components.Pi {
 func (o componentPiOps) Pull(cfg config.PiConfig) error {
 	return SequentialPuller{Components: []components.Component{o.with(cfg)}, Stdout: o.stdout, Stderr: o.stderr}.PullAll()
 }
-func (o componentPiOps) RelocateKeys(cfg config.PiConfig) error { return o.with(cfg).RelocateKeys() }
+func (o componentPiOps) StoreKeys(keys map[string]string) error {
+	return o.with(o.opts.Pi).StoreKeys(keys)
+}
 func (o componentPiOps) InstallPackages(p []string) error {
 	return o.with(o.opts.Pi).InstallPackages(p)
 }
-func (o componentPiOps) RemoveGentle() error { return o.with(o.opts.Pi).RemoveGentle() }
 
 // NewPiInit wires the production `tars pi init`.
 func NewPiInit(stdout, stderr io.Writer) (*PiInit, error) {

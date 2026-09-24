@@ -181,9 +181,11 @@ ports `claude/hooks/block-unreviewable-edits.sh` rule for rule, the permission b
 settings fragment with packages). `~/.pi/agent/AGENTS.md` is rendered from `claude/rules/`
 (one rule source for both agents). Model providers are **never** in the repo: `tars pi init`
 asks (ollama / llama.cpp / OpenAI-compatible), stores them under `pi:` in the tars config,
-renders `models.json` with `$ENV` key references, and moves any literal key into
-`~/.zshrc_secret`. Only `init` shells out to `pi`/`ollama` (behind `Pi.Run`); `pull` writes
-files only. Add a prompt by dropping `pi/prompts/<name>.md` and running `make sync-assets`.
+renders `models.json` with `$ENV` key references, and stores a key the form collected as an
+export in `~/.zshrc_secret`. Only `init` shells out to `pi`/`ollama` (behind `Pi.Run`); `pull`
+writes files only; nothing is ever uninstalled. Design for an empty machine: detecting existing
+config to pre-fill the form is fine, code that only migrates one machine's state is not. Add a
+prompt by dropping `pi/prompts/<name>.md` and running `make sync-assets`.
 
 **Adding an installable tool**: edit the curated lists in
 `cli/internal/pkg/registry.go` (`darwinFormulas` / `darwinCasks` / `darwinTappedFormulas`
