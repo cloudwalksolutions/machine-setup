@@ -14,7 +14,9 @@
    `@dietrichgebert/ponytail` (YAGNI decision ladder: reuse, stdlib and native features before
    new code; `/ponytail-review` flags over-engineering in diffs), `@juicesharp/rpiv-ask-user-question`
    (an `ask_user_question` tool: typed options, multi-select, free text; the agent asks through
-   it instead of prose, matching the working rules).
+   it instead of prose, matching the working rules), `@pi-archimedes/image-paste` (paste
+   clipboard images into the prompt as `[Image #N]`; if pi warns about a duplicate paste
+   keybinding, clear `app.clipboard.pasteImage` in `~/.pi/agent/keybindings.json`).
 2. If a local `ollama` is installed, asks which of its models (`ollama list`) to expose to
    pi and which one is the default. That is the only provider tars manages: llama.cpp,
    remote endpoints and API keys are configured in pi itself (`/login`, `/models`,
