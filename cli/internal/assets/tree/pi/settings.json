@@ -1,5 +1,5 @@
 {
-  "defaultThinkingLevel": "high",
+  "defaultThinkingLevel": "off",
   "packages": [
     "npm:pi-subagents",
     "npm:pi-mcp-adapter",

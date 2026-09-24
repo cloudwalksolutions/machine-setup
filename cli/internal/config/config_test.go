@@ -104,13 +104,9 @@ var _ = Describe("Save", func() {
 
 	It("round-trips the pi section", func() {
 		cfg := &config.Config{Pi: config.PiConfig{
-			Packages: []string{"npm:pi-subagents"},
-			Providers: []config.PiProvider{
-				{Name: "ollama", Kind: "ollama", Models: []string{"qwen2.5-coder:7b"}},
-				{Name: "remote", Kind: "openai", BaseURL: "https://llm.example/v1", KeyEnv: "REMOTE_LLM_API_KEY", Models: []string{"qwen3-14b"}},
-			},
-			DefaultProvider: "remote",
-			DefaultModel:    "qwen3-14b",
+			Packages:     []string{"npm:pi-subagents"},
+			OllamaModels: []string{"qwen2.5-coder:7b", "llama3.1:8b"},
+			DefaultModel: "qwen2.5-coder:7b",
 		}}
 
 		Expect(config.Save(path, cfg)).To(Succeed())
