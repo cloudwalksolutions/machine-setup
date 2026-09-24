@@ -26,7 +26,7 @@ func ShowPiInitForm(ollamaModels, packages []string, previous config.PiConfig) (
 	fields := []huh.Field{
 		huh.NewMultiSelect[string]().
 			Title("pi packages to install").
-			Description("Subagents, MCP adapter, web search, bigpowers skills, permission system, plannotator plan review, live todo overlay, pi-lens diagnostics, ponytail YAGNI. Space toggles, Enter confirms.").
+			Description("Subagents, MCP adapter, web search, bigpowers skills, permission system, plannotator plan review, live todo overlay, ponytail YAGNI, ask-user-question forms. Space toggles, Enter confirms.").
 			Options(pkgOptions...).
 			Value(&cfg.Packages),
 	}

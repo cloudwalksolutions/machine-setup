@@ -8,7 +8,7 @@
     "npm:@gotgenes/pi-permission-system",
     "npm:@plannotator/pi-extension",
     "npm:@juicesharp/rpiv-todo",
-    "npm:pi-lens",
-    "npm:@dietrichgebert/ponytail"
+    "npm:@dietrichgebert/ponytail",
+    "npm:@juicesharp/rpiv-ask-user-question"
   ]
 }
