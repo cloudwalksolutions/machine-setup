@@ -84,7 +84,7 @@ func ShowInstallForm(toolNames []string) ([]string, error) {
 		))
 	}
 
-	err := huh.NewForm(groups...).Run()
+	err := run(huh.NewForm(groups...))
 	if err != nil {
 		return nil, err
 	}

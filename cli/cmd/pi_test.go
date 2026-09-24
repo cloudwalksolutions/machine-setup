@@ -131,7 +131,7 @@ var _ = Describe("tars pi init (headless, temp HOME, fake pi and ollama on PATH)
 	}
 
 	It("provisions ~/.pi/agent, exposes the local ollama models, keeps other providers, installs only missing packages", func() {
-		Expect(run("pi", "init")).To(Succeed())
+		Expect(run("init", "pi")).To(Succeed())
 
 		Expect(filepath.Join(agent, "agents", "tars.md")).To(BeARegularFile())
 		Expect(filepath.Join(agent, "prompts", "tdd.md")).To(BeARegularFile())

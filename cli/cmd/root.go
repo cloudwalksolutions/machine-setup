@@ -34,13 +34,11 @@ func init() {
 		&cfgFile, "config", "",
 		"config file (default: ~/.config/tars/config.yaml; env: TARS_CONFIG_PATH)",
 	)
-	rootCmd.AddCommand(setupCmd)
+	rootCmd.AddCommand(initCmd)
 	rootCmd.AddCommand(pushCmd)
 	rootCmd.AddCommand(profilesCmd)
 	pullCmd.Flags().BoolVar(&pullDryRun, "dry-run", false,
 		"report the writes a pull would make, without changing anything")
 	rootCmd.AddCommand(pullCmd)
 	rootCmd.AddCommand(sessionsCmd)
-	rootCmd.AddCommand(claudeCmd)
-	rootCmd.AddCommand(piCmd)
 }

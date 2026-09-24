@@ -1,6 +1,6 @@
 # Makefile for tars.
 #
-# Machine provisioning is the `tars` CLI: tars setup | pull | push | sessions | profiles (see README).
+# Machine provisioning is the `tars` CLI: tars init | pull | push | sessions | profiles (see README).
 # This Makefile is for developing tars + the configs.
 #
 # Test layers:
@@ -17,7 +17,7 @@ CLI := cli
 
 .PHONY: help
 help:            ## Show this help
-	@echo 'Provisioning: `tars setup | pull | push | sessions | profiles` (see README). Dev targets:'
+	@echo 'Provisioning: `tars init | pull | push | sessions | profiles` (see README). Dev targets:'
 	@echo ''
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -56,8 +56,8 @@ e2e:             ## Full end-to-end in Docker (fresh-machine simulation)
 check: lint build test  ## Local gate: lint, build, then all tests
 
 .PHONY: run
-run: build       ## Build and run `tars setup`
-	$(CLI)/tars setup
+run: build       ## Build and run `tars init`
+	$(CLI)/tars init
 
 # Recording is staged under /tmp (symlink-resolved: Docker Desktop shares
 # /private but not home dirs like ~/Desktop, which macOS privacy blocks).

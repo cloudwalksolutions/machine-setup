@@ -19,7 +19,7 @@ Linux it is always a no-op.
   listed under `macos.tweaks` in the tars config.
 - `tars macos` (alias `m`) is the wizard: a huh multi-select over the registry
   with **nothing pre-checked** on first run (previously chosen tweaks pre-checked
-  on re-runs), saves the selection, then pulls the component. `tars setup` shows
+  on re-runs), saves the selection, then pulls the component. `tars init` shows
   the same form on darwin after the tool picker; `TARS_NO_FORM` selects nothing.
 - `tars macos list` (alias `l`) prints every tweak with `applied` / `pending` /
   `not selected`, computed by reading current values.

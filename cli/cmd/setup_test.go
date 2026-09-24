@@ -167,6 +167,10 @@ type fixture struct {
 	PullLog        []string
 	ComponentErrs  map[string]error
 
+	Wizards  *spyPicker
+	InitLog  []string
+	InitErrs map[string]error
+
 	Stdout *bytes.Buffer
 	Stderr *bytes.Buffer
 
@@ -184,6 +188,7 @@ func newFixture() *fixture {
 		ComponentNames: []string{"vim", "zsh", "byobu", "nvim", "fonts"},
 		InstallErrs:    map[string]error{},
 		ComponentErrs:  map[string]error{},
+		InitErrs:       map[string]error{},
 		Stdout:         &bytes.Buffer{},
 		Stderr:         &bytes.Buffer{},
 	}
@@ -214,6 +219,16 @@ func (f *fixture) assemble() {
 	}
 	f.Puller = &recordingPuller{components: comps, stderr: f.Stderr}
 
+	f.Wizards = &spyPicker{}
+	f.InitLog = []string{}
+	var inits []cmd.NamedInit
+	for _, name := range []string{"claude", "pi"} {
+		inits = append(inits, cmd.NamedInit{Name: name, Run: func() error {
+			f.InitLog = append(f.InitLog, fmt.Sprintf("%s(pulled=%d)", name, len(f.PullLog)))
+			return f.InitErrs[name]
+		}})
+	}
+
 	f.Setup = &cmd.Setup{
 		Welcome:   f.Welcome,
 		Picker:    f.Picker,
@@ -223,6 +238,8 @@ func (f *fixture) assemble() {
 		OhMyZsh:   f.OhMyZsh,
 		P10k:      f.P10k,
 		Pull:      f.Puller,
+		Wizards:   f.Wizards,
+		Inits:     inits,
 		Stdout:    f.Stdout,
 		Stderr:    f.Stderr,
 	}
@@ -325,6 +342,26 @@ var _ = Describe("Setup.Run", func() {
 	})
 
 	Describe("component pull", func() {
+		It("offers the agent wizards after the pull and runs only the picked ones, in order", func() {
+			f.Wizards.pick = []string{"pi"}
+
+			Expect(f.Setup.Run()).To(Succeed())
+
+			Expect(f.Wizards.offered).To(Equal([]string{"claude", "pi"}))
+			Expect(f.InitLog).To(Equal([]string{"pi(pulled=5)"}))
+		})
+
+		It("reports a failing wizard and still runs the next one", func() {
+			f.InitErrs = map[string]error{"claude": fmt.Errorf("no tty")}
+			f.assemble()
+			f.Wizards.pick = []string{"claude", "pi"}
+
+			Expect(f.Setup.Run()).To(Succeed())
+
+			Expect(f.InitLog).To(HaveLen(2))
+			Expect(f.Stderr.String()).To(ContainSubstring("claude: no tty"))
+		})
+
 		It("pulls each component in the documented order: vim, zsh, byobu, nvim, fonts", func() {
 			Expect(f.Setup.Run()).To(Succeed())
 			Expect(f.PullLog).To(Equal(f.ComponentNames))

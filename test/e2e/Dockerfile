@@ -67,12 +67,16 @@ RUN echo '{"autoMode":{"allow":["x"]}}' > "$HOME/.claude/settings.json" \
  && test "$(grep -c 'block-unreviewable-edits.sh' "$HOME/.claude/settings.json")" = "1" \
  && test -f "$HOME/.local/state/tars/backups/claude/v1/settings.json"
 
-# The init wizard runs headless and honors its choices on the next pull.
-RUN TARS_NO_FORM=1 tars claude init \
+# The init wizards run headless and honor their choices on the next pull; the project
+# init writes one AGENTS.md plus pointer files for claude and gemini.
+RUN TARS_NO_FORM=1 tars init claude \
  && grep -q 'rules:' "$HOME/.config/tars/config.yaml" \
- && mkdir -p "$HOME/proj" && TARS_NO_FORM=1 tars claude project "$HOME/proj" \
- && grep -q '^# CLAUDE.md' "$HOME/proj/CLAUDE.md" \
- && if TARS_NO_FORM=1 tars claude project "$HOME/proj" >/dev/null 2>&1; then echo 'expected refusal without --force' && exit 1; fi
+ && mkdir -p "$HOME/proj" && TARS_NO_FORM=1 tars init project "$HOME/proj" \
+ && grep -q '^# AGENTS.md' "$HOME/proj/AGENTS.md" \
+ && grep -q '^@AGENTS.md' "$HOME/proj/CLAUDE.md" \
+ && grep -q '^@./AGENTS.md' "$HOME/proj/GEMINI.md" \
+ && if TARS_NO_FORM=1 tars init project "$HOME/proj" >/dev/null 2>&1; then echo 'expected refusal without --force' && exit 1; fi \
+ && if tars setup >/dev/null 2>&1; then echo 'expected tars setup to be gone' && exit 1; fi
 
 # pi: agent, prompts, edit guard, permissions and AGENTS.md land from pull alone;
 # providers are never written without saved choices.

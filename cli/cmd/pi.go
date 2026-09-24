@@ -11,7 +11,7 @@ import (
 	"tars/internal/forms"
 )
 
-// PiAsker presents the `tars pi init` form.
+// PiAsker presents the `tars init pi` form.
 type PiAsker interface {
 	Ask() (config.PiConfig, error)
 }
@@ -22,7 +22,7 @@ type PiOps interface {
 	InstallPackages([]string) error
 }
 
-// PiInit orchestrates `tars pi init`: ask, persist the choices, then apply them.
+// PiInit orchestrates `tars init pi`: ask, persist the choices, then apply them.
 type PiInit struct {
 	Asker  PiAsker
 	Config ConfigStore
@@ -94,7 +94,7 @@ func (o componentPiOps) InstallPackages(p []string) error {
 	return o.with(o.opts.Pi).InstallPackages(p)
 }
 
-// NewPiInit wires the production `tars pi init`.
+// NewPiInit wires the production `tars init pi`.
 func NewPiInit(stdout, stderr io.Writer) (*PiInit, error) {
 	opts, err := buildOptions(stdout, stderr)
 	if err != nil {
@@ -110,23 +110,10 @@ func NewPiInit(stdout, stderr io.Writer) (*PiInit, error) {
 
 // ── Cobra commands ───────────────────────────────────────────────────────
 
-var piCmd = &cobra.Command{
-	Use:   "pi",
-	Short: "Provision the pi coding agent: baseline agent, prompts, edit guard, packages, providers",
-	Long: `Manage the pi coding agent the same way tars manages dotfiles.
-
-  init  choose packages and which local ollama models to expose, save the choices,
-        and apply them to ~/.pi/agent
-
-'tars pull' keeps the agent, prompts, extension, permissions and AGENTS.md in sync
-afterwards. Other model providers are configured in pi itself.`,
-}
-
 var piInitCmd = &cobra.Command{
-	Use:     "init",
-	Aliases: []string{"i"},
-	Short:   "Choose and apply the pi setup for this machine (alias: i)",
-	Args:    cobra.NoArgs,
+	Use:   "pi",
+	Short: "Choose packages and local ollama models for the pi coding agent and apply them to ~/.pi/agent",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		p, err := NewPiInit(cmd.OutOrStdout(), cmd.ErrOrStderr())
 		if err != nil {
@@ -137,8 +124,6 @@ var piInitCmd = &cobra.Command{
 }
 
 func init() {
-	for _, c := range []*cobra.Command{piCmd, piInitCmd} {
-		c.SilenceUsage = true
-	}
-	piCmd.AddCommand(piInitCmd)
+	piInitCmd.SilenceUsage = true
+	initCmd.AddCommand(piInitCmd)
 }

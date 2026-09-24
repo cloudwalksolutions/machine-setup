@@ -7,12 +7,13 @@ Guidance for Claude Code (claude.ai/code) when working in this repository.
 A dev-machine provisioning tool for macOS (primary) and Linux (incl. shared bastions). It goes
 from a fresh machine to a production-ready dev environment: dev tools, dotfiles
 (Neovim, Zsh, Byobu, Vim), fonts, and terminal settings, plus a declarative byobu
-session manager. The user-facing CLI is **`tars`** (Go, in `cli/`) with seven verbs:
-`setup`, `pull`, `push`, `sessions`, `profiles`, `claude`, `pi`.
+session manager. The user-facing CLI is **`tars`** (Go, in `cli/`) with five verbs:
+`init` (bootstrap; subcommands `init claude`, `init pi`, `init project`), `pull`, `push`,
+`sessions`, `profiles`.
 
 ## Core Philosophy
 
-- **One command to provision**: `tars setup` installs packages (brew on macOS,
+- **One command to provision**: `tars init` installs packages (brew on macOS,
   apt/tarball on Linux), oh-my-zsh, Powerlevel10k, then applies all configs.
   Day-to-day: `pull`/`push` sync configs, `sessions` opens byobu workspaces, `profiles`
   switches git/GitHub/SSH identity per project dir.

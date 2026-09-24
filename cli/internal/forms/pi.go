@@ -45,7 +45,7 @@ func ShowPiInitForm(ollamaModels, packages []string, previous config.PiConfig) (
 			Options(modelOptions...).
 			Value(&cfg.OllamaModels))
 	}
-	if err := huh.NewForm(huh.NewGroup(fields...)).Run(); err != nil {
+	if err := run(huh.NewForm(huh.NewGroup(fields...))); err != nil {
 		return cfg, err
 	}
 	if len(cfg.OllamaModels) == 0 {
@@ -61,8 +61,8 @@ func ShowPiInitForm(ollamaModels, packages []string, previous config.PiConfig) (
 	if !slices.Contains(cfg.OllamaModels, cfg.DefaultModel) {
 		cfg.DefaultModel = cfg.OllamaModels[0]
 	}
-	err := huh.NewForm(huh.NewGroup(
+	err := run(huh.NewForm(huh.NewGroup(
 		huh.NewSelect[string]().Title("Default model").Options(choices...).Value(&cfg.DefaultModel),
-	)).Run()
+	)))
 	return cfg, err
 }
