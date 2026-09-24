@@ -179,13 +179,14 @@ keys (model, theme, enabledPlugins, the hook entry) in `json.MarshalIndent` key 
 **pi**: `pi/` holds the shareable pieces (agent, prompts, the edit-guard extension that
 ports `claude/hooks/block-unreviewable-edits.sh` rule for rule, the permission baseline, a
 settings fragment with packages). `~/.pi/agent/AGENTS.md` is rendered from `claude/rules/`
-(one rule source for both agents). Model providers are **never** in the repo: `tars pi init`
-asks (ollama / llama.cpp / OpenAI-compatible), stores them under `pi:` in the tars config,
-renders `models.json` with `$ENV` key references, and stores a key the form collected as an
-export in `~/.zshrc_secret`. Only `init` shells out to `pi`/`ollama` (behind `Pi.Run`); `pull`
-writes files only; nothing is ever uninstalled. Design for an empty machine: detecting existing
-config to pre-fill the form is fine, code that only migrates one machine's state is not. Add a
-prompt by dropping `pi/prompts/<name>.md` and running `make sync-assets`.
+(one rule source for both agents). The only provider tars manages is local ollama: `init`
+asks which `ollama list` models to expose and the default, stores that under `pi:` in the tars
+config, and renders the `ollama` entry of `models.json`; every other provider, key and
+llama.cpp setup is pi's own business and is left untouched. Thinking is off by default. Only
+`init` shells out to `pi`/`ollama` (behind `Pi.Run`); `pull` writes files only; nothing is ever
+uninstalled. Design for an empty machine: detecting what the machine has to pre-fill the form
+is fine, code that only migrates one machine's state is not. Add a prompt by dropping
+`pi/prompts/<name>.md` and running `make sync-assets`.
 
 **Adding an installable tool**: edit the curated lists in
 `cli/internal/pkg/registry.go` (`darwinFormulas` / `darwinCasks` / `darwinTappedFormulas`

@@ -12,7 +12,7 @@ tools:
   - mcp
   - web_search
   - fetch_content
-thinking: high
+thinking: off
 inheritProjectContext: true
 ---
 
