@@ -89,6 +89,8 @@ var _ = Describe("ForOS Pi", func() {
 		Expect(p.Pi.PermissionsRepo).To(Equal(filepath.Join(repoRoot, "pi", "permissions.json")))
 		Expect(p.Pi.PermissionsLocal).To(Equal(filepath.Join(agent, "extensions", "pi-permission-system", "config.json")))
 		Expect(p.Pi.AgentsMDLocal).To(Equal(filepath.Join(agent, "AGENTS.md")))
+		Expect(p.Pi.KeybindingsRepo).To(Equal(filepath.Join(repoRoot, "pi", "keybindings.json")))
+		Expect(p.Pi.KeybindingsLocal).To(Equal(filepath.Join(agent, "keybindings.json")))
 	})
 })
 

@@ -9,6 +9,7 @@
     "npm:@plannotator/pi-extension",
     "npm:@juicesharp/rpiv-todo",
     "npm:@dietrichgebert/ponytail",
-    "npm:@juicesharp/rpiv-ask-user-question"
+    "npm:@juicesharp/rpiv-ask-user-question",
+    "npm:@pi-archimedes/image-paste"
   ]
 }

@@ -45,6 +45,7 @@ var _ = Describe("Pi.Pull", func() {
 		write("pi/prompts/pr.md", "PR")
 		write("pi/extensions/block-unreviewable-edits.ts", "EXT")
 		write("pi/permissions.json", `{"permission":{"*":"allow"}}`)
+		write("pi/keybindings.json", `{"app.clipboard.pasteImage":[]}`)
 		write("claude/rules/10-tdd.md", "## TDD\nred first\n")
 		write("claude/rules/60-simplicity.md", "## Simple\nyagni\n")
 
@@ -70,6 +71,18 @@ var _ = Describe("Pi.Pull", func() {
 		Expect(read(filepath.Join(agent, "prompts", "pr.md"))).To(Equal("PR"))
 		Expect(read(filepath.Join(agent, "extensions", "block-unreviewable-edits.ts"))).To(Equal("EXT"))
 		Expect(read(filepath.Join(agent, "extensions", "pi-permission-system", "config.json"))).To(Equal(`{"permission":{"*":"allow"}}`))
+	})
+
+	It("merges the keybindings fragment, keeping the user's own bindings", func() {
+		Expect(os.MkdirAll(agent, 0o755)).To(Succeed())
+		Expect(os.WriteFile(filepath.Join(agent, "keybindings.json"), []byte(`{"app.session.new":"ctrl+shift+n","app.clipboard.pasteImage":"ctrl+v"}`), 0o644)).To(Succeed())
+
+		Expect(components.NewPi(opts).Pull()).To(Succeed())
+
+		var got map[string]any
+		Expect(json.Unmarshal([]byte(read(filepath.Join(agent, "keybindings.json"))), &got)).To(Succeed())
+		Expect(got["app.session.new"]).To(Equal("ctrl+shift+n"))
+		Expect(got["app.clipboard.pasteImage"]).To(Equal([]any{}))
 	})
 
 	It("renders AGENTS.md from the shared rules, honoring the claude rule selection", func() {

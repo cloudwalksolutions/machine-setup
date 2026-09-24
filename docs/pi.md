@@ -14,7 +14,9 @@
    `@dietrichgebert/ponytail` (YAGNI decision ladder: reuse, stdlib and native features before
    new code; `/ponytail-review` flags over-engineering in diffs), `@juicesharp/rpiv-ask-user-question`
    (an `ask_user_question` tool: typed options, multi-select, free text; the agent asks through
-   it instead of prose, matching the working rules).
+   it instead of prose, matching the working rules), `@pi-archimedes/image-paste` (Ctrl+V pastes
+   a clipboard image into the prompt as `[Image #N]` for the model to see; the keybindings
+   fragment unbinds pi's built-in `app.clipboard.pasteImage` so the two do not collide).
 2. If a local `ollama` is installed, asks which of its models (`ollama list`) to expose to
    pi and which one is the default. That is the only provider tars manages: llama.cpp,
    remote endpoints and API keys are configured in pi itself (`/login`, `/models`,
@@ -36,6 +38,7 @@ uninstalls anything.
 | `prompts/tdd.md`, `plan.md`, `pr.md` | `pi/prompts/` — `/tdd`, `/plan`, `/pr` |
 | `extensions/block-unreviewable-edits.ts` | `pi/extensions/` — denies `sed -i`, interpreter writes, redirects onto source files |
 | `extensions/pi-permission-system/config.json` | `pi/permissions.json` — deny `rm -rf /`, force-push, writes to `~/.ssh`, `*.env` |
+| `keybindings.json` | merge: `pi/keybindings.json` actions overwrite (`[]` unbinds), your other bindings stay |
 | `AGENTS.md` | rendered from `claude/rules/*.md`, same selection as `tars claude init` |
 | `settings.json` | merge: `packages` unioned (fragment first), `defaultThinkingLevel: off`, your default ollama model |
 | `models.json` | the `ollama` provider with the chosen models; every other provider is kept as is |
