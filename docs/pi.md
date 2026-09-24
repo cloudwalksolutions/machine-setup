@@ -10,11 +10,11 @@
    `fetch_content`), `bigpowers` (skills pack), `@gotgenes/pi-permission-system`,
    `@plannotator/pi-extension` (plan mode with browser-side plan approval, `/plannotator-review`
    code review and markdown annotation UIs), `@juicesharp/rpiv-todo` (a `todo` tool and a
-   live task overlay that survives `/reload` and compaction; `/todos` lists them), `pi-lens`
-   (LSP diagnostics, linters, formatters and type-checking as the agent edits, `symbol_search`,
-   `/lens-map` dependency map; needs Node ≥ 22.19), `@dietrichgebert/ponytail` (YAGNI decision
-   ladder: reuse, stdlib and native features before new code; `/ponytail-review` flags
-   over-engineering in diffs).
+   live task overlay that survives `/reload` and compaction; `/todos` lists them),
+   `@dietrichgebert/ponytail` (YAGNI decision ladder: reuse, stdlib and native features before
+   new code; `/ponytail-review` flags over-engineering in diffs), `@juicesharp/rpiv-ask-user-question`
+   (an `ask_user_question` tool: typed options, multi-select, free text; the agent asks through
+   it instead of prose, matching the working rules).
 2. If a local `ollama` is installed, asks which of its models (`ollama list`) to expose to
    pi and which one is the default. That is the only provider tars manages: llama.cpp,
    remote endpoints and API keys are configured in pi itself (`/login`, `/models`,
