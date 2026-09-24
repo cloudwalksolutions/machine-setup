@@ -33,6 +33,8 @@ type PiPaths struct {
 	ExtensionLocal   string
 	PermissionsRepo  string
 	PermissionsLocal string
+	KeybindingsRepo  string
+	KeybindingsLocal string
 	AgentsMDLocal    string
 }
 
@@ -130,6 +132,8 @@ func piPaths(repoRoot, agent string) PiPaths {
 		ExtensionLocal:   filepath.Join(agent, "extensions", "block-unreviewable-edits.ts"),
 		PermissionsRepo:  filepath.Join(repoRoot, "pi", "permissions.json"),
 		PermissionsLocal: filepath.Join(agent, "extensions", "pi-permission-system", "config.json"),
+		KeybindingsRepo:  filepath.Join(repoRoot, "pi", "keybindings.json"),
+		KeybindingsLocal: filepath.Join(agent, "keybindings.json"),
 		AgentsMDLocal:    filepath.Join(agent, "AGENTS.md"),
 	}
 }

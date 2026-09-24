@@ -59,7 +59,27 @@ func (c *Pi) Pull() error {
 	if err := c.pullSettings(); err != nil {
 		return err
 	}
+	if err := c.pullKeybindings(); err != nil {
+		return err
+	}
 	return c.pullRules()
+}
+
+// pullKeybindings merges the fragment into ~/.pi/agent/keybindings.json: fragment
+// actions overwrite (an empty list unbinds), the user's other bindings stay.
+func (c *Pi) pullKeybindings() error {
+	fragment, err := loadSettings(c.p.KeybindingsRepo)
+	if err != nil {
+		return err
+	}
+	local, err := loadSettings(c.p.KeybindingsLocal)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	for k, v := range fragment {
+		local[k] = v
+	}
+	return local.save(c.p.KeybindingsLocal, c.Name(), c.opts.BackupRoot)
 }
 
 // Push copies the local agent, prompts, extension and permissions back to the

@@ -82,6 +82,7 @@ RUN test -f "$HOME/.pi/agent/agents/tars.md" \
  && test -f "$HOME/.pi/agent/extensions/pi-permission-system/config.json" \
  && grep -q '^# Working rules' "$HOME/.pi/agent/AGENTS.md" \
  && grep -q 'npm:pi-subagents' "$HOME/.pi/agent/settings.json" \
+ && grep -q '"app.clipboard.pasteImage": \[\]' "$HOME/.pi/agent/keybindings.json" \
  && test ! -e "$HOME/.pi/agent/models.json" \
  && tars pull >/dev/null \
  && test ! -e "$HOME/.local/state/tars/backups/pi"
