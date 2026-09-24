@@ -8,6 +8,9 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
+
 	"tars/internal/pkg"
 )
 
@@ -31,6 +34,9 @@ func NewInstaller(dir string, run func(stdout, stderr io.Writer) error) Installe
 // Name reports "rvm" for registry/log display.
 func (Installer) Name() string { return "rvm" }
 
+// Description returns the picker blurb.
+func (Installer) Description() string { return "Ruby Version Manager" }
+
 // Install runs the bootstrap if Dir does not exist; otherwise no-ops.
 func (i Installer) Install(stdout, stderr io.Writer) error {
 	if _, err := os.Stat(i.Dir); err == nil {
@@ -39,12 +45,13 @@ func (i Installer) Install(stdout, stderr io.Writer) error {
 	return i.Runner(stdout, stderr)
 }
 
-// Status returns the current installation status of RVM.
+// Status reports the version rvm records in <Dir>/VERSION once Dir exists.
 func (i Installer) Status() (pkg.InstallStatus, string, error) {
-	if _, err := os.Stat(i.Dir); err == nil {
-		return pkg.StatusUpToDate, "installed", nil
+	if _, err := os.Stat(i.Dir); err != nil {
+		return pkg.StatusNotInstalled, "", nil
 	}
-	return pkg.StatusNotInstalled, "", nil
+	raw, _ := os.ReadFile(filepath.Join(i.Dir, "VERSION"))
+	return pkg.StatusUpToDate, strings.TrimSpace(string(raw)), nil
 }
 
 // DefaultRunner returns the production Runner: a bash pipe of the official

@@ -46,7 +46,7 @@ The installer verifies the release checksum; override the directory with
 
 1. **Bootstrap the machine.**
    ```bash
-   tars init                  # interactive; or: TARS_NO_FORM=1 tars init  (installs everything)
+   tars init                  # interactive; or: TARS_NO_FORM=1 tars init  (installs what is missing)
    ```
    You get a tool checklist (Enter accepts all), brew or apt installs, oh-my-zsh and
    Powerlevel10k, then one line per config component. macOS asks for your password
@@ -68,7 +68,7 @@ The installer verifies the release checksum; override the directory with
 
 | Command | Alias | What it does |
 |---|---|---|
-| `tars init` | `i` | Full bootstrap: pick tools, install them, install oh-my-zsh + Powerlevel10k, apply all configs, then run the agent setups you pick |
+| `tars init` | `i` | Full bootstrap: pick tools (installed ones show their version and start unchecked), install them, install oh-my-zsh + Powerlevel10k, apply all configs, then run the agent setups you pick |
 | `tars pull` | | Apply configs only: no installs, no network. `--dry-run` previews |
 | `tars push` | | Capture local config edits back into a repo clone |
 | `tars sessions` | `s`, `by` | Open byobu sessions from a simple config |
@@ -246,7 +246,7 @@ gets a `CLAUDE.md` that imports it (`@AGENTS.md`), Gemini CLI a `GEMINI.md`
 | Variable | Effect |
 |---|---|
 | `TARS_REPO` | Use this clone as the config source (beats discovery) |
-| `TARS_NO_FORM` | Skip all TUIs: `setup` selects everything, pickers take the first entry. `p add` is interactive only |
+| `TARS_NO_FORM` | Skip all TUIs: `init` installs every tool not yet installed, pickers take the first entry. `p add` is interactive only |
 | `TARS_BACKUP_ROOT` | Backup location (default `~/.local/state/tars/backups`) |
 | `TARS_CONFIG_PATH` | Tool-selection config (default `~/.config/tars/config.yaml`) |
 | `TARS_SESSIONS_PATH` | Sessions file (default `~/.config/tars/sessions.yaml`) |

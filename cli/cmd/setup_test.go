@@ -43,6 +43,27 @@ func (s *spyPicker) Pick(offered []string) ([]string, error) {
 	return offered, nil
 }
 
+type spyInstallPicker struct {
+	offered []pkg.ToolInfo
+	pick    []string
+	err     error
+}
+
+func (s *spyInstallPicker) Pick(offered []pkg.ToolInfo) ([]string, error) {
+	s.offered = offered
+	if s.err != nil {
+		return nil, s.err
+	}
+	if s.pick != nil {
+		return s.pick, nil
+	}
+	names := make([]string, len(offered))
+	for i, t := range offered {
+		names[i] = t.Name
+	}
+	return names, nil
+}
+
 type memConfigStore struct {
 	path string
 	cfg  *config.Config
@@ -63,12 +84,12 @@ func (s *memConfigStore) Path() string                { return s.path }
 type fixedRegistry struct{ tools []pkg.Installable }
 
 func (r *fixedRegistry) Installables() []pkg.Installable { return r.tools }
-func (r *fixedRegistry) Names() []string {
-	names := make([]string, len(r.tools))
+func (r *fixedRegistry) Catalog() []pkg.ToolInfo {
+	infos := make([]pkg.ToolInfo, len(r.tools))
 	for i, t := range r.tools {
-		names[i] = t.Name()
+		infos[i] = pkg.ToolInfo{Name: t.Name(), Description: t.Description()}
 	}
-	return names
+	return infos
 }
 
 type spyInstallable struct {
@@ -77,7 +98,8 @@ type spyInstallable struct {
 	err  error
 }
 
-func (s *spyInstallable) Name() string { return s.name }
+func (s *spyInstallable) Name() string        { return s.name }
+func (s *spyInstallable) Description() string { return "about " + s.name }
 func (s *spyInstallable) Install(_, _ io.Writer) error {
 	*s.log = append(*s.log, s.name)
 	return s.err
@@ -152,7 +174,7 @@ func (p *recordingPuller) PullAll() error {
 // directly via the exported fields after calling Run().
 type fixture struct {
 	Welcome   *spyWelcome
-	Picker    *spyPicker
+	Picker    *spyInstallPicker
 	Config    *memConfigStore
 	Installer *recordingInstaller
 	OhMyZsh   *spyInstaller
@@ -200,7 +222,7 @@ func newFixture() *fixture {
 // ComponentErrs to pick up the new error config.
 func (f *fixture) assemble() {
 	f.Welcome = &spyWelcome{}
-	f.Picker = &spyPicker{}
+	f.Picker = &spyInstallPicker{}
 	f.Config = newMemConfigStore(filepath.Join(GinkgoT().TempDir(), "config.yaml"))
 	f.OhMyZsh = &spyInstaller{}
 	f.P10k = &spyInstaller{}
@@ -260,9 +282,10 @@ var _ = Describe("Setup.Run", func() {
 	})
 
 	Describe("tool picker", func() {
-		It("offers the registry's names to the picker", func() {
+		It("offers the registry's catalog to the picker", func() {
 			Expect(f.Setup.Run()).To(Succeed())
-			Expect(f.Picker.offered).To(Equal(f.InstallableNames))
+			Expect(f.Picker.offered).To(HaveLen(len(f.InstallableNames)))
+			Expect(f.Picker.offered[0]).To(Equal(pkg.ToolInfo{Name: "neovim", Description: "about neovim"}))
 		})
 	})
 
@@ -395,12 +418,12 @@ var _ = Describe("Setup.Run", func() {
 	})
 
 	Describe("post-setup next steps", func() {
-		It("prints the rustup, ghcup, and powerlevel10k hints", func() {
+		It("prints only the powerlevel10k hint; toolchains are bootstrapped by their installs", func() {
 			Expect(f.Setup.Run()).To(Succeed())
 			out := f.Stdout.String()
-			Expect(out).To(ContainSubstring("rustup install stable"))
-			Expect(out).To(ContainSubstring("ghcup tui"))
 			Expect(out).To(ContainSubstring("Powerlevel10k"))
+			Expect(out).NotTo(ContainSubstring("rustup"))
+			Expect(out).NotTo(ContainSubstring("ghcup"))
 		})
 	})
 })
