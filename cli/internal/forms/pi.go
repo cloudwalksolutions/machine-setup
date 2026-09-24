@@ -44,7 +44,7 @@ func ShowPiInitForm(d PiDetected, packages []string) (config.PiConfig, error) {
 	groups := []*huh.Group{huh.NewGroup(
 		huh.NewMultiSelect[string]().
 			Title("pi packages to install").
-			Description("Subagents, MCP adapter, web search, bigpowers skills, permission system. Space toggles, Enter confirms.").
+			Description("Subagents, MCP adapter, web search, bigpowers skills, permission system, plannotator plan review. Space toggles, Enter confirms.").
 			Options(pkgOptions...).
 			Value(&cfg.Packages),
 		huh.NewMultiSelect[string]().

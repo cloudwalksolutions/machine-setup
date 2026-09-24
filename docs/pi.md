@@ -7,7 +7,9 @@
 
 1. Asks which packages to install (all pre-checked): `pi-subagents` (agent files + the
    `subagent` tool), `pi-mcp-adapter` (MCP servers), `pi-web-access` (`web_search`,
-   `fetch_content`), `bigpowers` (skills pack), `@gotgenes/pi-permission-system`.
+   `fetch_content`), `bigpowers` (skills pack), `@gotgenes/pi-permission-system`,
+   `@plannotator/pi-extension` (plan mode with browser-side plan approval, `/plannotator-review`
+   code review and markdown annotation UIs).
 2. Asks whether to remove `gentle-pi` if it is installed. It injects its own persona and
    rewrites `~/.pi/agent` at startup, which conflicts with a curated agent; its files are
    backed up under `~/.local/state/tars/backups/pi/` before removal.
