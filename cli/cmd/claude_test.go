@@ -102,67 +102,6 @@ func (s *spyProjectAsker) Ask(defaultName string) (forms.ProjectAnswers, error) 
 	return s.answer, s.err
 }
 
-var _ = Describe("ClaudeProject.Run", func() {
-	var (
-		tmp     string
-		dir     string
-		project *cmd.ClaudeProject
-	)
-
-	BeforeEach(func() {
-		tmp = GinkgoT().TempDir()
-		dir = filepath.Join(tmp, "my-app")
-		Expect(os.MkdirAll(dir, 0o755)).To(Succeed())
-		tpl := filepath.Join(tmp, "CLAUDE.project.md")
-		Expect(os.WriteFile(tpl, []byte("# {{.Name}}\n\n{{.Description}}\n\n```\n{{.TestCommand}}\n```\n"), 0o644)).To(Succeed())
-		project = &cmd.ClaudeProject{
-			Asker:      &spyProjectAsker{answer: forms.ProjectAnswers{Description: "Does things", TestCommand: "make test"}},
-			Template:   tpl,
-			BackupRoot: filepath.Join(tmp, "backups"),
-			Stdout:     &bytes.Buffer{},
-		}
-	})
-
-	It("renders the template into <dir>/CLAUDE.md, defaulting the name to the dir's basename", func() {
-		Expect(project.Run(dir)).To(Succeed())
-
-		b, err := os.ReadFile(filepath.Join(dir, "CLAUDE.md"))
-		Expect(err).NotTo(HaveOccurred())
-		Expect(string(b)).To(Equal("# my-app\n\nDoes things\n\n```\nmake test\n```\n"))
-	})
-
-	It("refuses to overwrite an existing CLAUDE.md unless forced", func() {
-		existing := filepath.Join(dir, "CLAUDE.md")
-		Expect(os.WriteFile(existing, []byte("KEEP"), 0o644)).To(Succeed())
-
-		err := project.Run(dir)
-
-		Expect(err).To(MatchError(ContainSubstring("--force")))
-		b, _ := os.ReadFile(existing)
-		Expect(string(b)).To(Equal("KEEP"))
-	})
-
-	It("fails when the template is missing", func() {
-		project.Template = filepath.Join(tmp, "nope.md")
-
-		Expect(project.Run(dir)).NotTo(Succeed())
-		Expect(filepath.Join(dir, "CLAUDE.md")).NotTo(BeAnExistingFile())
-	})
-
-	It("backs up the existing CLAUDE.md under claude-project before overwriting when forced", func() {
-		Expect(os.WriteFile(filepath.Join(dir, "CLAUDE.md"), []byte("OLD"), 0o644)).To(Succeed())
-		project.Force = true
-
-		Expect(project.Run(dir)).To(Succeed())
-
-		b, err := os.ReadFile(filepath.Join(project.BackupRoot, "claude-project", "v1", "CLAUDE.md"))
-		Expect(err).NotTo(HaveOccurred())
-		Expect(string(b)).To(Equal("OLD"))
-		b, _ = os.ReadFile(filepath.Join(dir, "CLAUDE.md"))
-		Expect(string(b)).To(HavePrefix("# my-app"))
-	})
-})
-
 var _ = Describe("LoadClaudeConfig", func() {
 	It("returns the saved claude section from the config file", func() {
 		path := filepath.Join(GinkgoT().TempDir(), "config.yaml")
@@ -205,7 +144,7 @@ var _ = Describe("tars claude (headless, temp HOME)", func() {
 	}
 
 	It("init provisions ~/.claude with every rule and records the choices", func() {
-		Expect(run("claude", "init")).To(Succeed())
+		Expect(run("init", "claude")).To(Succeed())
 
 		Expect(filepath.Join(home, ".claude", "hooks", "block-unreviewable-edits.sh")).To(BeARegularFile())
 		Expect(filepath.Join(home, ".claude", "settings.json")).To(BeARegularFile())
@@ -217,18 +156,20 @@ var _ = Describe("tars claude (headless, temp HOME)", func() {
 		Expect(string(cfg)).To(ContainSubstring("20-prs-and-ci"))
 	})
 
-	It("project scaffolds CLAUDE.md and refuses a second run without --force", func() {
+	It("init project scaffolds AGENTS.md plus the claude and gemini pointers, and refuses a second run without --force", func() {
 		dir := filepath.Join(home, "proj")
 		Expect(os.MkdirAll(dir, 0o755)).To(Succeed())
 
-		Expect(run("claude", "project", dir)).To(Succeed())
-		b, err := os.ReadFile(filepath.Join(dir, "CLAUDE.md"))
+		Expect(run("init", "project", dir)).To(Succeed())
+		b, err := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(string(b)).To(ContainSubstring("working in proj."))
+		Expect(filepath.Join(dir, "CLAUDE.md")).To(BeARegularFile())
+		Expect(filepath.Join(dir, "GEMINI.md")).To(BeARegularFile())
 
-		Expect(run("claude", "project", dir)).To(MatchError(ContainSubstring("--force")))
-		Expect(run("claude", "project", "--force", dir)).To(Succeed())
-		Expect(filepath.Join(home, "backups", "claude-project", "v1", "CLAUDE.md")).To(BeARegularFile())
+		Expect(run("init", "project", dir)).To(MatchError(ContainSubstring("--force")))
+		Expect(run("init", "project", "--force", dir)).To(Succeed())
+		Expect(filepath.Join(home, "backups", "project", "v1", "AGENTS.md")).To(BeARegularFile())
 	})
 })
 
@@ -248,12 +189,12 @@ var _ = Describe("claude composition roots", func() {
 		Expect(c.Rules).To(ContainElements("10-tdd", "90-reviewable-edits"))
 	})
 
-	It("NewClaudeProject points at the repo template", func() {
-		p, err := cmd.NewClaudeProject(&bytes.Buffer{}, &bytes.Buffer{}, true)
+	It("NewProjectInit points at the repo template", func() {
+		p, err := cmd.NewProjectInit(&bytes.Buffer{}, &bytes.Buffer{}, true)
 
 		Expect(err).NotTo(HaveOccurred())
 		Expect(p.Asker).NotTo(BeNil())
 		Expect(p.Force).To(BeTrue())
-		Expect(p.Template).To(HaveSuffix(filepath.Join("claude", "templates", "CLAUDE.project.md")))
+		Expect(p.Template).To(HaveSuffix(filepath.Join("claude", "templates", "AGENTS.project.md")))
 	})
 })

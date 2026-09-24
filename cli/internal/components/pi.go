@@ -2,10 +2,10 @@ package components
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"tars/internal/config"
@@ -14,13 +14,12 @@ import (
 
 // Pi provisions the pi coding agent: the baseline agent, prompts, the edit
 // guard extension, permissions, a settings fragment, and AGENTS.md rendered
-// from the shared rules. Providers are rendered from config, never from the repo.
+// from the shared rules. The only provider tars manages is local ollama.
 type Pi struct {
-	opts   Options
-	cfg    config.PiConfig
-	p      paths.PiPaths
-	rules  string
-	secret string
+	opts  Options
+	cfg   config.PiConfig
+	p     paths.PiPaths
+	rules string
 
 	// Run executes an external command (pi, ollama); the seam tests replace.
 	Run func(name string, args ...string) (string, error)
@@ -29,114 +28,12 @@ type Pi struct {
 // NewPi builds the component from opts, including the `tars pi init` choices.
 func NewPi(opts Options) *Pi {
 	all := paths.For(opts.RepoRoot, opts.Home)
-	return &Pi{opts: opts, cfg: opts.Pi, p: all.Pi, rules: all.Claude.RulesRepo, secret: all.Zsh.SecretLocal, Run: defaultRun}
+	return &Pi{opts: opts, cfg: opts.Pi, p: all.Pi, rules: all.Claude.RulesRepo, Run: defaultRun}
 }
 
 func defaultRun(name string, args ...string) (string, error) {
 	out, err := exec.Command(name, args...).CombinedOutput()
 	return string(out), err
-}
-
-// Packages lists the packages the repo fragment installs.
-func (c *Pi) Packages() []string {
-	fragment, err := loadSettings(c.p.SettingsRepo)
-	if err != nil {
-		return nil
-	}
-	return fragment.strings("packages")
-}
-
-// DetectProviders reads the existing models.json into PiProvider entries so the
-// init form can pre-fill them; a localhost:11434 base URL means ollama.
-func (c *Pi) DetectProviders() []config.PiProvider {
-	models, err := loadSettings(c.p.ModelsLocal)
-	if err != nil {
-		return nil
-	}
-	providers, _ := models["providers"].(map[string]any)
-	var out []config.PiProvider
-	for name, raw := range providers {
-		entry, _ := raw.(map[string]any)
-		baseURL, _ := entry["baseUrl"].(string)
-		p := config.PiProvider{Name: name, Kind: "openai", BaseURL: baseURL, KeyEnv: config.KeyEnvFor(name)}
-		if strings.Contains(baseURL, "localhost:11434") {
-			p.Kind, p.KeyEnv = "ollama", ""
-		}
-		list, _ := entry["models"].([]any)
-		for _, m := range list {
-			if mm, ok := m.(map[string]any); ok {
-				if id, ok := mm["id"].(string); ok {
-					p.Models = append(p.Models, id)
-				}
-			}
-		}
-		out = append(out, p)
-	}
-	return out
-}
-
-// OllamaModels returns the model names a local ollama reports; empty when ollama is absent.
-func (c *Pi) OllamaModels() []string {
-	out, err := c.Run("ollama", "list")
-	if err != nil {
-		return nil
-	}
-	var names []string
-	for i, line := range strings.Split(strings.TrimSpace(out), "\n") {
-		fields := strings.Fields(line)
-		if i == 0 || len(fields) == 0 {
-			continue
-		}
-		names = append(names, fields[0])
-	}
-	return names
-}
-
-// InstallPackages runs `pi install` for each selected package `pi list` does not show.
-func (c *Pi) InstallPackages(selected []string) error {
-	listed, err := c.Run("pi", "list")
-	if err != nil {
-		return fmt.Errorf("pi list: %w", err)
-	}
-	for _, src := range selected {
-		if strings.Contains(listed, src) {
-			continue
-		}
-		fmt.Fprintf(c.opts.Stdout, "  installing %s\n", src)
-		if out, err := c.Run("pi", "install", src); err != nil {
-			return fmt.Errorf("pi install %s: %w\n%s", src, err, out)
-		}
-	}
-	return nil
-}
-
-// StoreKeys appends API keys to ~/.zshrc_secret as exports so models.json can
-// reference them as $VAR; variables already present are left untouched.
-func (c *Pi) StoreKeys(keys map[string]string) error {
-	names := make([]string, 0, len(keys))
-	for name := range keys {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	for _, name := range names {
-		if err := c.appendSecret(name, keys[name]); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// appendSecret adds an export line to ~/.zshrc_secret unless the variable is already there.
-func (c *Pi) appendSecret(name, value string) error {
-	existing, err := os.ReadFile(c.secret)
-	if err != nil && !os.IsNotExist(err) {
-		return err
-	}
-	if strings.Contains(string(existing), "export "+name+"=") {
-		return nil
-	}
-	content := append(existing, []byte(fmt.Sprintf("export %s=\"%s\"\n", name, value))...)
-	return c.opts.copier().SafeWrite(content, 0o600, c.secret, c.Name(), c.opts.BackupRoot)
 }
 
 func (c *Pi) Name() string { return "pi" }
@@ -163,7 +60,25 @@ func (c *Pi) Pull() error {
 	if err := c.pullSettings(); err != nil {
 		return err
 	}
+	if err := c.pullKeybindings(); err != nil {
+		return err
+	}
 	return c.pullRules()
+}
+
+// pullKeybindings merges the fragment into ~/.pi/agent/keybindings.json: fragment
+// actions overwrite (an empty list unbinds), the user's other bindings stay.
+func (c *Pi) pullKeybindings() error {
+	fragment, err := loadSettings(c.p.KeybindingsRepo)
+	if err != nil {
+		return err
+	}
+	local, err := loadSettings(c.p.KeybindingsLocal)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	maps.Copy(local, fragment)
+	return local.save(c.p.KeybindingsLocal, c.Name(), c.opts.BackupRoot)
 }
 
 // Push copies the local agent, prompts, extension and permissions back to the
@@ -212,16 +127,9 @@ func (c *Pi) pullSettings() error {
 		}
 	}
 	local["packages"] = unionStrings(fragment.strings("packages"), local.strings("packages"))
-	if c.cfg.DefaultProvider != "" {
-		local["defaultProvider"] = c.cfg.DefaultProvider
-	}
 	if c.cfg.DefaultModel != "" {
+		local["defaultProvider"] = "ollama"
 		local["defaultModel"] = c.cfg.DefaultModel
-	}
-	for _, p := range c.cfg.Providers {
-		if p.Kind == "llamacpp" {
-			local["llamaServerUrl"] = p.BaseURL
-		}
 	}
 	if err := local.save(c.p.SettingsLocal, c.Name(), c.opts.BackupRoot); err != nil {
 		return err
@@ -229,10 +137,9 @@ func (c *Pi) pullSettings() error {
 	return c.pullModels()
 }
 
-// pullModels upserts the configured providers into models.json by name; local-only
-// providers stay. Keys are env references, never literals.
+// pullModels upserts the ollama provider into models.json; other providers stay.
 func (c *Pi) pullModels() error {
-	if len(c.cfg.Providers) == 0 {
+	if len(c.cfg.OllamaModels) == 0 {
 		return nil
 	}
 	models, err := loadSettings(c.p.ModelsLocal)
@@ -243,33 +150,13 @@ func (c *Pi) pullModels() error {
 	if providers == nil {
 		providers = map[string]any{}
 	}
-	changed := false
-	for _, p := range c.cfg.Providers {
-		if entry := providerEntry(p); entry != nil {
-			providers[p.Name] = entry
-			changed = true
-		}
-	}
-	if !changed {
-		return nil
-	}
-	models["providers"] = providers
-	return models.save(c.p.ModelsLocal, c.Name(), c.opts.BackupRoot)
-}
-
-// providerEntry renders one models.json provider; llama.cpp has none (pi-llama-cpp registers it).
-func providerEntry(p config.PiProvider) map[string]any {
-	ids := make([]any, 0, len(p.Models))
-	for _, id := range p.Models {
+	ids := make([]any, 0, len(c.cfg.OllamaModels))
+	for _, id := range c.cfg.OllamaModels {
 		ids = append(ids, map[string]any{"id": id})
 	}
-	switch p.Kind {
-	case "ollama":
-		return map[string]any{"baseUrl": "http://localhost:11434/v1", "api": "openai-completions", "apiKey": "ollama", "models": ids}
-	case "openai":
-		return map[string]any{"baseUrl": p.BaseURL, "api": "openai-completions", "apiKey": "$" + p.KeyEnv, "models": ids}
-	}
-	return nil
+	providers["ollama"] = map[string]any{"baseUrl": "http://localhost:11434/v1", "api": "openai-completions", "apiKey": "ollama", "models": ids}
+	models["providers"] = providers
+	return models.save(c.p.ModelsLocal, c.Name(), c.opts.BackupRoot)
 }
 
 func unionStrings(first, second []string) []any {
@@ -293,4 +180,48 @@ func (c *Pi) pullRules() error {
 		return err
 	}
 	return c.opts.copier().SafeWrite(content, 0o644, c.p.AgentsMDLocal, c.Name(), c.opts.BackupRoot)
+}
+
+// Packages lists the packages the repo fragment installs.
+func (c *Pi) Packages() []string {
+	fragment, err := loadSettings(c.p.SettingsRepo)
+	if err != nil {
+		return nil
+	}
+	return fragment.strings("packages")
+}
+
+// OllamaModels returns the model names a local ollama reports; empty when ollama is absent.
+func (c *Pi) OllamaModels() []string {
+	out, err := c.Run("ollama", "list")
+	if err != nil {
+		return nil
+	}
+	var names []string
+	for i, line := range strings.Split(strings.TrimSpace(out), "\n") {
+		fields := strings.Fields(line)
+		if i == 0 || len(fields) == 0 {
+			continue
+		}
+		names = append(names, fields[0])
+	}
+	return names
+}
+
+// InstallPackages runs `pi install` for each selected package `pi list` does not show.
+func (c *Pi) InstallPackages(selected []string) error {
+	listed, err := c.Run("pi", "list")
+	if err != nil {
+		return fmt.Errorf("pi list: %w", err)
+	}
+	for _, src := range selected {
+		if strings.Contains(listed, src) {
+			continue
+		}
+		fmt.Fprintf(c.opts.Stdout, "  installing %s\n", src)
+		if out, err := c.Run("pi", "install", src); err != nil {
+			return fmt.Errorf("pi install %s: %w\n%s", src, err, out)
+		}
+	}
+	return nil
 }

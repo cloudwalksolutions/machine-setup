@@ -51,7 +51,7 @@ func Load(path, home string) (File, error) {
 		if p.FullName == "" {
 			p.FullName = f.FullName
 		}
-		if err := p.validate(); err != nil {
+		if err := p.Validate(); err != nil {
 			return File{}, err
 		}
 		if names[p.Name] || aliases[p.Alias] {
@@ -63,7 +63,8 @@ func Load(path, home string) (File, error) {
 	return f, nil
 }
 
-func (p Profile) validate() error {
+// Validate reports the first missing or malformed field of a resolved profile.
+func (p Profile) Validate() error {
 	for _, id := range []string{p.Name, p.Alias} {
 		if !identifierRe.MatchString(id) {
 			return fmt.Errorf("invalid profile identifier %q: use lowercase letters, digits, '-' or '_'", id)
@@ -74,6 +75,9 @@ func (p Profile) validate() error {
 	}
 	if p.GitHub == "" {
 		return fmt.Errorf("profile %q has no github user", p.Alias)
+	}
+	if p.FullName == "" {
+		return fmt.Errorf("profile %q has no full_name (set it per profile or at the top level)", p.Alias)
 	}
 	return nil
 }

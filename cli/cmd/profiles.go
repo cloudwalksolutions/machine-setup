@@ -124,11 +124,22 @@ func (p *Profiles) Edit() error {
 
 // Add prompts for a new profile, appends it to the config, and re-renders.
 func (p *Profiles) Add() error {
+	f, err := p.Store.Load()
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
 	prof, err := p.Prompt(profiles.Profile{})
 	if err != nil {
 		if err.Error() == "user aborted" {
 			return nil
 		}
+		return err
+	}
+	resolved := prof
+	if resolved.FullName == "" {
+		resolved.FullName = f.FullName
+	}
+	if err := resolved.Validate(); err != nil {
 		return err
 	}
 	if err := p.Store.Append(prof); err != nil {

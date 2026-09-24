@@ -12,10 +12,10 @@ func ShowWelcome() error {
 	if os.Getenv("TARS_NO_FORM") != "" {
 		return nil
 	}
-	return huh.NewForm(
+	return run(huh.NewForm(
 		huh.NewGroup(
 			huh.NewNote().
-				Title("tars — Machine Setup").
+				Title("tars — dev-machine setup").
 				Description(
 					"Welcome to tars!\n\n" +
 						"This tool will initialize your development environment\n" +
@@ -25,5 +25,5 @@ func ShowWelcome() error {
 				Next(true).
 				NextLabel("Continue"),
 		),
-	).Run()
+	))
 }

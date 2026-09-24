@@ -1,6 +1,6 @@
 # pi with tars
 
-`tars pi init` turns a machine with [pi](https://pi.dev) installed into one running the
+`tars init pi` turns a machine with [pi](https://pi.dev) installed into one running the
 `tars` baseline agent with the basics, and configures model providers from a form.
 
 ## What init does
@@ -10,24 +10,22 @@
    `fetch_content`), `bigpowers` (skills pack), `@gotgenes/pi-permission-system`,
    `@plannotator/pi-extension` (plan mode with browser-side plan approval, `/plannotator-review`
    code review and markdown annotation UIs), `@juicesharp/rpiv-todo` (a `todo` tool and a
-   live task overlay that survives `/reload` and compaction; `/todos` lists them), `pi-lens`
-   (LSP diagnostics, linters, formatters and type-checking as the agent edits, `symbol_search`,
-   `/lens-map` dependency map; needs Node ≥ 22.19), `@dietrichgebert/ponytail` (YAGNI decision
-   ladder: reuse, stdlib and native features before new code; `/ponytail-review` flags
-   over-engineering in diffs).
-2. Asks which model providers to configure, pre-filled from any existing `models.json`
-   and a running `ollama`:
-   - **ollama**: `http://localhost:11434/v1`, pick the models to expose.
-   - **llama.cpp**: server URL; `pi-llama-cpp` registers the provider from the running
-     `llama-server`, pick a model with `/models` inside pi.
-   - **OpenAI-compatible endpoint**: name, base URL, model ids, and the env var that holds
-     the key. If that variable is not exported yet, the form asks for the key and init
-     stores it as an `export` in `~/.zshrc_secret`; `models.json` only ever holds `$THAT_VAR`.
-3. Saves the choices under `pi:` in `~/.config/tars/config.yaml`, pulls the files, installs
-   the missing packages, and prints what to do next (usually `exec zsh`).
+   live task overlay that survives `/reload` and compaction; `/todos` lists them),
+   `@dietrichgebert/ponytail` (YAGNI decision ladder: reuse, stdlib and native features before
+   new code; `/ponytail-review` flags over-engineering in diffs), `@juicesharp/rpiv-ask-user-question`
+   (an `ask_user_question` tool: typed options, multi-select, free text; the agent asks through
+   it instead of prose, matching the working rules), `@pi-archimedes/image-paste` (Ctrl+V pastes
+   a clipboard image into the prompt as `[Image #N]` for the model to see; the keybindings
+   fragment unbinds pi's built-in `app.clipboard.pasteImage` so the two do not collide).
+2. If a local `ollama` is installed, asks which of its models (`ollama list`) to expose to
+   pi and which one is the default. That is the only provider tars manages: llama.cpp,
+   remote endpoints and API keys are configured in pi itself (`/login`, `/models`,
+   `~/.pi/agent/models.json`) and are left untouched.
+3. Saves the choices under `pi:` in `~/.config/tars/config.yaml`, pulls the files, and
+   installs the missing packages.
 
-`TARS_NO_FORM=1 tars pi init` takes every default: all packages, the detected providers, no
-default model pinned, no secrets written.
+`TARS_NO_FORM=1 tars init pi` takes every default: all packages, every ollama model, no
+default pinned.
 
 Packages you no longer want are yours to remove (`pi remove npm:<name>`); tars never
 uninstalls anything.
@@ -36,17 +34,18 @@ uninstalls anything.
 
 | Path | Source |
 |---|---|
-| `agents/tars.md` | `pi/agents/tars.md` — tools allowlist, `thinking: high`, TDD/PR contract |
+| `agents/tars.md` | `pi/agents/tars.md` — tools allowlist, thinking off, TDD/PR contract |
 | `prompts/tdd.md`, `plan.md`, `pr.md` | `pi/prompts/` — `/tdd`, `/plan`, `/pr` |
 | `extensions/block-unreviewable-edits.ts` | `pi/extensions/` — denies `sed -i`, interpreter writes, redirects onto source files |
 | `extensions/pi-permission-system/config.json` | `pi/permissions.json` — deny `rm -rf /`, force-push, writes to `~/.ssh`, `*.env` |
-| `AGENTS.md` | rendered from `claude/rules/*.md`, same selection as `tars claude init` |
-| `settings.json` | merge: `packages` unioned (fragment first), `defaultThinkingLevel`, your default provider/model |
-| `models.json` | rendered from the saved providers; local-only providers are kept |
+| `keybindings.json` | merge: `pi/keybindings.json` actions overwrite (`[]` unbinds), your other bindings stay |
+| `AGENTS.md` | rendered from `claude/rules/*.md`, same selection as `tars init claude` |
+| `settings.json` | merge: `packages` unioned (fragment first), `defaultThinkingLevel: off`, your default ollama model |
+| `models.json` | the `ollama` provider with the chosen models; every other provider is kept as is |
 
 `tars pull` keeps all of it in sync afterwards; `tars push` carries edits to the agent,
-prompts, extension and permissions back into the repo. Providers and `models.json` never
-move in either direction.
+prompts, extension and permissions back into the repo. `models.json` never moves in
+either direction.
 
 ## Adding MCP servers
 

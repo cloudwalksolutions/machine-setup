@@ -9,5 +9,5 @@ import (
 
 func TestSetupSuite(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Machine Setup CLI Suite")
+	RunSpecs(t, "tars cmd Suite")
 }

@@ -8,8 +8,10 @@ import (
 	"tars/internal/config"
 )
 
-// ProjectAnswers fills the per-project CLAUDE.md template.
+// ProjectAnswers fills the per-project AGENTS.md template; Agents picks which
+// tools get a pointer file (claude, gemini; pi reads AGENTS.md natively).
 type ProjectAnswers struct {
+	Agents      []string
 	Name        string
 	Description string
 	TestCommand string
@@ -30,7 +32,7 @@ func ShowClaudeInitForm(rules []string) (config.ClaudeConfig, error) {
 	for i, r := range rules {
 		options[i] = huh.NewOption(r, r).Selected(true)
 	}
-	err := huh.NewForm(
+	err := run(huh.NewForm(
 		huh.NewGroup(
 			huh.NewConfirm().
 				Title("Install the edit-blocking hook?").
@@ -46,23 +48,40 @@ func ShowClaudeInitForm(rules []string) (config.ClaudeConfig, error) {
 				Options(options...).
 				Value(&selected),
 		),
-	).Run()
+	))
 	return config.ClaudeConfig{Hook: &hook, Settings: &settings, Rules: selected}, err
 }
 
-// ShowClaudeProjectForm asks for the values the project CLAUDE.md template
-// needs. When TARS_NO_FORM=1 it returns placeholders.
-func ShowClaudeProjectForm(defaultName string) (ProjectAnswers, error) {
-	a := ProjectAnswers{Name: defaultName, Description: "TODO: one paragraph on what this project is.", TestCommand: "make test"}
+// projectAgents are the tools `tars init project` can wire to AGENTS.md.
+var projectAgents = []string{"claude", "pi", "gemini"}
+
+// ShowProjectForm asks which agents the project targets and the values the
+// AGENTS.md template needs. When TARS_NO_FORM=1 it picks every agent and placeholders.
+func ShowProjectForm(defaultName string) (ProjectAnswers, error) {
+	a := ProjectAnswers{
+		Agents:      append([]string{}, projectAgents...),
+		Name:        defaultName,
+		Description: "TODO: one paragraph on what this project is.",
+		TestCommand: "make test",
+	}
 	if os.Getenv("TARS_NO_FORM") != "" {
 		return a, nil
 	}
-	err := huh.NewForm(
+	options := make([]huh.Option[string], len(projectAgents))
+	for i, agent := range projectAgents {
+		options[i] = huh.NewOption(agent, agent).Selected(true)
+	}
+	err := run(huh.NewForm(
 		huh.NewGroup(
+			huh.NewMultiSelect[string]().
+				Title("Agents used in this project").
+				Description("AGENTS.md is written once; claude and gemini get a pointer file that imports it, pi reads it directly.").
+				Options(options...).
+				Value(&a.Agents),
 			huh.NewInput().Title("Project name").Value(&a.Name),
 			huh.NewInput().Title("One-line description").Value(&a.Description),
 			huh.NewInput().Title("Canonical test command").Value(&a.TestCommand),
 		),
-	).Run()
+	))
 	return a, err
 }

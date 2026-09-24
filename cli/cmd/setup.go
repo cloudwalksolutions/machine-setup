@@ -10,6 +10,7 @@ import (
 	"io"
 	"path/filepath"
 	"runtime"
+	"slices"
 
 	"github.com/spf13/cobra"
 	"tars/internal/components"
@@ -69,9 +70,15 @@ type Puller interface {
 	PullAll() error
 }
 
+// NamedInit is one agent wizard (`tars init claude`, `tars init pi`) the bootstrap can run.
+type NamedInit struct {
+	Name string
+	Run  func() error
+}
+
 // ── Setup ────────────────────────────────────────────────────────────────
 
-// Setup orchestrates the `tars setup` flow. All collaborators are
+// Setup orchestrates the `tars init` flow. All collaborators are
 // injected via interfaces, so tests can substitute spies without mutating
 // package state.
 type Setup struct {
@@ -83,6 +90,8 @@ type Setup struct {
 	OhMyZsh   Installer
 	P10k      Installer
 	Pull      Puller
+	Wizards   ToolPicker
+	Inits     []NamedInit
 
 	Stdout io.Writer
 	Stderr io.Writer
@@ -117,10 +126,33 @@ func (s *Setup) Run() error {
 	s.runShellInstaller("oh-my-zsh", s.OhMyZsh)
 	s.runShellInstaller("powerlevel10k", s.P10k)
 	s.runPull()
+	s.runWizards()
 
 	fmt.Fprintln(s.Stdout, "\nSetup complete.")
 	s.printNextSteps()
 	return nil
+}
+
+// runWizards offers the agent wizards and runs the picked ones; each failure is
+// reported inline and the next wizard still runs.
+func (s *Setup) runWizards() {
+	names := make([]string, len(s.Inits))
+	for i, in := range s.Inits {
+		names[i] = in.Name
+	}
+	picked, err := s.Wizards.Pick(names)
+	if err != nil {
+		return
+	}
+	for _, in := range s.Inits {
+		if !slices.Contains(picked, in.Name) {
+			continue
+		}
+		fmt.Fprintf(s.Stdout, "\nInitializing %s...\n", in.Name)
+		if err := in.Run(); err != nil {
+			fmt.Fprintf(s.Stderr, "  %s: %v\n", in.Name, err)
+		}
+	}
 }
 
 // greet shows the welcome screen; user-aborted is non-fatal.
@@ -190,6 +222,13 @@ type FormsPicker struct{}
 
 func (FormsPicker) Pick(offered []string) ([]string, error) {
 	return forms.ShowInstallForm(offered)
+}
+
+// FormsWizardPicker wraps forms.ShowWizardPicker.
+type FormsWizardPicker struct{}
+
+func (FormsWizardPicker) Pick(offered []string) ([]string, error) {
+	return forms.ShowWizardPicker(offered)
 }
 
 // FileConfigStore reads/writes the YAML config at a fixed path.
@@ -304,6 +343,23 @@ func NewSetup(stdout, stderr io.Writer, cfgPath string) (*Setup, error) {
 			Stdout:     stdout,
 			Stderr:     stderr,
 		},
+		Wizards: FormsWizardPicker{},
+		Inits: []NamedInit{
+			{Name: "claude", Run: func() error {
+				c, err := NewClaudeInit(stdout, stderr)
+				if err != nil {
+					return err
+				}
+				return c.Run()
+			}},
+			{Name: "pi", Run: func() error {
+				p, err := NewPiInit(stdout, stderr)
+				if err != nil {
+					return err
+				}
+				return p.Run()
+			}},
+		},
 		Stdout: stdout,
 		Stderr: stderr,
 	}, nil
@@ -311,15 +367,18 @@ func NewSetup(stdout, stderr io.Writer, cfgPath string) (*Setup, error) {
 
 // ── Cobra command ────────────────────────────────────────────────────────
 
-var setupCmd = &cobra.Command{
-	Use:   "setup",
-	Short: "Initialize this machine with the tars defaults",
+var initCmd = &cobra.Command{
+	Use:     "init",
+	Aliases: []string{"i"},
+	Short:   "Initialize this machine with the tars defaults (alias: i)",
+	Args:    cobra.NoArgs,
 	Long: `Full machine bootstrap: pick dev tools to install, install them (brew on
 macOS, apt/tarball on Linux), install oh-my-zsh and Powerlevel10k, then apply
 all dotfile configs — overwriting ~/.zshrc, ~/.config/nvim, ~/.byobu, and
 ~/.vimrc, each archived first under ~/.local/state/tars/backups/<component>/vN.
-Also seeds ~/.zshrc_secret from a template when absent and saves the tool
-selection to the tars config file.`,
+Also installs fonts, points iTerm2/Terminal.app at them (macOS), renders any
+configured profiles, seeds ~/.zshrc_secret and ~/.zprofile_local from templates
+when absent, and saves the tool selection to ~/.config/tars/config.yaml.`,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		s, err := NewSetup(cmd.OutOrStdout(), cmd.ErrOrStderr(), configPath())
 		if err != nil {

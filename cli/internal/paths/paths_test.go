@@ -89,6 +89,8 @@ var _ = Describe("ForOS Pi", func() {
 		Expect(p.Pi.PermissionsRepo).To(Equal(filepath.Join(repoRoot, "pi", "permissions.json")))
 		Expect(p.Pi.PermissionsLocal).To(Equal(filepath.Join(agent, "extensions", "pi-permission-system", "config.json")))
 		Expect(p.Pi.AgentsMDLocal).To(Equal(filepath.Join(agent, "AGENTS.md")))
+		Expect(p.Pi.KeybindingsRepo).To(Equal(filepath.Join(repoRoot, "pi", "keybindings.json")))
+		Expect(p.Pi.KeybindingsLocal).To(Equal(filepath.Join(agent, "keybindings.json")))
 	})
 })
 
@@ -106,6 +108,6 @@ var _ = Describe("ForOS Claude", func() {
 		Expect(p.Claude.HookLocal).To(Equal(filepath.Join(home, ".claude", "hooks", "block-unreviewable-edits.sh")))
 		Expect(p.Claude.RulesRepo).To(Equal(filepath.Join(repoRoot, "claude", "rules")))
 		Expect(p.Claude.ClaudeMDLocal).To(Equal(filepath.Join(home, ".claude", "CLAUDE.md")))
-		Expect(p.Claude.ProjectTemplateRepo).To(Equal(filepath.Join(repoRoot, "claude", "templates", "CLAUDE.project.md")))
+		Expect(p.Claude.ProjectTemplateRepo).To(Equal(filepath.Join(repoRoot, "claude", "templates", "AGENTS.project.md")))
 	})
 })

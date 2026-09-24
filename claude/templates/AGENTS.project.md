@@ -1,6 +1,7 @@
-# CLAUDE.md
+# AGENTS.md
 
-Guidance for Claude Code (claude.ai/code) when working in {{.Name}}.
+Guidance for coding agents (Claude Code, pi, Gemini CLI) when working in {{.Name}}.
+`CLAUDE.md` and `GEMINI.md` import this file; edit here only.
 
 ## Project Overview
 
@@ -12,7 +13,7 @@ Guidance for Claude Code (claude.ai/code) when working in {{.Name}}.
 - Simplest change that works; no speculative abstractions.
 - Names carry intent; no explanatory comments.
 
-## Claude's Role and Constraints
+## The Agent's Role and Constraints
 
 - Land work through branches and pull requests; CI proves validity.
 - The user owns dev servers; never start, stop, or build over them.
@@ -39,9 +40,9 @@ Always use the project's canonical targets above, never raw tooling.
 
 Secrets come from the environment or git-ignored local files, never inline.
 
-## Sub-project CLAUDE.md Files
+## Sub-project AGENTS.md Files
 
-<!-- list nested CLAUDE.md files; read them there, not here -->
+<!-- list nested AGENTS.md files; read them there, not here -->
 
 ## Gotchas and Known Issues
 

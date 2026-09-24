@@ -23,14 +23,14 @@ func ShowSessionPicker(options []string) (string, error) {
 		opts[i] = huh.NewOption(o, o)
 	}
 
-	err := huh.NewForm(
+	err := run(huh.NewForm(
 		huh.NewGroup(
 			huh.NewSelect[string]().
 				Title("Open a byobu session").
 				Options(opts...).
 				Value(&selected),
 		),
-	).Run()
+	))
 
 	return selected, err
 }

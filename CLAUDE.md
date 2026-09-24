@@ -4,17 +4,19 @@ Guidance for Claude Code (claude.ai/code) when working in this repository.
 
 ## Repository Purpose
 
-A machine-setup tool for macOS (primary) and Linux (incl. shared bastions). It goes
+A dev-machine provisioning tool for macOS (primary) and Linux (incl. shared bastions). It goes
 from a fresh machine to a production-ready dev environment: dev tools, dotfiles
 (Neovim, Zsh, Byobu, Vim), fonts, and terminal settings, plus a declarative byobu
-session manager. The user-facing CLI is **`tars`** (Go, in `cli/`) with seven verbs:
-`setup`, `pull`, `push`, `sessions`, `profiles`, `claude`, `pi`.
+session manager. The user-facing CLI is **`tars`** (Go, in `cli/`) with five verbs:
+`init` (bootstrap; subcommands `init claude`, `init pi`, `init project`), `pull`, `push`,
+`sessions`, `profiles`.
 
 ## Core Philosophy
 
-- **One command to provision**: `tars setup` installs packages (brew on macOS,
+- **One command to provision**: `tars init` installs packages (brew on macOS,
   apt/tarball on Linux), oh-my-zsh, Powerlevel10k, then applies all configs.
-  Day-to-day: `pull`/`push` sync configs, `sessions` opens byobu workspaces.
+  Day-to-day: `pull`/`push` sync configs, `sessions` opens byobu workspaces, `profiles`
+  switches git/GitHub/SSH identity per project dir.
 - **Bidirectional sync**: `tars pull` applies repo configs to the machine (no installs,
   no network — safe to re-run); `tars push` copies local edits back into the repo.
 - **Versioned backups**: every overwrite is archived first under
@@ -25,9 +27,10 @@ session manager. The user-facing CLI is **`tars`** (Go, in `cli/`) with seven ve
 - **Self-contained Go**: the CLI reimplements all logic natively. It NEVER shells out to
   repo scripts. (The old `scripts/` bash tooling has been removed; `cli/` is the source
   of truth.)
-- **Personalization**: Zsh sources optional `~/.zshrc_secret` (git-ignored; template at
-  `zsh/zshrc_secret.template`) and `~/.zshrc_funcs`. Keep shared configs machine-agnostic
-  — no hardcoded personal paths; per-machine bits go in git-ignored `*_local`/secret files.
+- **Personalization**: Zsh sources optional `~/.zshrc_secret`, the active profile's
+  `~/.config/tars/profiles/<alias>.env`, and `~/.zshrc_funcs`; the login shell sources
+  `~/.zprofile_local`. All are git-ignored, seeded once, never overwritten. Keep shared
+  configs machine-agnostic — no hardcoded personal paths, no niche tools.
 
 ## Architecture
 
@@ -45,6 +48,7 @@ session manager. The user-facing CLI is **`tars`** (Go, in `cli/`) with seven ve
 │       ├── components/          # per-tool Pull/Push: vim, zsh, byobu, nvim, fonts, terminal, profiles, claude, pi
 │       ├── sessions/            # declarative byobu sessions: yaml config + idempotent launcher
 │       ├── profiles/            # account identities: yaml config, gitconfig/env rendering, active marker
+│       ├── dotfiles/            # specs only: lint the shipped zsh files + terminal font string
 │       ├── assets/              # dotfiles embedded in the binary (tree/ mirror; `make sync-assets`)
 │       ├── fsutil/              # Backup + SafeCopy (versioned, idempotent)
 │       ├── paths/               # repo→local file mappings (ForOS: OS-aware)
@@ -54,13 +58,17 @@ session manager. The user-facing CLI is **`tars`** (Go, in `cli/`) with seven ve
 │       ├── shell/               # oh-my-zsh / powerlevel10k installers
 │       └── config/              # persisted YAML config
 ├── nvim/  zsh/  byobu/  vim/     # the dotfiles tars manages
+├── monokai.lua                  # nvim colorscheme shipped at root (also embedded)
 ├── claude/                      # Claude Code: settings fragment, hooks/, rules/ (→ ~/.claude/CLAUDE.md), templates/
 ├── pi/                          # pi coding agent: settings fragment, agents/, prompts/, extensions/, permissions.json
 ├── fonts/                       # Hack Nerd Font files
 ├── terminal/                    # font string + Terminal.app profile (iTerm2/Terminal.app)
+├── vhs/                         # README demo tapes + gh stand-in (`make demos`)
+├── test/e2e/Dockerfile          # Docker E2E (see Testing Strategy)
+├── docs/releasing.md            # maintainer release notes
 ├── install.sh                   # curl|sh installer (release binary → ~/.local/bin)
-├── Makefile                     # dev targets: build/lint/test layers, sync-assets, e2e
-└── .goreleaser.yaml, .github/   # release (tag v*) + CI
+├── Makefile                     # dev targets: build/lint/test layers, sync-assets, e2e, demos
+└── .goreleaser.yaml, .github/   # release (tag v*) + CI + vhs re-recording
 ```
 
 The CLI locates the repo root by walking up for `cli/go.mod` + `nvim/`, or via the
@@ -83,8 +91,8 @@ Tests are layered:
    deps or network. Two kinds:
    - Logic specs (`internal/...`) with `GinkgoT().TempDir()` fake repos/HOMEs — component
      Pull/Push, `fsutil` backup/copy, `paths` OS-awareness, the `pkg` registry.
-   - Command specs (`cmd/`) that construct `Setup`/`SequentialPuller`/`SequentialPusher`
-     with **spy collaborators** and assert orchestration (order, failure-tolerance),
+   - Command specs (`cmd/`) that construct `Setup`/`SequentialPuller`/`SequentialPusher`/
+     `Sessions`/`Profiles` with **spy collaborators** and assert orchestration (order, failure-tolerance),
      never touching the real machine.
 2. **Integration** (`make integration`) — real external deps: brew installers gated by
    `INTEGRATION=1` (installs/removes `hello`) plus the Neovim config tests (real `nvim`).
@@ -92,8 +100,10 @@ Tests are layered:
 3. **End-to-end** (`make e2e`) — `test/e2e/Dockerfile`: builds `tars` against a
    **root-owned, read-only** repo clone shared by two non-root users, plus a third user
    with no clone (embedded-assets path) — **no apt installs, no sudo, no network at
-   runtime**. Asserts every component lands (incl. the exec bit on `byobu/bin` and
-   `~/.claude/hooks`, and the settings.json merge keeping local keys), the
+   runtime**. Asserts the file-producing components land (vim, zsh, byobu, nvim, fonts,
+   claude; terminal and profiles are no-ops there and pull exiting 0 covers them), incl.
+   the exec bit on `byobu/bin` and `~/.claude/hooks` and the settings.json merge keeping
+   local keys, the
    pulled shell configs parse (`zsh -ic` / `bash -lc`), backups version under each
    user's `$HOME`, re-pulls are idempotent (incl. nvim), and a failing pull exits
    non-zero. Assertions are `RUN` lines, so a failure fails `docker build`. Runs in CI
@@ -137,14 +147,16 @@ untested by design — don't chase 100%.
 tests (`nvim/tests/smoke_test.lua`); `make health-nvim` runs checkhealth. `make test-nvim`
 is also run as part of `make integration`.
 
-**CI** (`.github/workflows/ci.yml`, on PR/push to `main`) is the documentation of what
-"green" means; its steps are explicit commands, not Makefile recipes. Eight checks:
+**CI** (`.github/workflows/ci.yml`, on PRs) is the documentation of what "green" means;
+its steps are explicit commands, not Makefile recipes. Eight checks:
 `test (ubuntu-latest)` / `test (macos-latest)` (`go vet`, `go build`, `go test -race`),
 `lint` (golangci-lint incl. the gofmt formatter, then `go mod tidy -diff`), `coverage`
 (gate from `cli/.testcoverage.yml`), `e2e-linux (ubuntu-latest)` / `e2e-linux (ubuntu-24.04-arm)`
 (the Docker build), `nvim` (headless Lua smoke tests against the repo's `nvim/` via
 `XDG_CONFIG_HOME`), and `goreleaser` (`goreleaser check`). Reproduce locally from `cli/` with the
 same commands before handing work over; `gh pr checks <n> --watch` is the final gate.
+`.github/workflows/vhs.yml` re-records the README GIFs via PR when anything under `vhs/`
+other than the GIFs changes on `main`.
 
 ## Development Patterns (TDD)
 
@@ -164,10 +176,12 @@ Ginkgo/Gomega style and the seam pattern above.
 1. Add its paths to `paths.go` (`<Comp>Paths` struct + wire into `ForOS`, OS-aware if
    needed) — spec first in `paths_test.go`.
 2. Implement `cli/internal/components/<comp>.go` with `Name()` + `Pull()` (and `Push()`
-   if it's pushable). Use `fsutil.SafeCopy(src, dst, "<comp>", BackupRoot)` for
-   backup-before-overwrite + idempotent skip; for push, copy local→repo under
-   `"<comp>-repo"`. Put any system side-effects behind a function-typed seam.
-3. Register in `AllPullable` / `AllPushable` (`component.go`) — spec asserts membership.
+   if it's pushable). Use `opts.copier().SafeCopy(src, dst, "<comp>", opts.BackupRoot)`
+   (or `.SafeWrite` for rendered content) so backup-before-overwrite, idempotent skip,
+   and `--dry-run` all come for free; for push, use component name `"<comp>-repo"`.
+   Put any system side-effects behind a function-typed seam.
+3. Register in `AllPullable` / `AllPushable` (`component.go`) — spec asserts membership;
+   then `UPDATE_GOLDEN=1 go test ./internal/components/` and review the golden diff.
 4. `gofmt`, then `go test ./... && golangci-lint run ./...` green.
 
 **Adding a global Claude rule**: drop a short `NN-slug.md` (a `##` heading plus a few
@@ -179,13 +193,14 @@ keys (model, theme, enabledPlugins, the hook entry) in `json.MarshalIndent` key 
 **pi**: `pi/` holds the shareable pieces (agent, prompts, the edit-guard extension that
 ports `claude/hooks/block-unreviewable-edits.sh` rule for rule, the permission baseline, a
 settings fragment with packages). `~/.pi/agent/AGENTS.md` is rendered from `claude/rules/`
-(one rule source for both agents). Model providers are **never** in the repo: `tars pi init`
-asks (ollama / llama.cpp / OpenAI-compatible), stores them under `pi:` in the tars config,
-renders `models.json` with `$ENV` key references, and stores a key the form collected as an
-export in `~/.zshrc_secret`. Only `init` shells out to `pi`/`ollama` (behind `Pi.Run`); `pull`
-writes files only; nothing is ever uninstalled. Design for an empty machine: detecting existing
-config to pre-fill the form is fine, code that only migrates one machine's state is not. Add a
-prompt by dropping `pi/prompts/<name>.md` and running `make sync-assets`.
+(one rule source for both agents). The only provider tars manages is local ollama: `init`
+asks which `ollama list` models to expose and the default, stores that under `pi:` in the tars
+config, and renders the `ollama` entry of `models.json`; every other provider, key and
+llama.cpp setup is pi's own business and is left untouched. Thinking is off by default. Only
+`init` shells out to `pi`/`ollama` (behind `Pi.Run`); `pull` writes files only; nothing is ever
+uninstalled. Design for an empty machine: detecting what the machine has to pre-fill the form
+is fine, code that only migrates one machine's state is not. Add a prompt by dropping
+`pi/prompts/<name>.md` and running `make sync-assets`.
 
 **Adding an installable tool**: edit the curated lists in
 `cli/internal/pkg/registry.go` (`darwinFormulas` / `darwinCasks` / `darwinTappedFormulas`

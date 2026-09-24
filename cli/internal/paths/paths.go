@@ -33,6 +33,8 @@ type PiPaths struct {
 	ExtensionLocal   string
 	PermissionsRepo  string
 	PermissionsLocal string
+	KeybindingsRepo  string
+	KeybindingsLocal string
 	AgentsMDLocal    string
 }
 
@@ -130,6 +132,8 @@ func piPaths(repoRoot, agent string) PiPaths {
 		ExtensionLocal:   filepath.Join(agent, "extensions", "block-unreviewable-edits.ts"),
 		PermissionsRepo:  filepath.Join(repoRoot, "pi", "permissions.json"),
 		PermissionsLocal: filepath.Join(agent, "extensions", "pi-permission-system", "config.json"),
+		KeybindingsRepo:  filepath.Join(repoRoot, "pi", "keybindings.json"),
+		KeybindingsLocal: filepath.Join(agent, "keybindings.json"),
 		AgentsMDLocal:    filepath.Join(agent, "AGENTS.md"),
 	}
 }
@@ -214,7 +218,7 @@ func ForOS(repoRoot, home, goos string) Paths {
 			HookLocal:           filepath.Join(home, ".claude", "hooks", "block-unreviewable-edits.sh"),
 			RulesRepo:           filepath.Join(repoRoot, "claude", "rules"),
 			ClaudeMDLocal:       filepath.Join(home, ".claude", "CLAUDE.md"),
-			ProjectTemplateRepo: filepath.Join(repoRoot, "claude", "templates", "CLAUDE.project.md"),
+			ProjectTemplateRepo: filepath.Join(repoRoot, "claude", "templates", "AGENTS.project.md"),
 		},
 		Pi: piPaths(repoRoot, filepath.Join(home, ".pi", "agent")),
 	}

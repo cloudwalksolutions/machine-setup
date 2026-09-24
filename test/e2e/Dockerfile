@@ -28,7 +28,7 @@ ENV TARS_REPO=/repo
 
 RUN tars pull
 
-# Every component landed (terminal is a linux no-op; pull exiting 0 covers it).
+# Every file-producing component landed (terminal and profiles are no-ops here; pull exiting 0 covers them).
 RUN test -f "$HOME/.vimrc" \
  && test -f "$HOME/.zshrc" \
  && test -f "$HOME/.zshrc_aliases" \
@@ -67,12 +67,16 @@ RUN echo '{"autoMode":{"allow":["x"]}}' > "$HOME/.claude/settings.json" \
  && test "$(grep -c 'block-unreviewable-edits.sh' "$HOME/.claude/settings.json")" = "1" \
  && test -f "$HOME/.local/state/tars/backups/claude/v1/settings.json"
 
-# The init wizard runs headless and honors its choices on the next pull.
-RUN TARS_NO_FORM=1 tars claude init \
+# The init wizards run headless and honor their choices on the next pull; the project
+# init writes one AGENTS.md plus pointer files for claude and gemini.
+RUN TARS_NO_FORM=1 tars init claude \
  && grep -q 'rules:' "$HOME/.config/tars/config.yaml" \
- && mkdir -p "$HOME/proj" && TARS_NO_FORM=1 tars claude project "$HOME/proj" \
- && grep -q '^# CLAUDE.md' "$HOME/proj/CLAUDE.md" \
- && if TARS_NO_FORM=1 tars claude project "$HOME/proj" >/dev/null 2>&1; then echo 'expected refusal without --force' && exit 1; fi
+ && mkdir -p "$HOME/proj" && TARS_NO_FORM=1 tars init project "$HOME/proj" \
+ && grep -q '^# AGENTS.md' "$HOME/proj/AGENTS.md" \
+ && grep -q '^@AGENTS.md' "$HOME/proj/CLAUDE.md" \
+ && grep -q '^@./AGENTS.md' "$HOME/proj/GEMINI.md" \
+ && if TARS_NO_FORM=1 tars init project "$HOME/proj" >/dev/null 2>&1; then echo 'expected refusal without --force' && exit 1; fi \
+ && if tars setup >/dev/null 2>&1; then echo 'expected tars setup to be gone' && exit 1; fi
 
 # pi: agent, prompts, edit guard, permissions and AGENTS.md land from pull alone;
 # providers are never written without saved choices.
@@ -82,6 +86,7 @@ RUN test -f "$HOME/.pi/agent/agents/tars.md" \
  && test -f "$HOME/.pi/agent/extensions/pi-permission-system/config.json" \
  && grep -q '^# Working rules' "$HOME/.pi/agent/AGENTS.md" \
  && grep -q 'npm:pi-subagents' "$HOME/.pi/agent/settings.json" \
+ && grep -q '"app.clipboard.pasteImage": \[\]' "$HOME/.pi/agent/keybindings.json" \
  && test ! -e "$HOME/.pi/agent/models.json" \
  && tars pull >/dev/null \
  && test ! -e "$HOME/.local/state/tars/backups/pi"
