@@ -1,6 +1,6 @@
 # pi with tars
 
-`tars pi init` turns a machine with [pi](https://pi.dev) installed into one running the
+`tars init pi` turns a machine with [pi](https://pi.dev) installed into one running the
 `tars` baseline agent with the basics, and configures model providers from a form.
 
 ## What init does
@@ -24,7 +24,7 @@
 3. Saves the choices under `pi:` in `~/.config/tars/config.yaml`, pulls the files, and
    installs the missing packages.
 
-`TARS_NO_FORM=1 tars pi init` takes every default: all packages, every ollama model, no
+`TARS_NO_FORM=1 tars init pi` takes every default: all packages, every ollama model, no
 default pinned.
 
 Packages you no longer want are yours to remove (`pi remove npm:<name>`); tars never
@@ -39,7 +39,7 @@ uninstalls anything.
 | `extensions/block-unreviewable-edits.ts` | `pi/extensions/` — denies `sed -i`, interpreter writes, redirects onto source files |
 | `extensions/pi-permission-system/config.json` | `pi/permissions.json` — deny `rm -rf /`, force-push, writes to `~/.ssh`, `*.env` |
 | `keybindings.json` | merge: `pi/keybindings.json` actions overwrite (`[]` unbinds), your other bindings stay |
-| `AGENTS.md` | rendered from `claude/rules/*.md`, same selection as `tars claude init` |
+| `AGENTS.md` | rendered from `claude/rules/*.md`, same selection as `tars init claude` |
 | `settings.json` | merge: `packages` unioned (fragment first), `defaultThinkingLevel: off`, your default ollama model |
 | `models.json` | the `ollama` provider with the chosen models; every other provider is kept as is |
 

@@ -218,7 +218,7 @@ func ForOS(repoRoot, home, goos string) Paths {
 			HookLocal:           filepath.Join(home, ".claude", "hooks", "block-unreviewable-edits.sh"),
 			RulesRepo:           filepath.Join(repoRoot, "claude", "rules"),
 			ClaudeMDLocal:       filepath.Join(home, ".claude", "CLAUDE.md"),
-			ProjectTemplateRepo: filepath.Join(repoRoot, "claude", "templates", "CLAUDE.project.md"),
+			ProjectTemplateRepo: filepath.Join(repoRoot, "claude", "templates", "AGENTS.project.md"),
 		},
 		Pi: piPaths(repoRoot, filepath.Join(home, ".pi", "agent")),
 	}

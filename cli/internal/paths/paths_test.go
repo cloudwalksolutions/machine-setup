@@ -108,6 +108,6 @@ var _ = Describe("ForOS Claude", func() {
 		Expect(p.Claude.HookLocal).To(Equal(filepath.Join(home, ".claude", "hooks", "block-unreviewable-edits.sh")))
 		Expect(p.Claude.RulesRepo).To(Equal(filepath.Join(repoRoot, "claude", "rules")))
 		Expect(p.Claude.ClaudeMDLocal).To(Equal(filepath.Join(home, ".claude", "CLAUDE.md")))
-		Expect(p.Claude.ProjectTemplateRepo).To(Equal(filepath.Join(repoRoot, "claude", "templates", "CLAUDE.project.md")))
+		Expect(p.Claude.ProjectTemplateRepo).To(Equal(filepath.Join(repoRoot, "claude", "templates", "AGENTS.project.md")))
 	})
 })

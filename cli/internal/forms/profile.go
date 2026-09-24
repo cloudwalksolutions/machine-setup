@@ -16,7 +16,7 @@ func ShowProfileForm(defaults profiles.Profile) (profiles.Profile, error) {
 	}
 
 	p := defaults
-	err := huh.NewForm(
+	err := run(huh.NewForm(
 		huh.NewGroup(
 			huh.NewInput().Title("Name (also the folder under your projects dir)").Value(&p.Name),
 			huh.NewInput().Title("Alias (short handle; key is ~/.ssh/id_rsa.<alias>)").Value(&p.Alias),
@@ -24,7 +24,7 @@ func ShowProfileForm(defaults profiles.Profile) (profiles.Profile, error) {
 			huh.NewInput().Title("GitHub user").Value(&p.GitHub),
 			huh.NewInput().Title("Full name (blank to use the shared one)").Value(&p.FullName),
 		),
-	).Run()
+	))
 
 	return p, err
 }

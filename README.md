@@ -46,7 +46,7 @@ The installer verifies the release checksum; override the directory with
 
 1. **Bootstrap the machine.**
    ```bash
-   tars setup                 # interactive; or: TARS_NO_FORM=1 tars setup  (installs everything)
+   tars init                  # interactive; or: TARS_NO_FORM=1 tars init  (installs everything)
    ```
    You get a tool checklist (Enter accepts all), brew or apt installs, oh-my-zsh and
    Powerlevel10k, then one line per config component. macOS asks for your password
@@ -68,14 +68,14 @@ The installer verifies the release checksum; override the directory with
 
 | Command | Alias | What it does |
 |---|---|---|
-| `tars setup` | | Full bootstrap: pick tools, install them, install oh-my-zsh + Powerlevel10k, apply all configs |
+| `tars init` | `i` | Full bootstrap: pick tools, install them, install oh-my-zsh + Powerlevel10k, apply all configs, then run the agent setups you pick |
 | `tars pull` | | Apply configs only: no installs, no network. `--dry-run` previews |
 | `tars push` | | Capture local config edits back into a repo clone |
 | `tars sessions` | `s`, `by` | Open byobu sessions from a simple config |
 | `tars profiles` | `p` | Switch git, GitHub and SSH identity per project dir |
-| `tars claude init` | `c i` | Pick and apply Claude Code pieces: edit-blocking hook, settings, global rules |
-| `tars claude project [dir]` | `c p` | Scaffold a project `CLAUDE.md` from the repo template (`--force` to replace) |
-| `tars pi init` | `pi i` | Set up the pi coding agent: packages, local ollama models, baseline agent |
+| `tars init claude` | `i c` | Pick and apply Claude Code pieces: edit-blocking hook, settings, global rules |
+| `tars init pi` | `i pi` | Set up the pi coding agent: packages, local ollama models, baseline agent |
+| `tars init project [dir]` | `i p` | Scaffold a project `AGENTS.md` plus `CLAUDE.md`/`GEMINI.md` pointers for the agents you pick (`--force` to replace) |
 
 `tars --version` prints the build; `--config <file>` overrides the tool-selection
 config. `pull` and `push` exit non-zero when any component fails; `setup` tolerates
@@ -212,7 +212,7 @@ For each account (example: name `cloudwalk`, alias `cws`):
 - `~/.pi/agent/`: the `tars` agent, `/tdd` `/plan` `/pr` prompts, the edit-guard
   extension, a permission baseline, `AGENTS.md` rendered from the same rules as
   Claude, and a merge of `pi/settings.json` (packages, thinking off). The only
-  provider tars touches is local ollama (models chosen in `tars pi init`); other
+  provider tars touches is local ollama (models chosen in `tars init pi`); other
   providers and keys stay pi's own. See [docs/pi.md](docs/pi.md).
 
 Never overwritten: `~/.zshrc_secret` (seeded from a template when absent — put
@@ -226,7 +226,7 @@ version it would mint) or left unchanged, and writes nothing.
 
 ## Claude Code
 
-`tars claude init` asks three things in a form: install the hook that denies
+`tars init claude` asks three things in a form: install the hook that denies
 `sed -i` / heredoc / interpreter writes (so every change is a reviewable Edit or
 Write), merge the shared settings fragment, and which global rules to render
 into `~/.claude/CLAUDE.md`. Choices are saved under `claude:` in the tars config
@@ -234,10 +234,12 @@ and honored by every later `tars pull`; `tars push` carries hook edits and the
 shareable settings keys back into the repo. Add a rule by dropping a short
 `NN-slug.md` into `claude/rules/` and running `make sync-assets`.
 
-`tars claude project [dir]` writes a starter `CLAUDE.md` (overview, philosophy,
+`tars init project [dir]` writes one starter `AGENTS.md` (overview, philosophy,
 constraints, commands, architecture, testing, secrets, gotchas) from
-`claude/templates/CLAUDE.project.md`, asking for the name, a one-line
-description and the canonical test command.
+`claude/templates/AGENTS.project.md`, asking which agents the project uses plus
+the name, a one-line description and the canonical test command. Claude Code
+gets a `CLAUDE.md` that imports it (`@AGENTS.md`), Gemini CLI a `GEMINI.md`
+(`@./AGENTS.md`), and pi reads `AGENTS.md` directly, so there is one file to edit.
 
 ## Environment variables
 

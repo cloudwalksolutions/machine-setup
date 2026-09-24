@@ -79,6 +79,13 @@ var _ = Describe("composition roots", func() {
 		Expect(s.Welcome).NotTo(BeNil())
 		Expect(s.Registry).NotTo(BeNil())
 		Expect(s.Pull).NotTo(BeNil())
+		Expect(s.Wizards).NotTo(BeNil())
+		var names []string
+		for _, in := range s.Inits {
+			names = append(names, in.Name)
+			Expect(in.Run).NotTo(BeNil())
+		}
+		Expect(names).To(Equal([]string{"claude", "pi"}))
 	})
 
 	It("NewSessions wires a complete production Sessions", func() {
