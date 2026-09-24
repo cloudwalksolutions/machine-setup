@@ -8,7 +8,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/cloudwalk/machine-setup/internal/components"
+	"tars/internal/components"
 )
 
 var _ = Describe("Byobu.Pull", func() {
@@ -61,6 +61,11 @@ var _ = Describe("Byobu.Pull", func() {
 		b, err := os.ReadFile(filepath.Join(home, ".byobu", "bin", "1_git"))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(string(b)).To(Equal("GIT_SCRIPT"))
+
+		// Status scripts must stay executable or byobu silently skips them.
+		info, err := os.Stat(filepath.Join(home, ".byobu", "bin", "1_git"))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(info.Mode().Perm() & 0o111).NotTo(BeZero())
 
 		// And NOT nested as ~/.byobu/bin/bin/1_git.
 		_, err = os.Stat(filepath.Join(home, ".byobu", "bin", "bin"))

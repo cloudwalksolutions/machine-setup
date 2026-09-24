@@ -14,9 +14,23 @@ import (
 
 var versionRe = regexp.MustCompile(`^v(\d+)$`)
 
+// Copier performs backup-before-overwrite copies. With DryRun set it reports
+// each intended action to Log and writes nothing.
+type Copier struct {
+	DryRun bool
+	Log    io.Writer
+}
+
+func (c Copier) report(format string, args ...any) {
+	if c.Log == nil {
+		return
+	}
+	fmt.Fprintf(c.Log, format+"\n", args...)
+}
+
 // Backup copies src into <backupRoot>/<component>/v<N>/ and returns the v<N> dir.
 // N is the highest existing v<digits> directory under the component dir + 1, or 1.
-func Backup(src, component, backupRoot string) (string, error) {
+func (c Copier) Backup(src, component, backupRoot string) (string, error) {
 	if _, err := os.Stat(src); err != nil {
 		if os.IsNotExist(err) {
 			return "", nil
@@ -29,6 +43,9 @@ func Backup(src, component, backupRoot string) (string, error) {
 		return "", err
 	}
 	dst := filepath.Join(componentDir, fmt.Sprintf("v%d", version))
+	if c.DryRun {
+		return dst, nil
+	}
 	if err := os.MkdirAll(dst, 0o755); err != nil {
 		return "", err
 	}
@@ -37,27 +54,79 @@ func Backup(src, component, backupRoot string) (string, error) {
 
 // SafeCopy validates src exists, backs up dst (if present) under component,
 // then copies src to dst, creating dst's parent if needed.
-func SafeCopy(src, dst, component, backupRoot string) error {
+func (c Copier) SafeCopy(src, dst, component, backupRoot string) error {
 	if _, err := os.Stat(src); err != nil {
 		return err
 	}
 	if _, err := os.Stat(dst); err == nil {
-		// Idempotent: if dst already matches src, do nothing — no backup, no copy.
+		// Idempotent: if dst already matches src, only repair a drifted mode —
+		// no backup, no copy.
 		if same, err := SameContent(src, dst); err != nil {
 			return err
 		} else if same {
-			return nil
+			if c.DryRun {
+				c.report("    unchanged  %s", dst)
+				return nil
+			}
+			return sameMode(src, dst)
 		}
-		if _, err := Backup(dst, component, backupRoot); err != nil {
+		version, err := c.Backup(dst, component, backupRoot)
+		if err != nil {
 			return err
+		}
+		if c.DryRun {
+			c.report("    would overwrite  %s (backup %s)", dst, filepath.Base(version))
+			return nil
 		}
 	} else if !os.IsNotExist(err) {
 		return err
+	} else if c.DryRun {
+		c.report("    would create  %s", dst)
+		return nil
 	}
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
 	}
 	return copyPath(src, dst)
+}
+
+// SafeWrite stages content in a temp file with mode, then SafeCopies it to dst so
+// rendered files get the same backup, idempotence, and dry-run behavior as copies.
+func (c Copier) SafeWrite(content []byte, mode os.FileMode, dst, component, backupRoot string) error {
+	staging, err := os.MkdirTemp("", "tars-render")
+	if err != nil {
+		return err
+	}
+	defer func() { _ = os.RemoveAll(staging) }()
+	src := filepath.Join(staging, filepath.Base(dst))
+	if err := os.WriteFile(src, content, mode); err != nil {
+		return err
+	}
+	if err := os.Chmod(src, mode); err != nil {
+		return err
+	}
+	return c.SafeCopy(src, dst, component, backupRoot)
+}
+
+// RemoveAll deletes path, or reports the intent when in dry-run mode.
+func (c Copier) RemoveAll(path string) error {
+	if c.DryRun {
+		if _, err := os.Stat(path); err == nil {
+			c.report("    would remove  %s", path)
+		}
+		return nil
+	}
+	return os.RemoveAll(path)
+}
+
+// Backup is the non-dry-run form of Copier.Backup.
+func Backup(src, component, backupRoot string) (string, error) {
+	return Copier{}.Backup(src, component, backupRoot)
+}
+
+// SafeCopy is the non-dry-run form of Copier.SafeCopy.
+func SafeCopy(src, dst, component, backupRoot string) error {
+	return Copier{}.SafeCopy(src, dst, component, backupRoot)
 }
 
 // SameContent reports whether src and dst are regular files with identical bytes.
@@ -83,6 +152,95 @@ func SameContent(src, dst string) (bool, error) {
 		return false, err
 	}
 	return bytes.Equal(a, b), nil
+}
+
+// SameTree reports whether src and dst are directories containing identical
+// trees: the same relative entries, the same file bytes, the same exec bits.
+// A missing or non-directory dst reports false without error.
+func SameTree(src, dst string) (bool, error) {
+	di, err := os.Stat(dst)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	if !di.IsDir() {
+		return false, nil
+	}
+
+	srcEntries, err := treeEntries(src)
+	if err != nil {
+		return false, err
+	}
+	dstEntries, err := treeEntries(dst)
+	if err != nil {
+		return false, err
+	}
+	if len(srcEntries) != len(dstEntries) {
+		return false, nil
+	}
+	for rel, isDir := range srcEntries {
+		dstIsDir, ok := dstEntries[rel]
+		if !ok || isDir != dstIsDir {
+			return false, nil
+		}
+		if isDir {
+			continue
+		}
+		same, err := SameContent(filepath.Join(src, rel), filepath.Join(dst, rel))
+		if err != nil {
+			return false, err
+		}
+		if !same {
+			return false, nil
+		}
+		if execBit(filepath.Join(src, rel)) != execBit(filepath.Join(dst, rel)) {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+// treeEntries maps each relative path under root to whether it is a directory.
+func treeEntries(root string) (map[string]bool, error) {
+	entries := map[string]bool{}
+	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if path == root {
+			return nil
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		entries[rel] = d.IsDir()
+		return nil
+	})
+	return entries, err
+}
+
+func execBit(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.Mode().Perm()&0o111 != 0
+}
+
+// sameMode chmods dst to src's permissions when they differ.
+func sameMode(src, dst string) error {
+	si, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+	di, err := os.Stat(dst)
+	if err != nil {
+		return err
+	}
+	if si.Mode().Perm() == di.Mode().Perm() {
+		return nil
+	}
+	return os.Chmod(dst, si.Mode().Perm())
 }
 
 func copyPath(src, dst string) error {
@@ -146,7 +304,11 @@ func copyFile(src, dst string) error {
 		return err
 	}
 	defer in.Close()
-	out, err := os.Create(dst)
+	info, err := in.Stat()
+	if err != nil {
+		return err
+	}
+	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, info.Mode().Perm())
 	if err != nil {
 		return err
 	}
@@ -154,5 +316,10 @@ func copyFile(src, dst string) error {
 		_ = out.Close()
 		return err
 	}
-	return out.Close()
+	if err := out.Close(); err != nil {
+		return err
+	}
+	// The open perm is umask-filtered and ignored for pre-existing files;
+	// chmod makes the copy's mode match the source unconditionally.
+	return os.Chmod(dst, info.Mode().Perm())
 }

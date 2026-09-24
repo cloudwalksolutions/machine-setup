@@ -9,8 +9,30 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/cloudwalk/machine-setup/internal/pkg/rvm"
+	"tars/internal/pkg"
+	"tars/internal/pkg/rvm"
 )
+
+var _ = Describe("rvm.Installer.Status", func() {
+	It("reports up to date when the rvm dir exists", func() {
+		dir := filepath.Join(GinkgoT().TempDir(), ".rvm")
+		Expect(os.MkdirAll(dir, 0o755)).To(Succeed())
+
+		status, detail, err := rvm.NewInstaller(dir, nil).Status()
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(status).To(Equal(pkg.StatusUpToDate))
+		Expect(detail).To(Equal("installed"))
+	})
+
+	It("reports not installed when the rvm dir is missing", func() {
+		status, detail, err := rvm.NewInstaller(filepath.Join(GinkgoT().TempDir(), ".rvm"), nil).Status()
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(status).To(Equal(pkg.StatusNotInstalled))
+		Expect(detail).To(BeEmpty())
+	})
+})
 
 var _ = Describe("rvm.Installer.Install", func() {
 	var (

@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/cloudwalk/machine-setup/cmd"
+	"tars/cmd"
 )
 
 // Build metadata, injected by GoReleaser via -ldflags -X main.version=... etc.

@@ -8,7 +8,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/cloudwalk/machine-setup/internal/components"
+	"tars/internal/components"
 )
 
 var _ = Describe("Nvim.Pull", func() {
@@ -51,6 +51,18 @@ var _ = Describe("Nvim.Pull", func() {
 		b, err = os.ReadFile(filepath.Join(home, ".local", "share", "nvim", "site", "pack", "packer", "start", "monokai.nvim", "lua", "monokai.lua"))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(string(b)).To(Equal("MONOKAI"))
+	})
+
+	It("creates no new backup version when re-pulling an unchanged tree (idempotent)", func() {
+		Expect(components.NewNvim(opts).Pull()).To(Succeed())
+		Expect(components.NewNvim(opts).Pull()).To(Succeed())
+
+		entries, err := os.ReadDir(filepath.Join(opts.BackupRoot, "nvim"))
+		if err != nil {
+			Expect(os.IsNotExist(err)).To(BeTrue(), err)
+		} else {
+			Expect(entries).To(BeEmpty(), "unchanged re-pull must not mint a new backups/nvim/vN")
+		}
 	})
 
 	It("replaces (not merges) the local nvim dir so stale files are removed", func() {

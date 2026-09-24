@@ -9,7 +9,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/cloudwalk/machine-setup/internal/components"
+	"tars/internal/components"
 )
 
 var _ = Describe("Terminal", func() {
@@ -20,11 +20,11 @@ var _ = Describe("Terminal", func() {
 		opts     components.Options
 	)
 
-	// newTerm builds a darwin Terminal with no-op seams; specs override what they assert.
 	newTerm := func() *components.Terminal {
 		t := components.NewTerminalForOS(opts, "darwin")
 		t.CurrentFontFn = func() (string, error) { return "Monaco 12", nil }
 		t.SetFontFn = func(string) error { return nil }
+		t.DefaultProfileFn = func() (string, error) { return "Basic", nil }
 		t.ApplyFn = func(string, string) error { return nil }
 		t.ExportFn = func(string, string) error { return nil }
 		return t
@@ -36,7 +36,6 @@ var _ = Describe("Terminal", func() {
 		home = filepath.Join(tmp, "home")
 		Expect(os.MkdirAll(filepath.Join(repoRoot, "terminal"), 0o755)).To(Succeed())
 		Expect(os.WriteFile(filepath.Join(repoRoot, "terminal", "font"), []byte("Hack Nerd Font 13\n"), 0o644)).To(Succeed())
-		Expect(os.WriteFile(filepath.Join(repoRoot, "terminal", "CloudWalk.terminal"), []byte("PROFILE"), 0o644)).To(Succeed())
 
 		opts = components.Options{
 			RepoRoot:   repoRoot,
@@ -67,33 +66,33 @@ var _ = Describe("Terminal", func() {
 		Expect(strings.TrimSpace(string(b))).To(Equal("Monaco 12"))
 	})
 
-	It("Pull is a no-op for iTerm2 when the font already matches (idempotent)", func() {
-		setCalls := 0
+	It("Pull touches nothing when the font already matches", func() {
 		t := newTerm()
 		t.CurrentFontFn = func() (string, error) { return "Hack Nerd Font 13", nil }
-		t.SetFontFn = func(string) error { setCalls++; return nil }
+		t.SetFontFn = func(string) error {
+			Fail("SetFontFn must not be called when the font already matches")
+			return nil
+		}
 
 		Expect(t.Pull()).To(Succeed())
-		Expect(setCalls).To(Equal(0))
+
 		_, err := os.Stat(filepath.Join(opts.BackupRoot, "terminal"))
-		Expect(os.IsNotExist(err)).To(BeTrue(), "no backup when font already matches")
+		Expect(os.IsNotExist(err)).To(BeTrue())
 	})
 
-	It("Pull configures Terminal.app via the CloudWalk profile", func() {
-		var gotPath, gotName string
+	It("Pull skips the Terminal.app import when the tars profile is already the default (no window popup)", func() {
+		applyCalls := 0
 		t := newTerm()
-		t.ApplyFn = func(p, n string) error { gotPath = p; gotName = n; return nil }
+		t.DefaultProfileFn = func() (string, error) { return "tars", nil }
+		t.ApplyFn = func(string, string) error { applyCalls++; return nil }
 
 		Expect(t.Pull()).To(Succeed())
-		Expect(gotPath).To(Equal(filepath.Join(repoRoot, "terminal", "CloudWalk.terminal")))
-		Expect(gotName).To(Equal("CloudWalk"))
+		Expect(applyCalls).To(Equal(0))
 	})
 
 	It("Push writes the live iTerm2 font into the repo, archiving the prior value", func() {
-		var exportName, exportDst string
 		t := newTerm()
 		t.CurrentFontFn = func() (string, error) { return "Foo 20", nil }
-		t.ExportFn = func(n, d string) error { exportName = n; exportDst = d; return nil }
 
 		Expect(t.Push()).To(Succeed())
 
@@ -104,9 +103,44 @@ var _ = Describe("Terminal", func() {
 		ab, err := os.ReadFile(filepath.Join(opts.BackupRoot, "terminal-repo", "v1", "font"))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(strings.TrimSpace(string(ab))).To(Equal("Hack Nerd Font 13"))
+	})
 
-		Expect(exportName).To(Equal("CloudWalk"))
-		Expect(exportDst).To(Equal(filepath.Join(repoRoot, "terminal", "CloudWalk.terminal")))
+	It("warns to restart iTerm2 when it is running during a font change", func() {
+		stderr := &bytes.Buffer{}
+		opts.Stderr = stderr
+		t := newTerm()
+		t.IsRunningFn = func() bool { return true }
+
+		Expect(t.Pull()).To(Succeed())
+
+		Expect(stderr.String()).To(ContainSubstring("quit and reopen"))
+	})
+
+	It("does not warn when iTerm2 is not running", func() {
+		stderr := &bytes.Buffer{}
+		opts.Stderr = stderr
+		t := newTerm()
+		t.IsRunningFn = func() bool { return false }
+
+		Expect(t.Pull()).To(Succeed())
+
+		Expect(stderr.String()).To(BeEmpty())
+	})
+
+	It("dry-run reports the font change and profile import without calling the seams", func() {
+		stdout := &bytes.Buffer{}
+		opts.Stdout = stdout
+		opts.DryRun = true
+		t := newTerm()
+		t.SetFontFn = func(string) error { Fail("SetFontFn called in dry-run"); return nil }
+		t.ApplyFn = func(string, string) error { Fail("ApplyFn called in dry-run"); return nil }
+
+		Expect(t.Pull()).To(Succeed())
+
+		Expect(stdout.String()).To(ContainSubstring("would set terminal font  Monaco 12 → Hack Nerd Font 13"))
+		Expect(stdout.String()).To(ContainSubstring("would import Terminal.app profile  tars"))
+		_, err := os.Stat(filepath.Join(opts.BackupRoot, "terminal"))
+		Expect(os.IsNotExist(err)).To(BeTrue(), "no backup in dry-run")
 	})
 
 	It("is a no-op on non-darwin", func() {
@@ -114,8 +148,6 @@ var _ = Describe("Terminal", func() {
 		called := false
 		t.CurrentFontFn = func() (string, error) { called = true; return "", nil }
 		t.SetFontFn = func(string) error { called = true; return nil }
-		t.ApplyFn = func(string, string) error { called = true; return nil }
-		t.ExportFn = func(string, string) error { called = true; return nil }
 
 		Expect(t.Pull()).To(Succeed())
 		Expect(t.Push()).To(Succeed())

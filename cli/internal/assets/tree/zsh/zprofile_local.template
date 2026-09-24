@@ -1,0 +1,5 @@
+# Per-machine login-shell overrides, sourced at the end of ~/.zprofile.
+# Created once and never overwritten by `tars pull`.
+
+# export PATH="$PATH:$HOME/.some-tool/bin"
+# export EDITOR="vim"

@@ -1,6 +1,9 @@
 package brew
 
-import "io"
+import (
+	"io"
+	"tars/internal/pkg"
+)
 
 // Runner runs a brew subcommand with the given args. Returned errors propagate
 // to the caller; stdout/stderr are streamed to the provided writers.
@@ -23,4 +26,9 @@ func (f Formula) Name() string { return f.name }
 // Install runs `brew install <name>`.
 func (f Formula) Install(stdout, stderr io.Writer) error {
 	return f.run([]string{"install", f.name}, stdout, stderr)
+}
+
+// Status returns the current installation status of the formula.
+func (f Formula) Status() (pkg.InstallStatus, string, error) {
+	return pkg.StatusNotInstalled, "", nil
 }

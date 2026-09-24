@@ -1,6 +1,6 @@
-# Makefile for machine-setup.
+# Makefile for tars.
 #
-# Machine provisioning is the `tars` CLI: tars setup | pull | push (see README).
+# Machine provisioning is the `tars` CLI: tars setup | pull | push | sessions (see README).
 # This Makefile is for developing tars + the configs.
 #
 # Test layers:
@@ -17,7 +17,7 @@ CLI := cli
 
 .PHONY: help
 help:            ## Show this help
-	@echo 'Provisioning: `tars setup | pull | push` (see README). Dev targets:'
+	@echo 'Provisioning: `tars setup | pull | push | sessions` (see README). Dev targets:'
 	@echo ''
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -25,6 +25,13 @@ help:            ## Show this help
 .PHONY: build
 build:           ## Build the tars CLI binary (cli/tars)
 	cd $(CLI) && go build -o tars .
+
+.PHONY: sync-assets
+sync-assets:     ## Refresh the embedded dotfiles (required after editing them — a drift guard fails CI otherwise)
+	rm -rf $(CLI)/internal/assets/tree
+	mkdir -p $(CLI)/internal/assets/tree
+	cp -R nvim zsh byobu vim fonts terminal claude pi $(CLI)/internal/assets/tree/
+	cp monokai.lua $(CLI)/internal/assets/tree/
 
 .PHONY: lint
 lint:            ## Lint the CLI (golangci-lint)
@@ -51,6 +58,20 @@ check: lint build test  ## Local gate: lint, build, then all tests
 .PHONY: run
 run: build       ## Build and run `tars setup`
 	$(CLI)/tars setup
+
+# Recording is staged under /tmp (symlink-resolved: Docker Desktop shares
+# /private but not home dirs like ~/Desktop, which macOS privacy blocks).
+VHS_STAGE := $(shell cd /tmp && pwd -P)/tars-vhs
+
+.PHONY: demos
+demos:           ## Re-record the README demo GIFs (Docker + VHS)
+	cd $(CLI) && GOOS=linux go build -o ../vhs/tars-linux .
+	docker build -t tars-vhs vhs
+	rm -rf $(VHS_STAGE) && mkdir -p $(VHS_STAGE)/vhs
+	cp vhs/*.tape $(VHS_STAGE)/ && cp vhs/tars-linux $(VHS_STAGE)/tars
+	docker run --rm -v "$(VHS_STAGE):/vhs" -v "$(VHS_STAGE)/tars:/usr/local/bin/tars" tars-vhs demo.tape
+	docker run --rm -v "$(VHS_STAGE):/vhs" -v "$(VHS_STAGE)/tars:/usr/local/bin/tars" tars-vhs sessions.tape
+	cp $(VHS_STAGE)/vhs/*.gif vhs/
 
 .PHONY: test-nvim
 test-nvim:       ## Neovim smoke tests (headless)

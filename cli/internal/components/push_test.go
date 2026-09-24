@@ -8,7 +8,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/cloudwalk/machine-setup/internal/components"
+	"tars/internal/components"
 )
 
 var _ = Describe("Component Push (local → repo, archiving the repo copy)", func() {
@@ -66,6 +66,18 @@ var _ = Describe("Component Push (local → repo, archiving the repo copy)", fun
 		Expect(read(filepath.Join(opts.BackupRoot, "zsh-repo", "v1", "zshrc"))).To(Equal("OLD"))
 	})
 
+	It("zsh leaves ~/.zshrc_funcs out of the repo: personal functions are never shared", func() {
+		write(filepath.Join(repoRoot, "zsh", "zshrc"), "OLD")
+		write(filepath.Join(home, ".zshrc"), "OLD")
+		write(filepath.Join(home, ".zshrc_aliases"), "ALIASES")
+		write(filepath.Join(home, ".zshrc_funcs"), "my_func() { :; }")
+
+		Expect(components.NewZsh(opts).Push()).To(Succeed())
+
+		_, err := os.Stat(filepath.Join(repoRoot, "zsh", "zshrc_funcs"))
+		Expect(os.IsNotExist(err)).To(BeTrue())
+	})
+
 	It("byobu pushes local keybindings to the repo and archives the old repo copy", func() {
 		write(filepath.Join(repoRoot, "byobu", "keybindings.tmux"), "OLD")
 		write(filepath.Join(home, ".byobu", "keybindings.tmux"), "NEW")
@@ -87,11 +99,11 @@ var _ = Describe("Component Push (local → repo, archiving the repo copy)", fun
 		Expect(read(filepath.Join(opts.BackupRoot, "nvim-repo", "v1", "nvim", "init.lua"))).To(Equal("OLD"))
 	})
 
-	It("AllPushable lists vim, zsh, byobu, nvim, terminal (not fonts)", func() {
+	It("AllPushable lists vim, zsh, byobu, nvim, terminal, claude, pi (not fonts)", func() {
 		var names []string
 		for _, p := range components.AllPushable(opts) {
 			names = append(names, p.Name())
 		}
-		Expect(names).To(Equal([]string{"vim", "zsh", "byobu", "nvim", "terminal"}))
+		Expect(names).To(Equal([]string{"vim", "zsh", "byobu", "nvim", "terminal", "claude", "pi"}))
 	})
 })

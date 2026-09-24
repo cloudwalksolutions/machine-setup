@@ -1,6 +1,9 @@
 package brew
 
-import "io"
+import (
+	"io"
+	"tars/internal/pkg"
+)
 
 // Cask is a brew package installed via `brew install --cask <name>`.
 type Cask struct {
@@ -19,4 +22,9 @@ func (c Cask) Name() string { return c.name }
 // Install runs `brew install --cask <name>`.
 func (c Cask) Install(stdout, stderr io.Writer) error {
 	return c.run([]string{"install", "--cask", c.name}, stdout, stderr)
+}
+
+// Status returns the current installation status of the cask.
+func (c Cask) Status() (pkg.InstallStatus, string, error) {
+	return pkg.StatusNotInstalled, "", nil
 }

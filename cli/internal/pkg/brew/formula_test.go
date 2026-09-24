@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/cloudwalk/machine-setup/internal/pkg/brew"
+	"tars/internal/pkg/brew"
 )
 
 var _ = Describe("Formula.Install", func() {

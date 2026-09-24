@@ -2,6 +2,7 @@ package cmd_test
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -10,25 +11,32 @@ import (
 	. "github.com/onsi/gomega"
 	"gopkg.in/yaml.v3"
 
-	"github.com/cloudwalk/machine-setup/cmd"
-	"github.com/cloudwalk/machine-setup/internal/components"
-	"github.com/cloudwalk/machine-setup/internal/config"
-	"github.com/cloudwalk/machine-setup/internal/pkg"
+	"tars/cmd"
+	"tars/internal/components"
+	"tars/internal/config"
+	"tars/internal/pkg"
 )
 
 // ── Test doubles ─────────────────────────────────────────────────────────
 
-type spyWelcome struct{ calls int }
+type spyWelcome struct {
+	calls int
+	err   error
+}
 
-func (s *spyWelcome) Show() error { s.calls++; return nil }
+func (s *spyWelcome) Show() error { s.calls++; return s.err }
 
 type spyPicker struct {
 	offered []string
 	pick    []string
+	err     error
 }
 
 func (s *spyPicker) Pick(offered []string) ([]string, error) {
 	s.offered = offered
+	if s.err != nil {
+		return nil, s.err
+	}
 	if s.pick != nil {
 		return s.pick, nil
 	}
@@ -73,6 +81,9 @@ func (s *spyInstallable) Name() string { return s.name }
 func (s *spyInstallable) Install(_, _ io.Writer) error {
 	*s.log = append(*s.log, s.name)
 	return s.err
+}
+func (s *spyInstallable) Status() (pkg.InstallStatus, string, error) {
+	return pkg.StatusNotInstalled, "", nil
 }
 
 type recordingInstaller struct {
@@ -124,12 +135,15 @@ type recordingPuller struct {
 	stderr     io.Writer
 }
 
-func (p *recordingPuller) PullAll() {
+func (p *recordingPuller) PullAll() error {
+	var failed []error
 	for _, c := range p.components {
 		if err := c.Pull(); err != nil {
 			fmt.Fprintf(p.stderr, "  %s: %v\n", c.Name(), err)
+			failed = append(failed, err)
 		}
 	}
+	return errors.Join(failed...)
 }
 
 // ── Fixture ──────────────────────────────────────────────────────────────

@@ -1,0 +1,12 @@
+# Config for vladopajic/go-test-coverage (CI coverage gate + badge).
+# Paths are relative to the repo root, where the action runs.
+profile: cli/cover.out
+
+threshold:
+  # Ratchet up as coverage grows, never down.
+  total: 78
+
+exclude:
+  paths:
+    - internal/assets # embedded dotfile mirror; the Go shim is a thin embed wrapper
+    - internal/forms  # huh TUIs are production seams, untested by design (TARS_NO_FORM paths run in cmd specs)

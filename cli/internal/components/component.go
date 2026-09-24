@@ -2,7 +2,12 @@
 // machine, push back to the repo) natively in Go.
 package components
 
-import "io"
+import (
+	"io"
+
+	"tars/internal/config"
+	"tars/internal/fsutil"
+)
 
 // Component is the unit the orchestrator iterates over during setup.
 type Component interface {
@@ -22,8 +27,17 @@ type Options struct {
 	RepoRoot   string    // root of the machine-setup repo
 	Home       string    // user's HOME (destination root)
 	BackupRoot string    // <repoRoot>/backups in normal use
+	DryRun     bool      // report intended writes instead of performing them
 	Stdout     io.Writer // progress output
 	Stderr     io.Writer // error/warning output
+
+	Claude config.ClaudeConfig // `tars claude init` choices; zero value = everything on
+	Pi     config.PiConfig     // `tars pi init` choices; zero value = files only, no providers
+}
+
+// copier is the writer every component routes its writes through.
+func (o Options) copier() fsutil.Copier {
+	return fsutil.Copier{DryRun: o.DryRun, Log: o.Stdout}
 }
 
 // AllPullable returns the pullable components in canonical order.
@@ -35,6 +49,9 @@ func AllPullable(opts Options) []Component {
 		NewNvim(opts),
 		NewFonts(opts),
 		NewTerminal(opts),
+		NewProfiles(opts),
+		NewClaude(opts),
+		NewPi(opts),
 	}
 }
 
@@ -47,5 +64,7 @@ func AllPushable(opts Options) []Pushable {
 		NewByobu(opts),
 		NewNvim(opts),
 		NewTerminal(opts),
+		NewClaude(opts),
+		NewPi(opts),
 	}
 }

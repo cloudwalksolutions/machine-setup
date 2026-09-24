@@ -7,13 +7,13 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/cloudwalk/machine-setup/internal/repo"
+	"tars/internal/repo"
 )
 
 var _ = Describe("Find", func() {
-	It("honors MACHINE_SETUP_REPO when set", func() {
+	It("honors TARS_REPO when set", func() {
 		tmp := GinkgoT().TempDir()
-		GinkgoT().Setenv("MACHINE_SETUP_REPO", tmp)
+		GinkgoT().Setenv("TARS_REPO", tmp)
 
 		got, err := repo.Find()
 		Expect(err).NotTo(HaveOccurred())
@@ -40,7 +40,7 @@ var _ = Describe("Find", func() {
 		Expect(err).To(HaveOccurred())
 	})
 
-	It("falls back to walking up from CWD when MACHINE_SETUP_REPO is unset", func() {
+	It("falls back to walking up from CWD when TARS_REPO is unset", func() {
 		// Build a fake repo with markers + a nested subdir, chdir into it.
 		root := GinkgoT().TempDir()
 		Expect(os.MkdirAll(filepath.Join(root, "cli"), 0o755)).To(Succeed())
@@ -49,7 +49,7 @@ var _ = Describe("Find", func() {
 		nested := filepath.Join(root, "deep", "child")
 		Expect(os.MkdirAll(nested, 0o755)).To(Succeed())
 
-		GinkgoT().Setenv("MACHINE_SETUP_REPO", "")
+		GinkgoT().Setenv("TARS_REPO", "")
 		prev, _ := os.Getwd()
 		Expect(os.Chdir(nested)).To(Succeed())
 		DeferCleanup(func() { _ = os.Chdir(prev) })

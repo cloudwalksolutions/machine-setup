@@ -9,7 +9,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/cloudwalk/machine-setup/internal/shell"
+	"tars/internal/shell"
 )
 
 var _ = Describe("Powerlevel10kInstaller.Install", func() {

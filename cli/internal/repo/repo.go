@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 )
 
-// Find returns the repository root. Honors MACHINE_SETUP_REPO if set,
+// Find returns the repository root. Honors TARS_REPO if set,
 // otherwise walks up from the current working directory.
 func Find() (string, error) {
-	if env := os.Getenv("MACHINE_SETUP_REPO"); env != "" {
+	if env := os.Getenv("TARS_REPO"); env != "" {
 		return env, nil
 	}
 	cwd, err := os.Getwd()
@@ -20,9 +20,9 @@ func Find() (string, error) {
 	return FindFrom(cwd)
 }
 
-// FindFrom walks up from start looking for the machine-setup repo root: a
-// directory containing both the CLI module (cli/go.mod) and the nvim/ config
-// tree. Set MACHINE_SETUP_REPO to bypass this search.
+// FindFrom walks up from start looking for the tars repo root: a directory
+// containing both the CLI module (cli/go.mod) and the nvim/ config tree.
+// Set TARS_REPO to bypass this search.
 func FindFrom(start string) (string, error) {
 	dir := start
 	for {

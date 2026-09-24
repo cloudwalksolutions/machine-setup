@@ -1,8 +1,7 @@
 package components
 
 import (
-	"github.com/cloudwalk/machine-setup/internal/fsutil"
-	"github.com/cloudwalk/machine-setup/internal/paths"
+	"tars/internal/paths"
 )
 
 // Vim pulls/pushes the vimrc and sublimemonokai color scheme.
@@ -21,18 +20,18 @@ func (v *Vim) Name() string { return "vim" }
 
 // Pull copies vimrc and the sublimemonokai color scheme into HOME.
 func (v *Vim) Pull() error {
-	if err := fsutil.SafeCopy(v.p.VimrcRepo, v.p.VimrcLocal, v.Name(), v.opts.BackupRoot); err != nil {
+	if err := v.opts.copier().SafeCopy(v.p.VimrcRepo, v.p.VimrcLocal, v.Name(), v.opts.BackupRoot); err != nil {
 		return err
 	}
-	return fsutil.SafeCopy(v.p.ColorsRepo, v.p.ColorsLocal, v.Name(), v.opts.BackupRoot)
+	return v.opts.copier().SafeCopy(v.p.ColorsRepo, v.p.ColorsLocal, v.Name(), v.opts.BackupRoot)
 }
 
 // Push copies the local vimrc and color scheme back to the repo, archiving the
 // repo copies under "vim-repo".
 func (v *Vim) Push() error {
 	comp := v.Name() + "-repo"
-	if err := fsutil.SafeCopy(v.p.VimrcLocal, v.p.VimrcRepo, comp, v.opts.BackupRoot); err != nil {
+	if err := v.opts.copier().SafeCopy(v.p.VimrcLocal, v.p.VimrcRepo, comp, v.opts.BackupRoot); err != nil {
 		return err
 	}
-	return fsutil.SafeCopy(v.p.ColorsLocal, v.p.ColorsRepo, comp, v.opts.BackupRoot)
+	return v.opts.copier().SafeCopy(v.p.ColorsLocal, v.p.ColorsRepo, comp, v.opts.BackupRoot)
 }
