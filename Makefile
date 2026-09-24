@@ -1,6 +1,6 @@
 # Makefile for tars.
 #
-# Machine provisioning is the `tars` CLI: tars setup | pull | push | sessions (see README).
+# Machine provisioning is the `tars` CLI: tars setup | pull | push | sessions | profiles (see README).
 # This Makefile is for developing tars + the configs.
 #
 # Test layers:
@@ -17,7 +17,7 @@ CLI := cli
 
 .PHONY: help
 help:            ## Show this help
-	@echo 'Provisioning: `tars setup | pull | push | sessions` (see README). Dev targets:'
+	@echo 'Provisioning: `tars setup | pull | push | sessions | profiles` (see README). Dev targets:'
 	@echo ''
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -63,14 +63,19 @@ run: build       ## Build and run `tars setup`
 # /private but not home dirs like ~/Desktop, which macOS privacy blocks).
 VHS_STAGE := $(shell cd /tmp && pwd -P)/tars-vhs
 
+VHS_TAPES := demo sessions profiles
+VHS_VERSION := $(shell git describe --tags --abbrev=0 2>/dev/null || echo dev)
+VHS_LDFLAGS := -s -w -X main.version=$(VHS_VERSION) -X main.commit=$(shell git rev-parse --short HEAD) -X main.date=$(shell date -u +%Y-%m-%d)
+
 .PHONY: demos
 demos:           ## Re-record the README demo GIFs (Docker + VHS)
-	cd $(CLI) && GOOS=linux go build -o ../vhs/tars-linux .
+	cd $(CLI) && GOOS=linux go build -ldflags '$(VHS_LDFLAGS)' -o ../vhs/tars-linux .
 	docker build -t tars-vhs vhs
 	rm -rf $(VHS_STAGE) && mkdir -p $(VHS_STAGE)/vhs
 	cp vhs/*.tape $(VHS_STAGE)/ && cp vhs/tars-linux $(VHS_STAGE)/tars
-	docker run --rm -v "$(VHS_STAGE):/vhs" -v "$(VHS_STAGE)/tars:/usr/local/bin/tars" tars-vhs demo.tape
-	docker run --rm -v "$(VHS_STAGE):/vhs" -v "$(VHS_STAGE)/tars:/usr/local/bin/tars" tars-vhs sessions.tape
+	for t in $(VHS_TAPES); do \
+	  docker run --rm -v "$(VHS_STAGE):/vhs" -v "$(VHS_STAGE)/tars:/usr/local/bin/tars" tars-vhs $$t.tape || exit 1; \
+	done
 	cp $(VHS_STAGE)/vhs/*.gif vhs/
 
 .PHONY: test-nvim

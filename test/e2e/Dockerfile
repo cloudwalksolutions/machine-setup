@@ -28,7 +28,7 @@ ENV TARS_REPO=/repo
 
 RUN tars pull
 
-# Every component landed (terminal is a linux no-op; pull exiting 0 covers it).
+# Every file-producing component landed (terminal and profiles are no-ops here; pull exiting 0 covers them).
 RUN test -f "$HOME/.vimrc" \
  && test -f "$HOME/.zshrc" \
  && test -f "$HOME/.zshrc_aliases" \

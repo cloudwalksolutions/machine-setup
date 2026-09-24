@@ -1,4 +1,4 @@
-// Package repo resolves the machine-setup repository root.
+// Package repo resolves the tars repository root.
 package repo
 
 import (

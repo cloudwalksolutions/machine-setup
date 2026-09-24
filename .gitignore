@@ -50,7 +50,7 @@ envs/gcp.sh
 **/Icon
 **/.dropbox*
 
-# Machine setup backups (legacy location; backups now live under ~/.local/state/tars)
+# Legacy in-repo backups (backups now live under ~/.local/state/tars)
 backups/
 
 # Personal zsh secret files (not synced, user-specific)
@@ -59,7 +59,6 @@ zsh/zshrc_secret
 
 # Go CLI build artifacts
 cli/tars
-cli/machine-setup
 cli/cover.out
 vhs/tars-linux
 

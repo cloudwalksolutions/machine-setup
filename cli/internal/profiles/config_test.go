@@ -25,6 +25,7 @@ var _ = Describe("DefaultPath", func() {
 })
 
 const oneProfile = `
+full_name: Ada Lovelace
 profiles:
   - name: cloudwalk
     alias: cws
@@ -109,6 +110,7 @@ profiles:
 
 	It("sorts profiles by alias so rendered output is stable", func() {
 		writeConfig(`
+full_name: Ada Lovelace
 profiles:
   - name: zeta
     alias: zz
@@ -129,6 +131,7 @@ profiles:
 	DescribeTable("rejects a name or alias that is not a safe lowercase identifier",
 		func(name, alias, offending string) {
 			writeConfig(`
+full_name: Ada Lovelace
 profiles:
   - name: "` + name + `"
     alias: "` + alias + `"
@@ -148,7 +151,7 @@ profiles:
 
 	DescribeTable("rejects a profile missing a required field",
 		func(body, missing string) {
-			writeConfig("profiles:\n  - name: cloudwalk\n    alias: cws\n" + body)
+			writeConfig("full_name: Ada\nprofiles:\n  - name: cloudwalk\n    alias: cws\n" + body)
 
 			_, err := profiles.Load(path, home)
 
@@ -157,6 +160,20 @@ profiles:
 		Entry("no email", "    github: me-cws\n", "email"),
 		Entry("no github", "    email: me@cloudwalk.example\n", "github"),
 	)
+
+	It("rejects a profile with no full_name at either level", func() {
+		writeConfig(`
+profiles:
+  - name: cloudwalk
+    alias: cws
+    email: me@cloudwalk.example
+    github: me-cws
+`)
+
+		_, err := profiles.Load(path, home)
+
+		Expect(err).To(MatchError(And(ContainSubstring("cws"), ContainSubstring("full_name"))))
+	})
 
 	DescribeTable("rejects two profiles sharing an identifier",
 		func(secondName, secondAlias, duplicate string) {

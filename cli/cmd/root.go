@@ -11,7 +11,7 @@ var cfgFile string
 var rootCmd = &cobra.Command{
 	Use:   "tars",
 	Short: "tars — dev-machine setup CLI",
-	Long:  "Provision and manage a development machine (dotfiles, tools, fonts, terminals), and open byobu sessions from a simple config.",
+	Long:  "Provision and manage a development machine (dotfiles, tools, fonts, terminals), open byobu sessions from a simple config, and switch git/GitHub/SSH identity per project dir.",
 }
 
 // Execute is the single public entry point called by main.go.

@@ -15,7 +15,7 @@ func ShowWelcome() error {
 	return huh.NewForm(
 		huh.NewGroup(
 			huh.NewNote().
-				Title("tars — Machine Setup").
+				Title("tars — dev-machine setup").
 				Description(
 					"Welcome to tars!\n\n" +
 						"This tool will initialize your development environment\n" +

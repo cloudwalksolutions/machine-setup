@@ -21,15 +21,20 @@ Type "rm -rf /tmp/tars-demo && mkdir -p /tmp/tars-demo/work/api /tmp/tars-demo/w
 Enter
 Show
 
-Type "tars sessions list"
+Type "tars s ls"
 Enter
 Sleep 2s
 
 # create-or-attach: one window per dir, idempotent
 Type "tars s o cloudwalk"
 Enter
-Sleep 5s
+Sleep 2s
+
+# each window opens in its dir
+Type "pwd"
+Enter
+Sleep 2.5s
 
 Hide
-Type "tars"
+Type "tmux kill-server"
 Enter

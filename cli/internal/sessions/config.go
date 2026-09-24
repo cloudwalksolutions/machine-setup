@@ -61,10 +61,10 @@ func Load(path string) (File, error) {
 const seedContent = `# tars sessions config — each session opens one byobu window per dir.
 # Session names may not contain '.' or ':'.
 sessions:
-  - name: example
+  - name: cloudwalk
     dirs:
-      - ~/projects/my-app
-      - ~/projects/my-api
+      - ~/Desktop/projects/cloudwalk/api
+      - ~/Desktop/projects/cloudwalk/infra
 `
 
 // Seed writes a commented example config if none exists. Idempotent.

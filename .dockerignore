@@ -3,5 +3,4 @@
 backups/
 **/dist/
 cli/tars
-cli/machine-setup
 .github
