@@ -7,8 +7,8 @@ Guidance for Claude Code (claude.ai/code) when working in this repository.
 A machine-setup tool for macOS (primary) and Linux (incl. shared bastions). It goes
 from a fresh machine to a production-ready dev environment: dev tools, dotfiles
 (Neovim, Zsh, Byobu, Vim), fonts, and terminal settings, plus a declarative byobu
-session manager. The user-facing CLI is **`tars`** (Go, in `cli/`) with five verbs:
-`setup`, `pull`, `push`, `sessions`, `profiles`, `claude`.
+session manager. The user-facing CLI is **`tars`** (Go, in `cli/`) with seven verbs:
+`setup`, `pull`, `push`, `sessions`, `profiles`, `claude`, `pi`.
 
 ## Core Philosophy
 
@@ -42,7 +42,7 @@ session manager. The user-facing CLI is **`tars`** (Go, in `cli/`) with five ver
 │   │   ├── backup.go            # BackupRoot: ~/.local/state/tars/backups (+ env override)
 │   │   ├── resolve.go           # ResolveRepo: clone discovery → embedded-assets fallback
 │   └── internal/
-│       ├── components/          # per-tool Pull/Push: vim, zsh, byobu, nvim, fonts, terminal, profiles, claude
+│       ├── components/          # per-tool Pull/Push: vim, zsh, byobu, nvim, fonts, terminal, profiles, claude, pi
 │       ├── sessions/            # declarative byobu sessions: yaml config + idempotent launcher
 │       ├── profiles/            # account identities: yaml config, gitconfig/env rendering, active marker
 │       ├── assets/              # dotfiles embedded in the binary (tree/ mirror; `make sync-assets`)
@@ -55,6 +55,7 @@ session manager. The user-facing CLI is **`tars`** (Go, in `cli/`) with five ver
 │       └── config/              # persisted YAML config
 ├── nvim/  zsh/  byobu/  vim/     # the dotfiles tars manages
 ├── claude/                      # Claude Code: settings fragment, hooks/, rules/ (→ ~/.claude/CLAUDE.md), templates/
+├── pi/                          # pi coding agent: settings fragment, agents/, prompts/, extensions/, permissions.json
 ├── fonts/                       # Hack Nerd Font files
 ├── terminal/                    # font string + Terminal.app profile (iTerm2/Terminal.app)
 ├── install.sh                   # curl|sh installer (release binary → ~/.local/bin)
@@ -174,6 +175,17 @@ lines) into `claude/rules/`, run `make sync-assets`. The `claude` component rend
 selected rules into `~/.claude/CLAUDE.md`; `claude/settings.json` holds only the shareable
 keys (model, theme, enabledPlugins, the hook entry) in `json.MarshalIndent` key order so
 `push` round-trips byte-for-byte. Never sync `autoMode`, `permissions`, or `~/.claude.json`.
+
+**pi**: `pi/` holds the shareable pieces (agent, prompts, the edit-guard extension that
+ports `claude/hooks/block-unreviewable-edits.sh` rule for rule, the permission baseline, a
+settings fragment with packages). `~/.pi/agent/AGENTS.md` is rendered from `claude/rules/`
+(one rule source for both agents). Model providers are **never** in the repo: `tars pi init`
+asks (ollama / llama.cpp / OpenAI-compatible), stores them under `pi:` in the tars config,
+renders `models.json` with `$ENV` key references, and stores a key the form collected as an
+export in `~/.zshrc_secret`. Only `init` shells out to `pi`/`ollama` (behind `Pi.Run`); `pull`
+writes files only; nothing is ever uninstalled. Design for an empty machine: detecting existing
+config to pre-fill the form is fine, code that only migrates one machine's state is not. Add a
+prompt by dropping `pi/prompts/<name>.md` and running `make sync-assets`.
 
 **Adding an installable tool**: edit the curated lists in
 `cli/internal/pkg/registry.go` (`darwinFormulas` / `darwinCasks` / `darwinTappedFormulas`

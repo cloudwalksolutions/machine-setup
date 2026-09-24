@@ -1,11 +1,7 @@
 package components
 
 import (
-	"bytes"
 	"os"
-	"path/filepath"
-	"slices"
-	"strings"
 
 	"tars/internal/config"
 	"tars/internal/fsutil"
@@ -95,43 +91,13 @@ func (c *Claude) pullSettings() error {
 
 const claudeMDHeader = "# Global Claude Code rules\n\nManaged by `tars claude init`; edit the rule files in the machine-setup repo, not this file.\n\n"
 
-// pullRules renders the selected rule files into CLAUDE.md via a temp file so
-// SafeCopy provides backup-before-overwrite and the identical-content skip.
+// pullRules renders the selected rule files into CLAUDE.md.
 func (c *Claude) pullRules() error {
-	entries, err := os.ReadDir(c.p.RulesRepo)
+	content, err := renderRules(c.p.RulesRepo, claudeMDHeader, c.cfg.Rules)
 	if err != nil {
 		return err
 	}
-	var buf bytes.Buffer
-	buf.WriteString(claudeMDHeader)
-	for _, e := range entries {
-		if !c.ruleSelected(strings.TrimSuffix(e.Name(), ".md")) {
-			continue
-		}
-		b, err := os.ReadFile(filepath.Join(c.p.RulesRepo, e.Name()))
-		if err != nil {
-			return err
-		}
-		buf.Write(b)
-		buf.WriteString("\n")
-	}
-	tmp, err := os.CreateTemp("", "tars-claude-*.md")
-	if err != nil {
-		return err
-	}
-	defer func() { _ = os.Remove(tmp.Name()) }()
-	if _, err := tmp.Write(buf.Bytes()); err != nil {
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-	return fsutil.SafeCopy(tmp.Name(), c.p.ClaudeMDLocal, c.Name(), c.opts.BackupRoot)
-}
-
-// ruleSelected reports whether a rule is in the configured set; no config means all.
-func (c *Claude) ruleSelected(name string) bool {
-	return len(c.cfg.Rules) == 0 || slices.Contains(c.cfg.Rules, name)
+	return c.opts.copier().SafeWrite(content, 0o644, c.p.ClaudeMDLocal, c.Name(), c.opts.BackupRoot)
 }
 
 // enabled treats an unset toggle as on.

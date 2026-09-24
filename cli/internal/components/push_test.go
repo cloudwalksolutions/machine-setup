@@ -99,11 +99,11 @@ var _ = Describe("Component Push (local → repo, archiving the repo copy)", fun
 		Expect(read(filepath.Join(opts.BackupRoot, "nvim-repo", "v1", "nvim", "init.lua"))).To(Equal("OLD"))
 	})
 
-	It("AllPushable lists vim, zsh, byobu, nvim, terminal, claude (not fonts)", func() {
+	It("AllPushable lists vim, zsh, byobu, nvim, terminal, claude, pi (not fonts)", func() {
 		var names []string
 		for _, p := range components.AllPushable(opts) {
 			names = append(names, p.Name())
 		}
-		Expect(names).To(Equal([]string{"vim", "zsh", "byobu", "nvim", "terminal", "claude"}))
+		Expect(names).To(Equal([]string{"vim", "zsh", "byobu", "nvim", "terminal", "claude", "pi"}))
 	})
 })

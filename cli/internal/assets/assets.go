@@ -12,7 +12,7 @@ import (
 )
 
 // Dirs are the repo dotfile directories embedded in the binary.
-var Dirs = []string{"nvim", "zsh", "byobu", "vim", "fonts", "terminal", "claude"}
+var Dirs = []string{"nvim", "zsh", "byobu", "vim", "fonts", "terminal", "claude", "pi"}
 
 // RootFiles are repo-root files components read (paths.go), embedded alongside Dirs.
 var RootFiles = []string{"monokai.lua"}
