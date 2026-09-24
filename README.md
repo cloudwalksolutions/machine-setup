@@ -75,7 +75,7 @@ The installer verifies the release checksum; override the directory with
 | `tars profiles` | `p` | Switch git, GitHub and SSH identity per project dir |
 | `tars claude init` | `c i` | Pick and apply Claude Code pieces: edit-blocking hook, settings, global rules |
 | `tars claude project [dir]` | `c p` | Scaffold a project `CLAUDE.md` from the repo template (`--force` to replace) |
-| `tars pi init` | `pi i` | Set up the pi coding agent: packages, model providers (ollama / llama.cpp / any OpenAI-compatible), baseline agent |
+| `tars pi init` | `pi i` | Set up the pi coding agent: packages, local ollama models, baseline agent |
 
 `tars --version` prints the build; `--config <file>` overrides the tool-selection
 config. `pull` and `push` exit non-zero when any component fails; `setup` tolerates
@@ -196,6 +196,33 @@ For each account (example: name `cloudwalk`, alias `cws`):
    git -C ~/Desktop/projects/cloudwalk/<repo> config user.email   # you@cloudwalk.example
    gh auth status                                           # active: your-github-user
    ```
+- `~/.zshrc`, `~/.zshrc_aliases`, and the login profile (`~/.zprofile` on macOS,
+  `~/.profile` on Linux)
+- `~/.config/nvim/` (replaced wholesale), `~/.vimrc`, `~/.vim/colors/`
+- `~/.byobu/` configs and status scripts
+- Fonts: Hack Nerd Font → `/Library/Fonts` (macOS, needs sudo) or
+  `~/.local/share/fonts` (Linux, no sudo)
+- macOS only: sets the iTerm2 + Terminal.app font/profile
+- With a profiles config: the managed block in `~/.gitconfig` and
+  `~/.config/tars/profiles/<alias>.gitconfig`
+- `~/.claude/`: the `block-unreviewable-edits.sh` hook, a `CLAUDE.md` rendered
+  from `claude/rules/`, and a merge of `claude/settings.json` (model, theme,
+  plugins, the hook entry) into `settings.json`. Machine-local keys such as
+  `autoMode` and `permissions` are left alone; `~/.claude.json` is never touched.
+- `~/.pi/agent/`: the `tars` agent, `/tdd` `/plan` `/pr` prompts, the edit-guard
+  extension, a permission baseline, `AGENTS.md` rendered from the same rules as
+  Claude, and a merge of `pi/settings.json` (packages, thinking off). The only
+  provider tars touches is local ollama (models chosen in `tars pi init`); other
+  providers and keys stay pi's own. See [docs/pi.md](docs/pi.md).
+
+Never overwritten: `~/.zshrc_secret` (seeded from a template when absent — put
+API keys and per-account aliases there), `~/.zprofile_local` (seeded once from
+`zsh/zprofile_local.template` — per-machine PATH and env for the login shell) and
+`~/.zshrc_funcs` (yours entirely), and the per-profile `~/.config/tars/profiles/<alias>.env`.
+Machine-specific bits belong in these git-ignored files, which the shared configs source.
+
+`tars pull --dry-run` prints what would be created, overwritten (with the backup
+version it would mint) or left unchanged, and writes nothing.
 
 ## Claude Code
 

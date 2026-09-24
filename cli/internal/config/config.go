@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 
 	"github.com/spf13/viper"
 )
@@ -19,27 +18,12 @@ type Config struct {
 	Pi           PiConfig     `mapstructure:"pi"           yaml:"pi"`
 }
 
-// PiConfig records the `tars pi init` choices; providers are per-machine and rendered
-// into ~/.pi/agent/models.json, never stored in the repo.
+// PiConfig records the `tars pi init` choices. Only the local ollama provider is
+// tars' business; other providers are configured in pi itself.
 type PiConfig struct {
-	Packages        []string     `mapstructure:"packages"         yaml:"packages"`
-	Providers       []PiProvider `mapstructure:"providers"        yaml:"providers"`
-	DefaultProvider string       `mapstructure:"default_provider" yaml:"default_provider"`
-	DefaultModel    string       `mapstructure:"default_model"    yaml:"default_model"`
-}
-
-// KeyEnvFor derives the env var holding a provider's API key: remote-llama → REMOTE_LLAMA_API_KEY.
-func KeyEnvFor(provider string) string {
-	return strings.ToUpper(strings.NewReplacer("-", "_", ".", "_", " ", "_").Replace(provider)) + "_API_KEY"
-}
-
-// PiProvider is one model provider: kind ollama, llamacpp, or openai (any OpenAI-compatible endpoint).
-type PiProvider struct {
-	Name    string   `mapstructure:"name"     yaml:"name"`
-	Kind    string   `mapstructure:"kind"     yaml:"kind"`
-	BaseURL string   `mapstructure:"base_url" yaml:"base_url"`
-	KeyEnv  string   `mapstructure:"key_env"  yaml:"key_env"`
-	Models  []string `mapstructure:"models"   yaml:"models"`
+	Packages     []string `mapstructure:"packages"      yaml:"packages"`
+	OllamaModels []string `mapstructure:"ollama_models" yaml:"ollama_models"`
+	DefaultModel string   `mapstructure:"default_model" yaml:"default_model"`
 }
 
 // ClaudeConfig records the `tars claude init` choices; nil/empty means "all on".
