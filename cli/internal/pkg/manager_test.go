@@ -29,7 +29,8 @@ type fakeInstallable struct {
 	err  error
 }
 
-func (f fakeInstallable) Name() string { return f.name }
+func (f fakeInstallable) Name() string        { return f.name }
+func (f fakeInstallable) Description() string { return "fake " + f.name }
 func (f fakeInstallable) Install(_, _ io.Writer) error {
 	*f.log = append(*f.log, "install "+f.name)
 	return f.err
@@ -82,10 +83,11 @@ var _ = Describe("ScriptInstaller", func() {
 		stderr = &bytes.Buffer{}
 	})
 
-	Describe("Name()", func() {
-		It("reports the given name", func() {
-			installer := pkg.NewScriptInstaller("my-tool", path, nil, nil)
+	Describe("Name() and Description()", func() {
+		It("report what was given", func() {
+			installer := pkg.NewScriptInstaller("my-tool", "does things", path, nil, nil)
 			Expect(installer.Name()).To(Equal("my-tool"))
+			Expect(installer.Description()).To(Equal("does things"))
 		})
 	})
 
@@ -93,7 +95,7 @@ var _ = Describe("ScriptInstaller", func() {
 		It("is a no-op when the checkPath already exists", func() {
 			Expect(os.WriteFile(path, []byte("fake binary"), 0o755)).To(Succeed())
 
-			installer := pkg.NewScriptInstaller("my-tool", path, []string{"curl"}, func(_ []string, _, _ io.Writer) error {
+			installer := pkg.NewScriptInstaller("my-tool", "", path, []string{"curl"}, func(_ []string, _, _ io.Writer) error {
 				panic("runner must not be called when binary exists")
 			})
 
@@ -107,7 +109,7 @@ var _ = Describe("ScriptInstaller", func() {
 				gotStderr io.Writer
 				calls     int
 			)
-			installer := pkg.NewScriptInstaller("my-tool", path, []string{"install-step"}, func(cmd []string, o, e io.Writer) error {
+			installer := pkg.NewScriptInstaller("my-tool", "", path, []string{"install-step"}, func(cmd []string, o, e io.Writer) error {
 				calls++
 				gotCmd = cmd
 				gotStdout, gotStderr = o, e
@@ -125,7 +127,7 @@ var _ = Describe("ScriptInstaller", func() {
 
 	Describe("Status()", func() {
 		It("reports StatusNotInstalled when checkPath is missing", func() {
-			installer := pkg.NewScriptInstaller("my-tool", path, nil, nil)
+			installer := pkg.NewScriptInstaller("my-tool", "", path, nil, nil)
 			status, version, err := installer.Status()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(status).To(Equal(pkg.StatusNotInstalled))
@@ -135,7 +137,7 @@ var _ = Describe("ScriptInstaller", func() {
 		It("reports the first word of `<checkPath> --version` when checkPath exists", func() {
 			Expect(os.WriteFile(path, []byte("fake binary"), 0o755)).To(Succeed())
 			var gotCmd []string
-			installer := pkg.NewScriptInstaller("my-tool", path, nil, func(cmd []string, o, _ io.Writer) error {
+			installer := pkg.NewScriptInstaller("my-tool", "", path, nil, func(cmd []string, o, _ io.Writer) error {
 				gotCmd = cmd
 				_, _ = io.WriteString(o, "2.1.0 (Claude Code)\n")
 				return nil

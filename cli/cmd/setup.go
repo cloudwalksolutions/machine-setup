@@ -318,14 +318,15 @@ func NewSetup(stdout, stderr io.Writer, cfgPath string) (*Setup, error) {
 			brew.DefaultRunner(),
 			apt.DefaultKit(),
 			rvm.NewInstaller(filepath.Join(home, ".rvm"), rvm.DefaultRunner()),
-			npm.NewPackage("gemini-cli", "@google/gemini-cli", npm.DefaultRunner()),
+			npm.NewPackage("gemini-cli", "@google/gemini-cli", "Google's Gemini CLI agent", npm.DefaultRunner()),
 			pkg.NewScriptInstaller(
 				"claude-code",
+				"Anthropic's Claude Code agent",
 				filepath.Join(home, ".local", "bin", "claude"),
 				[]string{"bash", "-c", "curl -fsSL https://claude.ai/install.sh | bash"},
 				nil,
 			),
-			npm.NewPackage("pi", "@earendil-works/pi-coding-agent", npm.DefaultRunner()),
+			npm.NewPackage("pi", "@earendil-works/pi-coding-agent", "pi coding agent", npm.DefaultRunner()),
 		).For(runtime.GOOS),
 		Installer: IterativeInstaller{Stdout: stdout, Stderr: stderr},
 		OhMyZsh: shell.OhMyZshInstaller{

@@ -19,11 +19,13 @@ import (
 )
 
 type fakeInstallable struct {
-	name    string
-	version string
+	name        string
+	description string
+	version     string
 }
 
 func (f fakeInstallable) Name() string                 { return f.name }
+func (f fakeInstallable) Description() string          { return f.description }
 func (f fakeInstallable) Install(_, _ io.Writer) error { return nil }
 func (f fakeInstallable) Status() (pkg.InstallStatus, string, error) {
 	if f.version != "" {
@@ -38,6 +40,7 @@ type slowInstallable struct {
 }
 
 func (s slowInstallable) Name() string                 { return s.name }
+func (s slowInstallable) Description() string          { return "" }
 func (s slowInstallable) Install(_, _ io.Writer) error { return nil }
 func (s slowInstallable) Status() (pkg.InstallStatus, string, error) {
 	time.Sleep(s.delay)
@@ -75,14 +78,14 @@ var _ = Describe("DevToolRegistry", func() {
 		Expect(reg.Installables()[2].Name()).To(Equal("z"))
 	})
 
-	It("Catalog projects name, description, installed state and version in order", func() {
+	It("Catalog projects each installable's name, description, installed state and version in order", func() {
 		reg := registry.NewDevToolRegistry().
-			Add(fakeInstallable{name: "neovim", version: "0.12.5"}).
-			Add(fakeInstallable{name: "fzf"})
+			Add(fakeInstallable{name: "neovim", description: "the editor", version: "0.12.5"}).
+			Add(fakeInstallable{name: "fzf", description: "the finder"})
 
 		Expect(reg.Catalog()).To(Equal([]pkg.ToolInfo{
-			{Name: "neovim", Description: registry.Describe("neovim"), Installed: true, Version: "0.12.5"},
-			{Name: "fzf", Description: registry.Describe("fzf")},
+			{Name: "neovim", Description: "the editor", Installed: true, Version: "0.12.5"},
+			{Name: "fzf", Description: "the finder"},
 		}))
 	})
 
@@ -232,15 +235,14 @@ var _ = Describe("RegistryFactory", func() {
 		}))
 	})
 
-	It("describes every tool on both platforms plus the cross-platform extras", func() {
-		var names []string
-		names = append(names, factory.For("darwin").Names()...)
-		names = append(names, factory.For("linux").Names()...)
-		names = append(names, "claude-code", "gemini-cli", "pi", "rvm")
+	It("gives every tool on both platforms a concise description", func() {
+		var tools []pkg.Installable
+		tools = append(tools, factory.For("darwin").Installables()...)
+		tools = append(tools, factory.For("linux").Installables()...)
 
-		for _, n := range names {
-			Expect(registry.Describe(n)).NotTo(BeEmpty(), n)
-			Expect(len(registry.Describe(n))).To(BeNumerically("<=", 48), n)
+		for _, t := range tools {
+			Expect(t.Description()).NotTo(BeEmpty(), t.Name())
+			Expect(len(t.Description())).To(BeNumerically("<=", 48), t.Name())
 		}
 	})
 

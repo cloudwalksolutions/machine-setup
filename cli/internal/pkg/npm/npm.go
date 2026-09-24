@@ -17,14 +17,16 @@ type Runner func(args []string, stdout, stderr io.Writer) error
 type Package struct {
 	displayName string
 	packageName string
+	description string
 	run         Runner
 }
 
 // NewPackage returns an npm Package bound to a runner.
-func NewPackage(displayName, packageName string, run Runner) Package {
+func NewPackage(displayName, packageName, description string, run Runner) Package {
 	return Package{
 		displayName: displayName,
 		packageName: packageName,
+		description: description,
 		run:         run,
 	}
 }
@@ -33,6 +35,9 @@ func NewPackage(displayName, packageName string, run Runner) Package {
 func (p Package) Name() string {
 	return p.displayName
 }
+
+// Description returns the picker blurb.
+func (p Package) Description() string { return p.description }
 
 // Install runs `npm install -g <packageName>`.
 func (p Package) Install(stdout, stderr io.Writer) error {

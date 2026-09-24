@@ -87,7 +87,7 @@ func (r *fixedRegistry) Installables() []pkg.Installable { return r.tools }
 func (r *fixedRegistry) Catalog() []pkg.ToolInfo {
 	infos := make([]pkg.ToolInfo, len(r.tools))
 	for i, t := range r.tools {
-		infos[i] = pkg.ToolInfo{Name: t.Name(), Description: "about " + t.Name()}
+		infos[i] = pkg.ToolInfo{Name: t.Name(), Description: t.Description()}
 	}
 	return infos
 }
@@ -98,7 +98,8 @@ type spyInstallable struct {
 	err  error
 }
 
-func (s *spyInstallable) Name() string { return s.name }
+func (s *spyInstallable) Name() string        { return s.name }
+func (s *spyInstallable) Description() string { return "about " + s.name }
 func (s *spyInstallable) Install(_, _ io.Writer) error {
 	*s.log = append(*s.log, s.name)
 	return s.err

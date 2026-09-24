@@ -25,32 +25,44 @@ var _ = Describe("SudoAptArgs", func() {
 	})
 })
 
-var _ = Describe("Package.Install", func() {
-	It("resolves brew-style names to their apt equivalents", func() {
+var _ = Describe("Package", func() {
+	It("carries its name and description", func() {
+		p := apt.NewPackage("byobu", "tmux sessions with a status bar", nil)
+		Expect(p.Name()).To(Equal("byobu"))
+		Expect(p.Description()).To(Equal("tmux sessions with a status bar"))
+	})
+
+	It("describes the Linux-only installables in place", func() {
+		Expect(apt.NeovimTarball{}.Description()).NotTo(BeEmpty())
+		Expect(apt.GitHubCLI{}.Description()).NotTo(BeEmpty())
+		Expect(apt.GCloudCLI{}.Description()).NotTo(BeEmpty())
+	})
+
+	It("Install resolves brew-style names to their apt equivalents", func() {
 		var gotArgs []string
 		spy := func(args []string, _, _ io.Writer) error {
 			gotArgs = args
 			return nil
 		}
 
-		Expect(apt.NewPackage("go", spy).Install(&bytes.Buffer{}, &bytes.Buffer{})).To(Succeed())
+		Expect(apt.NewPackage("go", "", spy).Install(&bytes.Buffer{}, &bytes.Buffer{})).To(Succeed())
 		Expect(gotArgs).To(Equal([]string{"install", "-y", "golang"}))
 
-		Expect(apt.NewPackage("node", spy).Install(&bytes.Buffer{}, &bytes.Buffer{})).To(Succeed())
+		Expect(apt.NewPackage("node", "", spy).Install(&bytes.Buffer{}, &bytes.Buffer{})).To(Succeed())
 		Expect(gotArgs).To(Equal([]string{"install", "-y", "nodejs"}))
 
-		Expect(apt.NewPackage("python", spy).Install(&bytes.Buffer{}, &bytes.Buffer{})).To(Succeed())
+		Expect(apt.NewPackage("python", "", spy).Install(&bytes.Buffer{}, &bytes.Buffer{})).To(Succeed())
 		Expect(gotArgs).To(Equal([]string{"install", "-y", "python3"}))
 	})
 
-	It("invokes the runner with [install -y <name>] for a name without mapping", func() {
+	It("Install invokes the runner with [install -y <name>] for a name without mapping", func() {
 		var gotArgs []string
 		spy := func(args []string, _, _ io.Writer) error {
 			gotArgs = args
 			return nil
 		}
 
-		err := apt.NewPackage("byobu", spy).Install(&bytes.Buffer{}, &bytes.Buffer{})
+		err := apt.NewPackage("byobu", "", spy).Install(&bytes.Buffer{}, &bytes.Buffer{})
 
 		Expect(err).NotTo(HaveOccurred())
 		Expect(gotArgs).To(Equal([]string{"install", "-y", "byobu"}))
@@ -66,7 +78,7 @@ var _ = Describe("Package.Status", func() {
 			return nil
 		}
 
-		status, version, err := apt.NewPackage("go", nil, query).Status()
+		status, version, err := apt.NewPackage("go", "", nil, query).Status()
 
 		Expect(err).NotTo(HaveOccurred())
 		Expect(gotArgv).To(Equal([]string{"dpkg-query", "-W", "-f=${Version}", "golang"}))
@@ -77,7 +89,7 @@ var _ = Describe("Package.Status", func() {
 	It("reports not installed when dpkg-query exits non-zero", func() {
 		query := func(_ []string, _, _ io.Writer) error { return errors.New("exit status 1") }
 
-		status, version, err := apt.NewPackage("byobu", nil, query).Status()
+		status, version, err := apt.NewPackage("byobu", "", nil, query).Status()
 
 		Expect(err).NotTo(HaveOccurred())
 		Expect(status).To(Equal(pkg.StatusNotInstalled))

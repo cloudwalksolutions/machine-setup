@@ -34,6 +34,9 @@ func NewInstaller(dir string, run func(stdout, stderr io.Writer) error) Installe
 // Name reports "rvm" for registry/log display.
 func (Installer) Name() string { return "rvm" }
 
+// Description returns the picker blurb.
+func (Installer) Description() string { return "Ruby Version Manager" }
+
 // Install runs the bootstrap if Dir does not exist; otherwise no-ops.
 func (i Installer) Install(stdout, stderr io.Writer) error {
 	if _, err := os.Stat(i.Dir); err == nil {

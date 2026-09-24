@@ -59,7 +59,7 @@ func (r *DevToolRegistry) Catalog() []pkg.ToolInfo {
 			status, version, _ := t.Status()
 			infos[i] = pkg.ToolInfo{
 				Name:        t.Name(),
-				Description: Describe(t.Name()),
+				Description: t.Description(),
 				Installed:   status != pkg.StatusNotInstalled,
 				Version:     version,
 			}
@@ -101,65 +101,49 @@ func (f RegistryFactory) For(goos string) *DevToolRegistry {
 	return r
 }
 
-// darwinFormulas is the curated list of brew formulas installed on macOS.
-// This is configuration data — adding a tool means adding a name here.
-// Tapped formulas (those that need `brew tap` first, like terraform under
-// hashicorp/tap) go in darwinTappedFormulas instead.
-var darwinFormulas = []string{
-	// editors & terminal, most used first
-	"neovim", "byobu", "gh", "lazygit", "jq", "bat", "eza", "k9s", "lazydocker", "k3d", "golangci-lint", "fzf", "ripgrep",
-	// languages & runtimes
-	"go", "node", "python", "ruby", "rustup", "ghcup", "yarn", "n",
-	// devops
-	"ansible",
+// tool is one curated entry: the package name and the blurb the picker shows next to it.
+type tool struct {
+	name, description string
 }
 
-// descriptions is the one-line blurb the install picker shows next to each tool.
-var descriptions = map[string]string{
-	"neovim":        "Modern Vim: LSP, treesitter, Lua config",
-	"byobu":         "tmux sessions with a status bar and F-keys",
-	"gh":            "GitHub from the terminal: PRs, issues, runs",
-	"lazygit":       "Keyboard git UI for staging, log, rebase",
-	"jq":            "Query and reshape JSON on the command line",
-	"bat":           "cat with syntax highlighting and git marks",
-	"eza":           "ls with colors, icons and git status",
-	"k9s":           "Kubernetes cluster TUI",
-	"lazydocker":    "Docker containers and logs TUI",
-	"k3d":           "Local k3s Kubernetes clusters in Docker",
-	"golangci-lint": "Go linter aggregator used by CI",
-	"fzf":           "Fuzzy finder for files, history, anything",
-	"ripgrep":       "Fast recursive grep (rg)",
-	"go":            "Go toolchain",
-	"node":          "Node.js runtime",
-	"python":        "Python 3 interpreter",
-	"ruby":          "Ruby interpreter",
-	"rustup":        "Rust toolchain manager (installs stable)",
-	"ghcup":         "Haskell toolchain manager (installs GHC)",
-	"yarn":          "JavaScript package manager",
-	"n":             "Switch Node.js versions",
-	"ansible":       "Agentless config management and playbooks",
-	"terraform":     "Infrastructure as code (HashiCorp tap)",
-	"gcloud-cli":    "Google Cloud SDK and gcloud command",
-	"gcloud":        "Google Cloud SDK and gcloud command",
-	"claude-code":   "Anthropic's Claude Code agent",
-	"gemini-cli":    "Google's Gemini CLI agent",
-	"pi":            "pi coding agent",
-	"rvm":           "Ruby Version Manager",
+// darwinFormulas is the curated list of brew formulas installed on macOS, most used
+// first within each group. Tapped formulas go in darwinTappedFormulas instead.
+var darwinFormulas = []tool{
+	{"neovim", "Modern Vim: LSP, treesitter, Lua config"},
+	{"byobu", "tmux sessions with a status bar and F-keys"},
+	{"gh", "GitHub from the terminal: PRs, issues, runs"},
+	{"lazygit", "Keyboard git UI for staging, log, rebase"},
+	{"jq", "Query and reshape JSON on the command line"},
+	{"bat", "cat with syntax highlighting and git marks"},
+	{"eza", "ls with colors, icons and git status"},
+	{"k9s", "Kubernetes cluster TUI"},
+	{"lazydocker", "Docker containers and logs TUI"},
+	{"k3d", "Local k3s Kubernetes clusters in Docker"},
+	{"golangci-lint", "Go linter aggregator used by CI"},
+	{"fzf", "Fuzzy finder for files, history, anything"},
+	{"ripgrep", "Fast recursive grep (rg)"},
+	{"go", "Go toolchain"},
+	{"node", "Node.js runtime"},
+	{"python", "Python 3 interpreter"},
+	{"ruby", "Ruby interpreter"},
+	{"rustup", "Rust toolchain manager (installs stable)"},
+	{"ghcup", "Haskell toolchain manager (installs GHC)"},
+	{"yarn", "JavaScript package manager"},
+	{"n", "Switch Node.js versions"},
+	{"ansible", "Agentless config management and playbooks"},
 }
 
-// Describe returns the picker blurb for a tool; empty for unknown names.
-func Describe(name string) string { return descriptions[name] }
-
-// darwinTappedFormulas pairs each name with its required tap. The TappedFormula
-// installer runs `brew tap <tap>` and then `brew install <tap>/<name>`.
-var darwinTappedFormulas = map[string]string{
-	"terraform": "hashicorp/tap",
+// darwinTappedFormulas need `brew tap <tap>` first; installed as <tap>/<name>.
+var darwinTappedFormulas = []struct {
+	tool
+	tap string
+}{
+	{tool{"terraform", "Infrastructure as code (HashiCorp tap)"}, "hashicorp/tap"},
 }
 
-// darwinCasks is the curated list of brew casks installed on macOS (GUI apps and
-// vendor bundles distributed as casks rather than core formulas).
-var darwinCasks = []string{
-	"gcloud-cli",
+// darwinCasks is the curated list of brew casks installed on macOS.
+var darwinCasks = []tool{
+	{"gcloud-cli", "Google Cloud SDK and gcloud command"},
 }
 
 // postInstallSteps finish a toolchain manager's setup so no manual step is left to the user.
@@ -169,35 +153,40 @@ var postInstallSteps = map[string][][]string{
 }
 
 func (f RegistryFactory) wireDarwin(r *DevToolRegistry) {
-	builder := brew.NewBuilder(f.brewRun)
-	for _, formula := range builder.Formulas(darwinFormulas...) {
-		if steps, ok := postInstallSteps[formula.Name()]; ok {
+	for _, t := range darwinFormulas {
+		formula := brew.NewFormula(t.name, t.description, f.brewRun)
+		if steps, ok := postInstallSteps[t.name]; ok {
 			r.Add(pkg.WithPostInstall(formula, steps, f.aptKit.Cmd))
 			continue
 		}
 		r.Add(formula)
 	}
-	for name, tap := range darwinTappedFormulas {
-		r.Add(brew.NewTappedFormula(name, tap, f.brewRun))
+	for _, t := range darwinTappedFormulas {
+		r.Add(brew.NewTappedFormula(t.name, t.description, t.tap, f.brewRun))
 	}
-	for _, cask := range builder.Casks(darwinCasks...) {
-		r.Add(cask)
+	for _, t := range darwinCasks {
+		r.Add(brew.NewCask(t.name, t.description, f.brewRun))
 	}
 }
 
 // linuxAptPackages is the curated list of apt packages installed on Linux.
-// gh is NOT here — Ubuntu's archives don't carry it; see GitHubCLI below.
-var linuxAptPackages = []string{
-	"jq", "bat", "fzf", "ripgrep",
-	"go", "node", "python",
+// gh is NOT here — Ubuntu's archives don't carry it; see GitHubCLI.
+var linuxAptPackages = []tool{
+	{"jq", "Query and reshape JSON on the command line"},
+	{"bat", "cat with syntax highlighting and git marks"},
+	{"fzf", "Fuzzy finder for files, history, anything"},
+	{"ripgrep", "Fast recursive grep (rg)"},
+	{"go", "Go toolchain"},
+	{"node", "Node.js runtime"},
+	{"python", "Python 3 interpreter"},
 }
 
 func (f RegistryFactory) wireLinux(r *DevToolRegistry) {
 	r.Add(apt.NeovimTarball{Fetch: f.aptKit.Fetch, Home: f.aptKit.Home, Cmd: f.aptKit.Cmd})
-	r.Add(apt.NewPackage("byobu", f.aptKit.Apt, f.aptKit.Cmd))
+	r.Add(apt.NewPackage("byobu", "tmux sessions with a status bar and F-keys", f.aptKit.Apt, f.aptKit.Cmd))
 	r.Add(apt.NewGitHubCLI(f.aptKit.Cmd))
-	for _, name := range linuxAptPackages {
-		r.Add(apt.NewPackage(name, f.aptKit.Apt, f.aptKit.Cmd))
+	for _, t := range linuxAptPackages {
+		r.Add(apt.NewPackage(t.name, t.description, f.aptKit.Apt, f.aptKit.Cmd))
 	}
 	r.Add(apt.NewGCloudCLI(f.aptKit.Cmd))
 }

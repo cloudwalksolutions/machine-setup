@@ -12,15 +12,21 @@ import (
 	"tars/internal/pkg/brew"
 )
 
-var _ = Describe("TappedFormula.Install", func() {
-	It("taps the repository, then installs the tapped formula", func() {
+var _ = Describe("TappedFormula", func() {
+	It("carries its name and description", func() {
+		t := brew.NewTappedFormula("terraform", "Infrastructure as code", "hashicorp/tap", nil)
+		Expect(t.Name()).To(Equal("terraform"))
+		Expect(t.Description()).To(Equal("Infrastructure as code"))
+	})
+
+	It("Install taps the repository, then installs the tapped formula", func() {
 		var calls [][]string
 		spy := func(args []string, _, _ io.Writer) error {
 			calls = append(calls, args)
 			return nil
 		}
 
-		err := brew.NewTappedFormula("terraform", "hashicorp/tap", spy).
+		err := brew.NewTappedFormula("terraform", "", "hashicorp/tap", spy).
 			Install(&bytes.Buffer{}, &bytes.Buffer{})
 
 		Expect(err).NotTo(HaveOccurred())
@@ -37,7 +43,7 @@ var _ = Describe("TappedFormula.Install", func() {
 			return errors.New("tap failed")
 		}
 
-		err := brew.NewTappedFormula("terraform", "hashicorp/tap", spy).
+		err := brew.NewTappedFormula("terraform", "", "hashicorp/tap", spy).
 			Install(&bytes.Buffer{}, &bytes.Buffer{})
 
 		Expect(err).To(MatchError(ContainSubstring("tap failed")))
@@ -54,7 +60,7 @@ var _ = Describe("TappedFormula.Status", func() {
 			return nil
 		}
 
-		status, version, err := brew.NewTappedFormula("terraform", "hashicorp/tap", fake).Status()
+		status, version, err := brew.NewTappedFormula("terraform", "", "hashicorp/tap", fake).Status()
 
 		Expect(err).NotTo(HaveOccurred())
 		Expect(gotArgs).To(Equal([]string{"list", "--versions", "terraform"}))

@@ -13,6 +13,13 @@ import (
 	"tars/internal/pkg/rvm"
 )
 
+var _ = Describe("rvm.Installer", func() {
+	It("describes itself in place", func() {
+		Expect(rvm.Installer{}.Name()).To(Equal("rvm"))
+		Expect(rvm.Installer{}.Description()).To(Equal("Ruby Version Manager"))
+	})
+})
+
 var _ = Describe("rvm.Installer.Status", func() {
 	It("reports the version from <dir>/VERSION when the rvm dir exists", func() {
 		dir := filepath.Join(GinkgoT().TempDir(), ".rvm")

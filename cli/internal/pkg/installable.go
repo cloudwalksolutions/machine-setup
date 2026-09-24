@@ -45,6 +45,7 @@ type ToolInfo struct {
 // are no type switches anywhere downstream.
 type Installable interface {
 	Name() string
+	Description() string
 	Install(stdout, stderr io.Writer) error
 	Status() (InstallStatus, string, error)
 }
@@ -78,14 +79,15 @@ func (p PostInstall) Install(stdout, stderr io.Writer) error {
 // via a custom shell script or command (e.g. curl | bash) and verified by
 // checking if a binary/file exists on disk.
 type ScriptInstaller struct {
-	name       string
-	checkPath  string
-	installCmd []string
-	run        func(cmd []string, stdout, stderr io.Writer) error
+	name        string
+	description string
+	checkPath   string
+	installCmd  []string
+	run         func(cmd []string, stdout, stderr io.Writer) error
 }
 
 // NewScriptInstaller creates a generic script-based installer.
-func NewScriptInstaller(name, checkPath string, installCmd []string, run func(cmd []string, stdout, stderr io.Writer) error) ScriptInstaller {
+func NewScriptInstaller(name, description, checkPath string, installCmd []string, run func(cmd []string, stdout, stderr io.Writer) error) ScriptInstaller {
 	if run == nil {
 		run = func(cmd []string, stdout, stderr io.Writer) error {
 			c := exec.Command(cmd[0], cmd[1:]...)
@@ -95,15 +97,19 @@ func NewScriptInstaller(name, checkPath string, installCmd []string, run func(cm
 		}
 	}
 	return ScriptInstaller{
-		name:       name,
-		checkPath:  checkPath,
-		installCmd: installCmd,
-		run:        run,
+		name:        name,
+		description: description,
+		checkPath:   checkPath,
+		installCmd:  installCmd,
+		run:         run,
 	}
 }
 
 // Name returns the display name.
 func (s ScriptInstaller) Name() string { return s.name }
+
+// Description returns the picker blurb.
+func (s ScriptInstaller) Description() string { return s.description }
 
 // Install runs the custom installation command if checkPath does not exist.
 func (s ScriptInstaller) Install(stdout, stderr io.Writer) error {

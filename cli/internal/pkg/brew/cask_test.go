@@ -11,15 +11,21 @@ import (
 	"tars/internal/pkg/brew"
 )
 
-var _ = Describe("Cask.Install", func() {
-	It("invokes the runner with [install --cask <name>]", func() {
+var _ = Describe("Cask", func() {
+	It("carries its name and description", func() {
+		c := brew.NewCask("gcloud-cli", "Google Cloud SDK", nil)
+		Expect(c.Name()).To(Equal("gcloud-cli"))
+		Expect(c.Description()).To(Equal("Google Cloud SDK"))
+	})
+
+	It("Install invokes the runner with [install --cask <name>]", func() {
 		var gotArgs []string
 		spy := func(args []string, _, _ io.Writer) error {
 			gotArgs = args
 			return nil
 		}
 
-		err := brew.NewCask("rustup", spy).Install(&bytes.Buffer{}, &bytes.Buffer{})
+		err := brew.NewCask("rustup", "", spy).Install(&bytes.Buffer{}, &bytes.Buffer{})
 
 		Expect(err).NotTo(HaveOccurred())
 		Expect(gotArgs).To(Equal([]string{"install", "--cask", "rustup"}))
@@ -35,7 +41,7 @@ var _ = Describe("Cask.Status", func() {
 			return nil
 		}
 
-		status, version, err := brew.NewCask("gcloud-cli", fake).Status()
+		status, version, err := brew.NewCask("gcloud-cli", "", fake).Status()
 
 		Expect(err).NotTo(HaveOccurred())
 		Expect(gotArgs).To(Equal([]string{"list", "--versions", "--cask", "gcloud-cli"}))

@@ -85,14 +85,15 @@ var aptNames = map[string]string{
 // Package is an apt-installable package referenced by its brew-style name.
 // Install resolves the name to the apt package and runs `apt install -y`.
 type Package struct {
-	name  string
-	run   Runner
-	query CmdRunner
+	name        string
+	description string
+	run         Runner
+	query       CmdRunner
 }
 
 // NewPackage binds a package to the apt runner and, optionally, a CmdRunner for dpkg-query.
-func NewPackage(name string, run Runner, query ...CmdRunner) Package {
-	p := Package{name: name, run: run}
+func NewPackage(name, description string, run Runner, query ...CmdRunner) Package {
+	p := Package{name: name, description: description, run: run}
 	if len(query) > 0 {
 		p.query = query[0]
 	}
@@ -101,6 +102,9 @@ func NewPackage(name string, run Runner, query ...CmdRunner) Package {
 
 // Name returns the brew-style name (unresolved). This is what the user sees.
 func (p Package) Name() string { return p.name }
+
+// Description returns the picker blurb.
+func (p Package) Description() string { return p.description }
 
 func (p Package) resolved() string {
 	if mapped, ok := aptNames[p.name]; ok {
@@ -165,6 +169,9 @@ type NeovimTarball struct {
 
 // Name reports "neovim" to match its brew counterpart for the form display.
 func (NeovimTarball) Name() string { return "neovim" }
+
+// Description returns the picker blurb.
+func (NeovimTarball) Description() string { return "Modern Vim: LSP, treesitter, Lua config" }
 
 // Status reports the version the extracted binary prints, once ~/.local/nvim exists.
 func (n NeovimTarball) Status() (pkg.InstallStatus, string, error) {
@@ -305,6 +312,9 @@ func NewGCloudCLI(run CmdRunner) GCloudCLI { return GCloudCLI{Run: run} }
 // Name reports "gcloud" to match its brew-cask counterpart for the form display.
 func (GCloudCLI) Name() string { return "gcloud" }
 
+// Description returns the picker blurb.
+func (GCloudCLI) Description() string { return "Google Cloud SDK and gcloud command" }
+
 // Install adds Google's apt source and key, then installs google-cloud-cli.
 func (g GCloudCLI) Install(stdout, stderr io.Writer) error {
 	const keyring = "/usr/share/keyrings/cloud.google.gpg"
@@ -338,6 +348,9 @@ func NewGitHubCLI(run CmdRunner) GitHubCLI { return GitHubCLI{Run: run} }
 
 // Name reports "gh" to match its brew counterpart for the form display.
 func (GitHubCLI) Name() string { return "gh" }
+
+// Description returns the picker blurb.
+func (GitHubCLI) Description() string { return "GitHub from the terminal: PRs, issues, runs" }
 
 // Install adds GitHub's apt source and key, then installs gh.
 func (g GitHubCLI) Install(stdout, stderr io.Writer) error {

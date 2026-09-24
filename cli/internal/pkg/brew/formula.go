@@ -14,17 +14,21 @@ type Runner func(args []string, stdout, stderr io.Writer) error
 
 // Formula is a brew package installed via `brew install <name>`.
 type Formula struct {
-	name string
-	run  Runner
+	name        string
+	description string
+	run         Runner
 }
 
 // NewFormula returns a Formula bound to a runner.
-func NewFormula(name string, run Runner) Formula {
-	return Formula{name: name, run: run}
+func NewFormula(name, description string, run Runner) Formula {
+	return Formula{name: name, description: description, run: run}
 }
 
 // Name returns the formula's brew name.
 func (f Formula) Name() string { return f.name }
+
+// Description returns the picker blurb.
+func (f Formula) Description() string { return f.description }
 
 // Install runs `brew install <name>`.
 func (f Formula) Install(stdout, stderr io.Writer) error {

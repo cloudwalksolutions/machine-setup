@@ -7,17 +7,21 @@ import (
 
 // Cask is a brew package installed via `brew install --cask <name>`.
 type Cask struct {
-	name string
-	run  Runner
+	name        string
+	description string
+	run         Runner
 }
 
 // NewCask returns a Cask bound to a runner.
-func NewCask(name string, run Runner) Cask {
-	return Cask{name: name, run: run}
+func NewCask(name, description string, run Runner) Cask {
+	return Cask{name: name, description: description, run: run}
 }
 
 // Name returns the cask's brew name.
 func (c Cask) Name() string { return c.name }
+
+// Description returns the picker blurb.
+func (c Cask) Description() string { return c.description }
 
 // Install runs `brew install --cask <name>`.
 func (c Cask) Install(stdout, stderr io.Writer) error {

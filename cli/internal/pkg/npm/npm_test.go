@@ -13,10 +13,11 @@ import (
 )
 
 var _ = Describe("npm.Package", func() {
-	Describe("Name()", func() {
-		It("reports the package's display name", func() {
-			pkg := npm.NewPackage("gemini-cli", "@google/gemini-cli", nil)
+	Describe("Name() and Description()", func() {
+		It("report the display name and the blurb", func() {
+			pkg := npm.NewPackage("gemini-cli", "@google/gemini-cli", "Google's Gemini CLI agent", nil)
 			Expect(pkg.Name()).To(Equal("gemini-cli"))
+			Expect(pkg.Description()).To(Equal("Google's Gemini CLI agent"))
 		})
 	})
 
@@ -47,7 +48,7 @@ var _ = Describe("npm.Package", func() {
 				return nil
 			}
 
-			pkg := npm.NewPackage("gemini-cli", "@google/gemini-cli", runner)
+			pkg := npm.NewPackage("gemini-cli", "@google/gemini-cli", "", runner)
 			Expect(pkg.Install(stdout, stderr)).To(Succeed())
 
 			Expect(calls).To(Equal(1))
@@ -62,7 +63,7 @@ var _ = Describe("npm.Package", func() {
 				return expectedErr
 			}
 
-			pkg := npm.NewPackage("gemini-cli", "@google/gemini-cli", runner)
+			pkg := npm.NewPackage("gemini-cli", "@google/gemini-cli", "", runner)
 			Expect(pkg.Install(stdout, stderr)).To(MatchError(expectedErr))
 		})
 	})
@@ -76,7 +77,7 @@ var _ = Describe("npm.Package", func() {
 				return nil
 			}
 
-			status, version, err := npm.NewPackage("gemini-cli", "@google/gemini-cli", runner).Status()
+			status, version, err := npm.NewPackage("gemini-cli", "@google/gemini-cli", "", runner).Status()
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(gotArgs).To(Equal([]string{"ls", "-g", "--depth=0", "--json", "@google/gemini-cli"}))
@@ -90,7 +91,7 @@ var _ = Describe("npm.Package", func() {
 				return errors.New("exit status 1")
 			}
 
-			status, version, err := npm.NewPackage("gemini-cli", "@google/gemini-cli", runner).Status()
+			status, version, err := npm.NewPackage("gemini-cli", "@google/gemini-cli", "", runner).Status()
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(status).To(Equal(pkg.StatusNotInstalled))
