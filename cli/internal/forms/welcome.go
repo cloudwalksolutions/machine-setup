@@ -1,18 +1,10 @@
 package forms
 
-import (
-	"os"
+import "charm.land/huh/v2"
 
-	"charm.land/huh/v2"
-)
-
-// ShowWelcome displays a full-screen welcome Note using huh.
-// Set TARS_NO_FORM=1 to skip the TUI (used in tests/CI).
-func ShowWelcome() error {
-	if os.Getenv("TARS_NO_FORM") != "" {
-		return nil
-	}
-	return run(huh.NewForm(
+// WelcomeForm is the opening screen of `tars init`.
+func WelcomeForm() *huh.Form {
+	return huh.NewForm(
 		huh.NewGroup(
 			huh.NewNote().
 				Title("tars — dev-machine setup").
@@ -25,5 +17,5 @@ func ShowWelcome() error {
 				Next(true).
 				NextLabel("Continue"),
 		),
-	))
+	)
 }

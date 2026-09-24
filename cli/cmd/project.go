@@ -3,16 +3,16 @@ package cmd
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"text/template"
 
 	"github.com/spf13/cobra"
 
-	"tars/internal/forms"
 	"tars/internal/fsutil"
 	"tars/internal/paths"
+	"tars/internal/report"
+	"tars/internal/tui"
 )
 
 // ProjectInit scaffolds a project's agent harness: one AGENTS.md from the repo
@@ -22,8 +22,7 @@ type ProjectInit struct {
 	Template   string
 	BackupRoot string
 	Force      bool
-
-	Stdout io.Writer
+	Report     report.Reporter
 }
 
 // pointers maps an agent to the file it reads and the import line that file carries.
@@ -39,7 +38,7 @@ func (p *ProjectInit) Run(dir string) error {
 	if _, err := os.Stat(target); err == nil && !p.Force {
 		return fmt.Errorf("%s exists; re-run with --force to back it up and overwrite", target)
 	}
-	answers, err := p.Asker.Ask(filepath.Base(dir))
+	answers, err := p.Asker.AskProject(filepath.Base(dir))
 	if err != nil {
 		return fmt.Errorf("project form: %w", err)
 	}
@@ -66,29 +65,23 @@ func (p *ProjectInit) Run(dir string) error {
 			return err
 		}
 	}
-	fmt.Fprintf(p.Stdout, "Wrote %s\n", target)
+	p.Report.Note("Wrote " + target)
 	return nil
 }
 
-// FormsProjectAsker wraps forms.ShowProjectForm.
-type FormsProjectAsker struct{}
-
-func (FormsProjectAsker) Ask(defaultName string) (forms.ProjectAnswers, error) {
-	return forms.ShowProjectForm(defaultName)
-}
-
 // NewProjectInit wires the production `tars init project`.
-func NewProjectInit(stdout, stderr io.Writer, force bool) (*ProjectInit, error) {
+func NewProjectInit(r report.Reporter, ask ProjectAsker, force bool) (*ProjectInit, error) {
+	stdout, stderr := r.Output()
 	opts, err := buildOptions(stdout, stderr)
 	if err != nil {
 		return nil, err
 	}
 	return &ProjectInit{
-		Asker:      FormsProjectAsker{},
+		Asker:      ask,
 		Template:   paths.For(opts.RepoRoot, opts.Home).Claude.ProjectTemplateRepo,
 		BackupRoot: opts.BackupRoot,
 		Force:      force,
-		Stdout:     stdout,
+		Report:     r,
 	}, nil
 }
 
@@ -108,11 +101,13 @@ var initProjectCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		p, err := NewProjectInit(cmd.OutOrStdout(), cmd.ErrOrStderr(), initProjectForce)
-		if err != nil {
-			return err
-		}
-		return p.Run(dir)
+		return runInit(cmd, func(r report.Reporter, ask tui.Asker) error {
+			p, err := NewProjectInit(r, ask, initProjectForce)
+			if err != nil {
+				return err
+			}
+			return p.Run(dir)
+		})
 	},
 }
 

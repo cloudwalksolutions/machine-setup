@@ -1,7 +1,6 @@
 package forms
 
 import (
-	"os"
 	"slices"
 
 	"charm.land/huh/v2"
@@ -9,18 +8,21 @@ import (
 	"tars/internal/config"
 )
 
-// ShowPiInitForm asks which packages to install and, when a local ollama is
-// present, which of its models to expose and which one is the default. Other
-// providers are pi's own business. When TARS_NO_FORM=1 it installs every
-// package, exposes every ollama model, and pins no default.
-func ShowPiInitForm(ollamaModels, packages []string, previous config.PiConfig) (config.PiConfig, error) {
-	cfg := config.PiConfig{Packages: append([]string{}, packages...), OllamaModels: append([]string{}, ollamaModels...)}
-	if os.Getenv("TARS_NO_FORM") != "" {
-		return cfg, nil
-	}
+// PiInputs is what the machine reports before the pi questions: the local ollama
+// models, the default package list, and the previously saved choices.
+type PiInputs struct {
+	OllamaModels []string
+	Packages     []string
+	Previous     config.PiConfig
+}
 
-	pkgOptions := make([]huh.Option[string], len(packages))
-	for i, p := range packages {
+// PiForm builds the package picker and, when a local ollama is present, the model
+// picker. Every package starts checked; models start as previously exposed, or all
+// of them the first time. Other providers are pi's own business.
+func PiForm(in PiInputs) (*huh.Form, func() config.PiConfig) {
+	cfg := config.PiConfig{Packages: append([]string{}, in.Packages...)}
+	pkgOptions := make([]huh.Option[string], len(in.Packages))
+	for i, p := range in.Packages {
 		pkgOptions[i] = huh.NewOption(p, p).Selected(true)
 	}
 	fields := []huh.Field{
@@ -30,39 +32,41 @@ func ShowPiInitForm(ollamaModels, packages []string, previous config.PiConfig) (
 			Options(pkgOptions...).
 			Value(&cfg.Packages),
 	}
-	if len(ollamaModels) == 0 {
+	if len(in.OllamaModels) == 0 {
 		fields = append(fields, huh.NewNote().
 			Title("No local ollama found").
 			Description("Install ollama to expose local models through tars. Remote providers are configured in pi itself (/login or ~/.pi/agent/models.json)."))
 	} else {
-		modelOptions := make([]huh.Option[string], len(ollamaModels))
-		for i, m := range ollamaModels {
-			keep := len(previous.OllamaModels) == 0 || slices.Contains(previous.OllamaModels, m)
+		modelOptions := make([]huh.Option[string], len(in.OllamaModels))
+		for i, m := range in.OllamaModels {
+			keep := len(in.Previous.OllamaModels) == 0 || slices.Contains(in.Previous.OllamaModels, m)
 			modelOptions[i] = huh.NewOption(m, m).Selected(keep)
+			if keep {
+				cfg.OllamaModels = append(cfg.OllamaModels, m)
+			}
 		}
 		fields = append(fields, huh.NewMultiSelect[string]().
 			Title("ollama models to expose to pi").
 			Options(modelOptions...).
 			Value(&cfg.OllamaModels))
 	}
-	if err := run(huh.NewForm(huh.NewGroup(fields...))); err != nil {
-		return cfg, err
-	}
-	if len(cfg.OllamaModels) == 0 {
-		return cfg, nil
-	}
+	return huh.NewForm(huh.NewGroup(fields...)), func() config.PiConfig { return cfg }
+}
 
-	choices := make([]huh.Option[string], 0, len(cfg.OllamaModels)+1)
-	for _, m := range cfg.OllamaModels {
+// PiDefaultForm builds the default-model choice over the exposed models, starting on
+// the previous default when it is still exposed, else the first model.
+func PiDefaultForm(models []string, previous string) (*huh.Form, func() string) {
+	choices := make([]huh.Option[string], 0, len(models)+1)
+	for _, m := range models {
 		choices = append(choices, huh.NewOption(m, m))
 	}
 	choices = append(choices, huh.NewOption("keep pi's current default", ""))
-	cfg.DefaultModel = previous.DefaultModel
-	if !slices.Contains(cfg.OllamaModels, cfg.DefaultModel) {
-		cfg.DefaultModel = cfg.OllamaModels[0]
+	chosen := previous
+	if !slices.Contains(models, chosen) {
+		chosen = models[0]
 	}
-	err := run(huh.NewForm(huh.NewGroup(
-		huh.NewSelect[string]().Title("Default model").Options(choices...).Value(&cfg.DefaultModel),
-	)))
-	return cfg, err
+	f := huh.NewForm(huh.NewGroup(
+		huh.NewSelect[string]().Title("Default model").Options(choices...).Value(&chosen),
+	))
+	return f, func() string { return chosen }
 }

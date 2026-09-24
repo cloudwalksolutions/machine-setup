@@ -2,7 +2,6 @@ package forms
 
 import (
 	"errors"
-	"os"
 
 	"charm.land/huh/v2"
 )
@@ -13,7 +12,7 @@ func ShowSessionPicker(options []string) (string, error) {
 	if len(options) == 0 {
 		return "", errors.New("no sessions to pick from")
 	}
-	if os.Getenv("TARS_NO_FORM") != "" {
+	if headless() {
 		return options[0], nil
 	}
 

@@ -54,7 +54,9 @@ session manager. The user-facing CLI is **`tars`** (Go, in `cli/`) with five ver
 │       ├── paths/               # repo→local file mappings (ForOS: OS-aware)
 │       ├── repo/                # repo-root discovery (markers: cli/go.mod + nvim/)
 │       ├── pkg/                 # installable dev tools (brew/apt/rvm) + registry
-│       ├── forms/               # huh v2 forms + shared theme (honors TARS_NO_FORM=1)
+│       ├── forms/               # huh v2 form builders, shared theme, Headless defaults (TARS_NO_FORM=1)
+│       ├── report/              # Reporter seam: orchestrators report steps/items; Text prints plain lines
+│       ├── tui/                 # Bubble Tea v2 program for `tars init`: live pane + embedded forms
 │       ├── shell/               # oh-my-zsh / powerlevel10k installers
 │       └── config/              # persisted YAML config
 ├── nvim/  zsh/  byobu/  vim/     # the dotfiles tars manages
@@ -93,7 +95,13 @@ Tests are layered:
      Pull/Push, `fsutil` backup/copy, `paths` OS-awareness, the `pkg` registry.
    - Command specs (`cmd/`) that construct `Setup`/`SequentialPuller`/`SequentialPusher`/
      `Sessions`/`Profiles` with **spy collaborators** and assert orchestration (order, failure-tolerance),
-     never touching the real machine.
+     never touching the real machine. Orchestrators never print: they call a
+     `report.Reporter` (`report.Text` in specs and headless runs, the TUI otherwise) and ask
+     questions through narrow prompt interfaces (`Welcomer`, `InstallPicker`, `ClaudeAsker`…)
+     that `tui.Prompts` and `forms.Headless` both satisfy.
+   - TUI specs (`internal/tui`) drive `Model.Update`/`View` directly with messages and key
+     presses; the reporter's `send`/`println` seams are fakes that record instead of reaching
+     a program. Only `program.go` (the tea.Program runner) is untested.
 2. **Integration** (`make integration`) — real external deps: brew installers gated by
    `INTEGRATION=1` (installs/removes `hello`) plus the Neovim config tests (real `nvim`).
    Off by default in `go test`.
@@ -126,7 +134,7 @@ spec can drive a fake and still fail red-first:
   so darwin-only paths are exercised on any host. CI also runs a `macos-latest` matrix leg
   so darwin-only code compiles and its unit tests run for real.
 - **Path/env overrides**: `Fonts.LocalOverride`, `TARS_REPO`,
-  `TARS_NO_FORM=1` (skips the TUIs), `TARS_CONFIG_PATH`,
+  `TARS_NO_FORM=1` (no tea.Program: plain-text reporter + default answers), `TARS_CONFIG_PATH`,
   `TARS_SESSIONS_PATH`, `TARS_PROFILES_PATH`, `TARS_BACKUP_ROOT`,
   `Profiles.ConfigPath` (component), and
   `UPDATE_GOLDEN=1` (regenerates `components/testdata/pull_manifest.golden`; review the diff).
