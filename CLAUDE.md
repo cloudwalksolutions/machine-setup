@@ -7,8 +7,8 @@ Guidance for Claude Code (claude.ai/code) when working in this repository.
 A dev-machine provisioning tool for macOS (primary) and Linux (incl. shared bastions). It goes
 from a fresh machine to a production-ready dev environment: dev tools, dotfiles
 (Neovim, Zsh, Byobu, Vim), fonts, and terminal settings, plus a declarative byobu
-session manager. The user-facing CLI is **`tars`** (Go, in `cli/`) with five verbs:
-`setup`, `pull`, `push`, `sessions`, `profiles`.
+session manager. The user-facing CLI is **`tars`** (Go, in `cli/`) with six verbs:
+`setup`, `pull`, `push`, `sessions`, `profiles`, `claude`.
 
 ## Core Philosophy
 
@@ -44,7 +44,7 @@ session manager. The user-facing CLI is **`tars`** (Go, in `cli/`) with five ver
 │   │   ├── backup.go            # BackupRoot: ~/.local/state/tars/backups (+ env override)
 │   │   ├── resolve.go           # ResolveRepo: clone discovery → embedded-assets fallback
 │   └── internal/
-│       ├── components/          # per-tool Pull/Push: vim, zsh, byobu, nvim, fonts, terminal, profiles
+│       ├── components/          # per-tool Pull/Push: vim, zsh, byobu, nvim, fonts, terminal, profiles, claude
 │       ├── sessions/            # declarative byobu sessions: yaml config + idempotent launcher
 │       ├── profiles/            # account identities: yaml config, gitconfig/env rendering, active marker
 │       ├── dotfiles/            # specs only: lint the shipped zsh files + terminal font string
@@ -58,6 +58,7 @@ session manager. The user-facing CLI is **`tars`** (Go, in `cli/`) with five ver
 │       └── config/              # persisted YAML config
 ├── nvim/  zsh/  byobu/  vim/     # the dotfiles tars manages
 ├── monokai.lua                  # nvim colorscheme shipped at root (also embedded)
+├── claude/                      # Claude Code: settings fragment, hooks/, rules/ (→ ~/.claude/CLAUDE.md), templates/
 ├── fonts/                       # Hack Nerd Font files
 ├── terminal/                    # font string + Terminal.app profile (iTerm2/Terminal.app)
 ├── vhs/                         # README demo tapes + gh stand-in (`make demos`)
@@ -97,9 +98,10 @@ Tests are layered:
 3. **End-to-end** (`make e2e`) — `test/e2e/Dockerfile`: builds `tars` against a
    **root-owned, read-only** repo clone shared by two non-root users, plus a third user
    with no clone (embedded-assets path) — **no apt installs, no sudo, no network at
-   runtime**. Asserts the file-producing components land (vim, zsh, byobu, nvim, fonts;
-   terminal and profiles are no-ops there and pull exiting 0 covers them), incl. the
-   exec bit on `byobu/bin`, the
+   runtime**. Asserts the file-producing components land (vim, zsh, byobu, nvim, fonts,
+   claude; terminal and profiles are no-ops there and pull exiting 0 covers them), incl.
+   the exec bit on `byobu/bin` and `~/.claude/hooks` and the settings.json merge keeping
+   local keys, the
    pulled shell configs parse (`zsh -ic` / `bash -lc`), backups version under each
    user's `$HOME`, re-pulls are idempotent (incl. nvim), and a failing pull exits
    non-zero. Assertions are `RUN` lines, so a failure fails `docker build`. Runs in CI
@@ -143,12 +145,16 @@ untested by design — don't chase 100%.
 tests (`nvim/tests/smoke_test.lua`); `make health-nvim` runs checkhealth. `make test-nvim`
 is also run as part of `make integration`.
 
-**CI** (`.github/workflows/ci.yml`, on PR/push to `main`): `test` matrix
-(ubuntu + macOS: `go vet`, `go build`, `go test -race`), `lint`
-(golangci-lint, config `cli/.golangci.yml`), `coverage` (gate from
-`cli/.testcoverage.yml` + badge on `main`), and `e2e-linux` (the Docker build on
-amd64 + arm64). `.github/workflows/vhs.yml` re-records the README GIFs via PR when
-anything under `vhs/` other than the GIFs changes on `main`.
+**CI** (`.github/workflows/ci.yml`, on PRs) is the documentation of what "green" means;
+its steps are explicit commands, not Makefile recipes. Eight checks:
+`test (ubuntu-latest)` / `test (macos-latest)` (`go vet`, `go build`, `go test -race`),
+`lint` (golangci-lint incl. the gofmt formatter, then `go mod tidy -diff`), `coverage`
+(gate from `cli/.testcoverage.yml`), `e2e-linux (ubuntu-latest)` / `e2e-linux (ubuntu-24.04-arm)`
+(the Docker build), `nvim` (headless Lua smoke tests against the repo's `nvim/` via
+`XDG_CONFIG_HOME`), and `goreleaser` (`goreleaser check`). Reproduce locally from `cli/` with the
+same commands before handing work over; `gh pr checks <n> --watch` is the final gate.
+`.github/workflows/vhs.yml` re-records the README GIFs via PR when anything under `vhs/`
+other than the GIFs changes on `main`.
 
 ## Development Patterns (TDD)
 
@@ -176,6 +182,12 @@ Ginkgo/Gomega style and the seam pattern above.
    then `UPDATE_GOLDEN=1 go test ./internal/components/` and review the golden diff.
 4. `gofmt`, then `go test ./... && golangci-lint run ./...` green.
 
+**Adding a global Claude rule**: drop a short `NN-slug.md` (a `##` heading plus a few
+lines) into `claude/rules/`, run `make sync-assets`. The `claude` component renders the
+selected rules into `~/.claude/CLAUDE.md`; `claude/settings.json` holds only the shareable
+keys (model, theme, enabledPlugins, the hook entry) in `json.MarshalIndent` key order so
+`push` round-trips byte-for-byte. Never sync `autoMode`, `permissions`, or `~/.claude.json`.
+
 **Adding an installable tool**: edit the curated lists in
 `cli/internal/pkg/registry.go` (`darwinFormulas` / `darwinCasks` / `darwinTappedFormulas`
 / `linuxAptPackages`, or a dedicated `apt` installable) — registry spec first. The
@@ -201,10 +213,12 @@ Never edit files with `sed`/`awk` stream edits — use proper edits and fix at t
 
 ## Releasing
 
-GoReleaser on a semver tag (`git tag vX.Y.Z && git push origin vX.Y.Z` →
-`.github/workflows/release.yml`) builds darwin/linux × amd64/arm64, publishes a GitHub
-Release, and updates the `tars` cask in `cloudwalksolutions/homebrew-tap`. Details,
-token rotation, and the local snapshot command: `docs/releasing.md`.
+Every merge to `main` deploys: `.github/workflows/release.yml` bumps the patch tag, runs
+GoReleaser (darwin/linux × amd64/arm64 archives + checksums, GitHub Release, Homebrew tap),
+refreshes the coverage badge, and pushes the tag last so a failed run leaves nothing behind.
+Docs-only merges (`**.md`, `docs/`, `vhs/`) skip it. CI (`ci.yml`) runs on PRs only. Minor/major
+bumps are a manual tag push; see `docs/releasing.md`. Test locally with
+`HOMEBREW_TAP_TOKEN=x goreleaser release --snapshot --clean`.
 
 ## Important Notes
 

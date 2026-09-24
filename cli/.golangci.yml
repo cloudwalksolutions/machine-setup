@@ -2,6 +2,9 @@
 # staticcheck, unused), with errcheck relaxed for the conventionally-ignored cases:
 # writes to an output stream and deferred Close on read handles.
 version: "2"
+formatters:
+  enable:
+    - gofmt
 linters:
   settings:
     errcheck:

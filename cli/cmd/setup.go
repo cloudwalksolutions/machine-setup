@@ -18,6 +18,7 @@ import (
 	"tars/internal/pkg"
 	"tars/internal/pkg/apt"
 	"tars/internal/pkg/brew"
+	"tars/internal/pkg/npm"
 	"tars/internal/pkg/rvm"
 	"tars/internal/shell"
 )
@@ -275,6 +276,7 @@ func NewSetup(stdout, stderr io.Writer, cfgPath string) (*Setup, error) {
 			brew.DefaultRunner(),
 			apt.DefaultKit(),
 			rvm.NewInstaller(filepath.Join(home, ".rvm"), rvm.DefaultRunner()),
+			npm.NewPackage("gemini-cli", "@google/gemini-cli", npm.DefaultRunner()),
 		).For(runtime.GOOS),
 		Installer: IterativeInstaller{Stdout: stdout, Stderr: stderr},
 		OhMyZsh: shell.OhMyZshInstaller{
@@ -312,11 +314,7 @@ Also installs fonts, points iTerm2/Terminal.app at them (macOS), renders any
 configured profiles, seeds ~/.zshrc_secret and ~/.zprofile_local from templates
 when absent, and saves the tool selection to ~/.config/tars/config.yaml.`,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		cfgPath := config.DefaultConfigPath()
-		if cfgFile != "" {
-			cfgPath = cfgFile
-		}
-		s, err := NewSetup(cmd.OutOrStdout(), cmd.ErrOrStderr(), cfgPath)
+		s, err := NewSetup(cmd.OutOrStdout(), cmd.ErrOrStderr(), configPath())
 		if err != nil {
 			return err
 		}

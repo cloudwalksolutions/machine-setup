@@ -10,10 +10,18 @@ import (
 
 // Config is the persisted tars configuration (~/.config/tars/config.yaml).
 type Config struct {
-	Architecture string    `mapstructure:"architecture" yaml:"architecture"`
-	Sources      []string  `mapstructure:"sources"      yaml:"sources"`
-	Packages     []Package `mapstructure:"packages"     yaml:"packages"`
-	Apps         []App     `mapstructure:"apps"         yaml:"apps"`
+	Architecture string       `mapstructure:"architecture" yaml:"architecture"`
+	Sources      []string     `mapstructure:"sources"      yaml:"sources"`
+	Packages     []Package    `mapstructure:"packages"     yaml:"packages"`
+	Apps         []App        `mapstructure:"apps"         yaml:"apps"`
+	Claude       ClaudeConfig `mapstructure:"claude"       yaml:"claude"`
+}
+
+// ClaudeConfig records the `tars claude init` choices; nil/empty means "all on".
+type ClaudeConfig struct {
+	Hook     *bool    `mapstructure:"hook"     yaml:"hook"`
+	Settings *bool    `mapstructure:"settings" yaml:"settings"`
+	Rules    []string `mapstructure:"rules"    yaml:"rules"`
 }
 
 // Package represents a managed package abstracted over package managers.
@@ -88,5 +96,6 @@ func Save(path string, cfg *Config) error {
 	v.Set("sources", cfg.Sources)
 	v.Set("packages", cfg.Packages)
 	v.Set("apps", cfg.Apps)
+	v.Set("claude", cfg.Claude)
 	return v.WriteConfigAs(path)
 }

@@ -28,13 +28,13 @@ func newOpts() (components.Options, string, string) {
 }
 
 var _ = Describe("AllPullable", func() {
-	It("lists the seven components in pull order, profiles last", func() {
+	It("lists the eight components in pull order", func() {
 		opts, _, _ := newOpts()
 		var names []string
 		for _, c := range components.AllPullable(opts) {
 			names = append(names, c.Name())
 		}
-		Expect(names).To(Equal([]string{"vim", "zsh", "byobu", "nvim", "fonts", "terminal", "profiles"}))
+		Expect(names).To(Equal([]string{"vim", "zsh", "byobu", "nvim", "fonts", "terminal", "profiles", "claude"}))
 	})
 })
 

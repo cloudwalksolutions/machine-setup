@@ -61,12 +61,14 @@ homebrew_casks:
     homepage: "https://github.com/cloudwalksolutions/machine-setup"
     description: "tars — dev-machine setup CLI (dotfiles, tools, fonts, terminals, byobu sessions, git profiles)"
     # Remove the quarantine xattr so the unsigned binary runs without a Gatekeeper prompt.
-    hooks:
-      post:
-        install: |
-          if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/tars"]
-          end
+    # Homebrew 7 deprecated the `postflight` block goreleaser's `hooks` render; this is
+    # the declarative `postflight_steps` replacement.
+    custom_block: |
+      postflight_steps do
+        on_macos do
+          run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ "{{" }}staged_path{{ "}}" }}/tars"]
+        end
+      end
 
 release:
   draft: false

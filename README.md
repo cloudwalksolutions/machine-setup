@@ -1,6 +1,6 @@
 # tars
 
-[![ci](https://github.com/cloudwalksolutions/machine-setup/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/cloudwalksolutions/machine-setup/actions/workflows/ci.yml)
+[![release](https://github.com/cloudwalksolutions/machine-setup/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/cloudwalksolutions/machine-setup/actions/workflows/release.yml)
 [![release](https://img.shields.io/github/v/release/cloudwalksolutions/machine-setup)](https://github.com/cloudwalksolutions/machine-setup/releases/latest)
 ![coverage](https://raw.githubusercontent.com/cloudwalksolutions/machine-setup/badges/.badges/main/coverage.svg)
 [![go](https://img.shields.io/github/go-mod/go-version/cloudwalksolutions/machine-setup?filename=cli%2Fgo.mod)](cli/go.mod)
@@ -73,6 +73,8 @@ The installer verifies the release checksum; override the directory with
 | `tars push` | | Capture local config edits back into a repo clone |
 | `tars sessions` | `s`, `by` | Open byobu sessions from a simple config |
 | `tars profiles` | `p` | Switch git, GitHub and SSH identity per project dir |
+| `tars claude init` | `c i` | Pick and apply Claude Code pieces: edit-blocking hook, settings, global rules |
+| `tars claude project [dir]` | `c p` | Scaffold a project `CLAUDE.md` from the repo template (`--force` to replace) |
 
 `tars --version` prints the build; `--config <file>` overrides the tool-selection
 config. `pull` and `push` exit non-zero when any component fails; `setup` tolerates
@@ -89,6 +91,10 @@ Every file below is archived to `~/.local/state/tars/backups/<component>/vN`
 - Hack Nerd Font into `/Library/Fonts` (macOS, sudo) or `~/.local/share/fonts` (Linux)
 - macOS only: the iTerm2 and Terminal.app font and profile
 - With profiles configured: the managed block in `~/.gitconfig` and `~/.config/tars/profiles/<alias>.gitconfig`
+- `~/.claude/`: the `block-unreviewable-edits.sh` hook, a `CLAUDE.md` rendered from
+  `claude/rules/`, and a merge of `claude/settings.json` into `settings.json`.
+  Machine-local keys such as `autoMode` and `permissions` are left alone; `~/.claude.json`
+  is never touched
 
 Never overwritten, seeded once when absent: `~/.zshrc_secret`, `~/.zprofile_local`,
 `~/.config/tars/profiles/<alias>.env`. `~/.zshrc_funcs` is yours entirely.
@@ -190,6 +196,21 @@ For each account (example: name `cloudwalk`, alias `cws`):
    gh auth status                                           # active: your-github-user
    ```
 
+## Claude Code
+
+`tars claude init` asks three things in a form: install the hook that denies
+`sed -i` / heredoc / interpreter writes (so every change is a reviewable Edit or
+Write), merge the shared settings fragment, and which global rules to render
+into `~/.claude/CLAUDE.md`. Choices are saved under `claude:` in the tars config
+and honored by every later `tars pull`; `tars push` carries hook edits and the
+shareable settings keys back into the repo. Add a rule by dropping a short
+`NN-slug.md` into `claude/rules/` and running `make sync-assets`.
+
+`tars claude project [dir]` writes a starter `CLAUDE.md` (overview, philosophy,
+constraints, commands, architecture, testing, secrets, gotchas) from
+`claude/templates/CLAUDE.project.md`, asking for the name, a one-line
+description and the canonical test command.
+
 ## Environment variables
 
 | Variable | Effect |
@@ -208,10 +229,13 @@ The active profile's env file additionally exports `TARS_PROFILE` and `GITHUB_US
 
 The CLI is Go (module in `cli/`), tested with Ginkgo/Gomega and strict TDD; see
 [CLAUDE.md](CLAUDE.md). Targets: `make check` (lint + build + tests), `make unit`,
-`make e2e` (Docker: three users, a root-owned read-only clone, a no-clone install;
-CI runs it on amd64 and arm64), `make demos` (re-record the GIFs; `vhs/bin/gh` stands
-in for gh). After editing any dotfile under `nvim/ zsh/ byobu/ vim/ fonts/ terminal/`,
-run `make sync-assets` or the drift guard fails CI. Releasing: [docs/releasing.md](docs/releasing.md).
+`make e2e` (Docker: three users, a root-owned read-only clone, a no-clone install),
+`make demos` (re-record the GIFs; `vhs/bin/gh` stands in for gh). After editing any
+dotfile under `nvim/ zsh/ byobu/ vim/ fonts/ terminal/ claude/`, run `make sync-assets`
+or the drift guard fails CI. Every PR runs the race-enabled unit suite on Ubuntu and
+macOS, golangci-lint with gofmt, a `go mod tidy` check, the coverage gate, the Docker
+e2e on amd64 and arm64, the Neovim smoke tests, and `goreleaser check`. Every merge to
+`main` then releases a new patch version: [docs/releasing.md](docs/releasing.md).
 
 ## Known limitations
 

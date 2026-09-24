@@ -30,7 +30,7 @@ build:           ## Build the tars CLI binary (cli/tars)
 sync-assets:     ## Refresh the embedded dotfiles (required after editing them — a drift guard fails CI otherwise)
 	rm -rf $(CLI)/internal/assets/tree
 	mkdir -p $(CLI)/internal/assets/tree
-	cp -R nvim zsh byobu vim fonts terminal $(CLI)/internal/assets/tree/
+	cp -R nvim zsh byobu vim fonts terminal claude $(CLI)/internal/assets/tree/
 	cp monokai.lua $(CLI)/internal/assets/tree/
 
 .PHONY: lint

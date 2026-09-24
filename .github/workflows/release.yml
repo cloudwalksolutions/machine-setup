@@ -2,23 +2,48 @@ name: release
 
 on:
   push:
-    tags:
-      - "v*"
+    branches: [main]
+    paths-ignore: ["**.md", "docs/**", "vhs/**"]
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 permissions:
-  contents: write   # create the GitHub Release + upload archives
+  contents: write
 
 jobs:
-  goreleaser:
+  release:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # full history + tags required for changelog/version
+          fetch-depth: 0
       - uses: actions/setup-go@v5
         with:
           go-version-file: cli/go.mod
           cache-dependency-path: cli/go.sum
+
+      - name: Next patch tag
+        id: tag
+        run: |
+          latest=$(git tag --list 'v*' --sort=-v:refname | head -n1)
+          IFS=. read -r major minor patch <<<"${latest:-v0.0.0}"
+          next="$major.$minor.$((patch + 1))"
+          git tag "$next"
+          echo "next=$next" >>"$GITHUB_OUTPUT"
+
+      - name: Coverage badge
+        working-directory: cli
+        run: go test ./... -coverprofile=cover.out -covermode=atomic -coverpkg=./...
+      - uses: vladopajic/go-test-coverage@v2
+        with:
+          config: ./cli/.testcoverage.yml
+          git-token: ${{ secrets.GITHUB_TOKEN }}
+          git-branch: badges
+
       - uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
@@ -26,6 +51,8 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # PAT with write access to cloudwalksolutions/homebrew-tap (see
-          # docs/releasing.md). Required for the Homebrew cask push on a full release.
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+
+      # Pushed last so a failed release leaves no tag behind and a rerun starts clean.
+      - name: Push ${{ steps.tag.outputs.next }}
+        run: git push origin "${{ steps.tag.outputs.next }}"

@@ -3,7 +3,7 @@
 profile: cli/cover.out
 
 threshold:
-  # Ratcheted from the 60.5% baseline after the coverage backfill (75.5%).
+  # Ratchet up as coverage grows, never down.
   total: 76
 
 exclude:
