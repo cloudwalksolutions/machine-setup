@@ -4,8 +4,9 @@ profile: cli/cover.out
 
 threshold:
   # Ratchet up as coverage grows, never down.
-  total: 76
+  total: 78
 
 exclude:
   paths:
     - internal/assets # embedded dotfile mirror; the Go shim is a thin embed wrapper
+    - internal/forms  # huh TUIs are production seams, untested by design (TARS_NO_FORM paths run in cmd specs)

@@ -68,6 +68,30 @@ var _ = Describe("ForOS Terminal", func() {
 	})
 })
 
+var _ = Describe("ForOS Pi", func() {
+	const (
+		repoRoot = "/repo"
+		home     = "/home/u"
+	)
+
+	It("maps the repo pi/ dir onto ~/.pi/agent", func() {
+		p := paths.ForOS(repoRoot, home, "linux")
+		agent := filepath.Join(home, ".pi", "agent")
+		Expect(p.Pi.SettingsRepo).To(Equal(filepath.Join(repoRoot, "pi", "settings.json")))
+		Expect(p.Pi.SettingsLocal).To(Equal(filepath.Join(agent, "settings.json")))
+		Expect(p.Pi.ModelsLocal).To(Equal(filepath.Join(agent, "models.json")))
+		Expect(p.Pi.AgentRepo).To(Equal(filepath.Join(repoRoot, "pi", "agents", "tars.md")))
+		Expect(p.Pi.AgentLocal).To(Equal(filepath.Join(agent, "agents", "tars.md")))
+		Expect(p.Pi.PromptsRepo).To(Equal(filepath.Join(repoRoot, "pi", "prompts")))
+		Expect(p.Pi.PromptsLocal).To(Equal(filepath.Join(agent, "prompts")))
+		Expect(p.Pi.ExtensionRepo).To(Equal(filepath.Join(repoRoot, "pi", "extensions", "block-unreviewable-edits.ts")))
+		Expect(p.Pi.ExtensionLocal).To(Equal(filepath.Join(agent, "extensions", "block-unreviewable-edits.ts")))
+		Expect(p.Pi.PermissionsRepo).To(Equal(filepath.Join(repoRoot, "pi", "permissions.json")))
+		Expect(p.Pi.PermissionsLocal).To(Equal(filepath.Join(agent, "extensions", "pi-permission-system", "config.json")))
+		Expect(p.Pi.AgentsMDLocal).To(Equal(filepath.Join(agent, "AGENTS.md")))
+	})
+})
+
 var _ = Describe("ForOS Claude", func() {
 	const (
 		repoRoot = "/repo"

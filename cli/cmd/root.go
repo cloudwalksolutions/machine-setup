@@ -42,4 +42,5 @@ func init() {
 	rootCmd.AddCommand(pullCmd)
 	rootCmd.AddCommand(sessionsCmd)
 	rootCmd.AddCommand(claudeCmd)
+	rootCmd.AddCommand(piCmd)
 }

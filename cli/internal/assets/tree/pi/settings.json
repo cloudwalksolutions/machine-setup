@@ -1,0 +1,10 @@
+{
+  "defaultThinkingLevel": "high",
+  "packages": [
+    "npm:pi-subagents",
+    "npm:pi-mcp-adapter",
+    "npm:pi-web-access",
+    "npm:bigpowers",
+    "npm:@gotgenes/pi-permission-system"
+  ]
+}

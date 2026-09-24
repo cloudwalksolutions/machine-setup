@@ -54,6 +54,7 @@ The installer verifies the release checksum and puts a single binary in
 | `tars profiles` | `p` | Switch git / GitHub / SSH identity per project dir |
 | `tars claude init` | `c i` | Pick and apply Claude Code pieces: edit-blocking hook, settings, global rules |
 | `tars claude project [dir]` | `c p` | Scaffold a project `CLAUDE.md` from the repo template (`--force` to replace) |
+| `tars pi init` | `pi i` | Set up the pi coding agent: packages, model providers (ollama / llama.cpp / any OpenAI-compatible), baseline agent |
 
 `pull` and `push` exit non-zero when any component fails (each is listed);
 `setup` tolerates config failures so a partial bootstrap stays recoverable.
@@ -137,6 +138,12 @@ Everything below is archived to `~/.local/state/tars/backups/<component>/vN`
   from `claude/rules/`, and a merge of `claude/settings.json` (model, theme,
   plugins, the hook entry) into `settings.json`. Machine-local keys such as
   `autoMode` and `permissions` are left alone; `~/.claude.json` is never touched.
+- `~/.pi/agent/`: the `tars` agent, `/tdd` `/plan` `/pr` prompts, the edit-guard
+  extension, a permission baseline, `AGENTS.md` rendered from the same rules as
+  Claude, and a merge of `pi/settings.json` (packages, thinking level). Model
+  providers come from your `tars pi init` choices, never from the repo; API keys
+  live in `~/.zshrc_secret` and `models.json` only references them. See
+  [docs/pi.md](docs/pi.md).
 
 Never overwritten: `~/.zshrc_secret` (seeded from a template when absent — put
 API keys and per-account aliases there), `~/.zprofile_local` (seeded once from
