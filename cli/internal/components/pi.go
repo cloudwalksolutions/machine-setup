@@ -2,6 +2,7 @@ package components
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -76,9 +77,7 @@ func (c *Pi) pullKeybindings() error {
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	for k, v := range fragment {
-		local[k] = v
-	}
+	maps.Copy(local, fragment)
 	return local.save(c.p.KeybindingsLocal, c.Name(), c.opts.BackupRoot)
 }
 
