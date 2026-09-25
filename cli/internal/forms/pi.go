@@ -28,7 +28,7 @@ func PiForm(in PiInputs) (*huh.Form, func() config.PiConfig) {
 	fields := []huh.Field{
 		huh.NewMultiSelect[string]().
 			Title("pi packages to install").
-			Description("Subagents, MCP adapter, web search, bigpowers skills, permission system, plannotator plan review, live todo overlay, ponytail YAGNI, ask-user-question forms, clipboard image paste, context-mode output sandboxing.").
+			Description("Subagents, MCP adapter, web search, bigpowers skills, permission system, plannotator plan review, live todo overlay, ponytail YAGNI, ask-user-question forms, clipboard image paste, context-mode output sandboxing, background shell tasks.").
 			Options(pkgOptions...).
 			Value(&cfg.Packages),
 	}

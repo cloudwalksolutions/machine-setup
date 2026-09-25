@@ -11,6 +11,7 @@
     "npm:@dietrichgebert/ponytail",
     "npm:@juicesharp/rpiv-ask-user-question",
     "npm:@pi-archimedes/image-paste",
-    "npm:context-mode"
+    "npm:context-mode",
+    "npm:pi-background-tasks"
   ]
 }

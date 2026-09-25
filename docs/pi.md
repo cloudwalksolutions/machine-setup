@@ -18,7 +18,10 @@
    a clipboard image into the prompt as `[Image #N]` for the model to see; the keybindings
    fragment unbinds pi's built-in `app.clipboard.pasteImage` so the two do not collide),
    `context-mode` (sandboxes tool output and indexes it into a searchable store so large
-   results do not flood the context window; `/ctx-stats`, `/ctx-search`, `/ctx-doctor`).
+   results do not flood the context window; `/ctx-stats`, `/ctx-search`, `/ctx-doctor`),
+   `pi-background-tasks` (long shell commands run as tracked background tasks instead of
+   blocking the agent; a task dock on Shift+Down, tuned with `PI_BG_FEATURES` and
+   `PI_BG_DOCK_SHORTCUT`).
 2. If a local `ollama` is installed, asks which of its models (`ollama list`) to expose to
    pi and which one is the default. That is the only provider tars manages: llama.cpp,
    remote endpoints and API keys are configured in pi itself (`/login`, `/models`,
