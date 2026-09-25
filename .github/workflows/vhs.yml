@@ -1,11 +1,19 @@
 name: vhs
 
-# Re-record the README demo GIFs whenever the recording setup changes on main.
+# On a PR: record every tape against the PR's tars and post the GIFs as a PR comment.
+# On main: re-record the README GIFs when the recording setup changes.
 on:
+  pull_request:
+    branches: [main]
+    paths-ignore: ["**.md", "docs/**", "vhs/*.gif"]
   push:
     branches: [main]
     paths: ["vhs/**", "!vhs/*.gif"]
   workflow_dispatch:
+
+concurrency:
+  group: vhs-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: write
@@ -14,6 +22,7 @@ permissions:
 jobs:
   vhs:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
@@ -22,9 +31,9 @@ jobs:
         with:
           go-version-file: cli/go.mod
           cache-dependency-path: cli/go.sum
-      - name: Install byobu for the sessions tape; put the gh stand-in ahead of the runner's gh
+      - name: Install byobu for the sessions tape and zsh for init's oh-my-zsh step; put the gh stand-in ahead of the runner's gh
         run: |
-          sudo apt-get update && sudo apt-get install -y byobu tmux
+          sudo apt-get update && sudo apt-get install -y byobu tmux zsh
           chmod +x vhs/bin/gh && echo "$GITHUB_WORKSPACE/vhs/bin" >> "$GITHUB_PATH"
       - name: Build tars onto PATH
         run: |
@@ -40,13 +49,60 @@ jobs:
       - uses: charmbracelet/vhs-action@v2
         with:
           version: v0.10.0
+          path: vhs/init.tape
+      - uses: charmbracelet/vhs-action@v2
+        with:
+          version: v0.10.0
           path: vhs/sessions.tape
       - uses: charmbracelet/vhs-action@v2
         with:
           version: v0.10.0
           path: vhs/profiles.tape
+
+      # Fork PRs get a read-only token, so only same-repo PRs publish previews.
+      - name: Publish the GIFs to the vhs-previews branch
+        id: previews
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          dir="$RUNNER_TEMP/previews"
+          if git ls-remote --exit-code --heads origin vhs-previews >/dev/null; then
+            git clone --quiet --depth 1 --branch vhs-previews "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" "$dir"
+          else
+            git init --quiet -b vhs-previews "$dir"
+            git -C "$dir" remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+          fi
+          rm -rf "$dir/pr-$PR" && mkdir -p "$dir/pr-$PR" && cp vhs/*.gif "$dir/pr-$PR/"
+          git -C "$dir" add -A
+          git -C "$dir" -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit --quiet -m "PR #$PR previews at ${GITHUB_SHA::7}"
+          git -C "$dir" push --quiet origin vhs-previews
+          echo "sha=$(git -C "$dir" rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Write the preview comment
+        if: steps.previews.outputs.sha
+        env:
+          PR: ${{ github.event.pull_request.number }}
+          SHA: ${{ steps.previews.outputs.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          base="https://raw.githubusercontent.com/${{ github.repository }}/$SHA/pr-$PR"
+          {
+            echo "### What this PR looks like"
+            echo "Recorded from ${HEAD::7} with the tapes under \`vhs/\`."
+            for t in demo init sessions profiles; do
+              printf '\n<details open><summary><code>%s</code></summary>\n\n![%s](%s/%s.gif)\n\n</details>\n' "$t" "$t" "$base" "$t"
+            done
+          } > "$RUNNER_TEMP/comment.md"
+      - uses: marocchino/sticky-pull-request-comment@v2
+        if: steps.previews.outputs.sha
+        with:
+          header: vhs-previews
+          path: ${{ runner.temp }}/comment.md
+
       # main is branch-protected, so regenerated GIFs arrive as a PR.
       - uses: peter-evans/create-pull-request@v7
+        if: github.event_name != 'pull_request'
         with:
           add-paths: vhs/*.gif
           commit-message: "Re-record VHS demos"
