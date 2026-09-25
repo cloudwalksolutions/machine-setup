@@ -2,14 +2,17 @@ package tui_test
 
 import (
 	"errors"
+	"fmt"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/huh/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	"tars/internal/forms"
+	"tars/internal/pkg"
 	"tars/internal/tui"
 )
 
@@ -49,15 +52,20 @@ var _ = Describe("Model", func() {
 
 	BeforeEach(func() { h = newHarness() })
 
-	It("shows the step, its progress and the running item", func() {
+	It("shows the step's progress and running item, leaving its title to the printed header", func() {
 		h.send(tui.StepStartedMsg{Title: "Installing packages", Total: 3}, tui.ItemStartedMsg{Name: "jq"})
-		Expect(h.view()).To(ContainSubstring("Installing packages"))
+		Expect(h.view()).NotTo(ContainSubstring("Installing packages"))
 		Expect(h.view()).To(ContainSubstring("0/3"))
 		Expect(h.view()).To(ContainSubstring("jq"))
 
 		h.send(tui.ItemDoneMsg{Name: "jq"})
 		Expect(h.view()).To(ContainSubstring("1/3"))
 		Expect(h.view()).NotTo(ContainSubstring("jq"))
+	})
+
+	It("shows working… for a step with no count or item", func() {
+		h.send(tui.StepStartedMsg{Title: "Checking installed tools"})
+		Expect(h.view()).To(ContainSubstring("working…"))
 	})
 
 	It("shows the last five output lines under the running item and drops them when it finishes", func() {
@@ -103,6 +111,18 @@ var _ = Describe("Model", func() {
 
 			Expect(done).To(Receive(MatchError(huh.ErrUserAborted)))
 		})
+	})
+
+	It("fits a form opened after the terminal size arrived inside that terminal", func() {
+		tools := make([]pkg.ToolInfo, 20)
+		for i := range tools {
+			tools[i] = pkg.ToolInfo{Name: fmt.Sprintf("tool-%d", i)}
+		}
+		form, _ := forms.InstallForm(tools)
+
+		h.send(tea.WindowSizeMsg{Width: 100, Height: 10}, tui.PromptMsg{Form: form, Done: make(chan error, 1)})
+
+		Expect(lipgloss.Height(h.view())).To(BeNumerically("<=", 10))
 	})
 
 	It("turns ctrl+c during work into a cooperative cancel, then quits when the run ends", func() {

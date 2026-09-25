@@ -35,12 +35,14 @@ jobs:
           git tag "$next"
           echo "next=$next" >>"$GITHUB_OUTPUT"
 
+      # Badge only: PRs enforce the threshold before merge, so a release never fails on it.
       - name: Coverage badge
         working-directory: cli
-        run: go test ./... -coverprofile=cover.out -covermode=atomic -coverpkg=./...
+        run: go test -count=1 ./... -coverprofile=cover.out -covermode=atomic -coverpkg=./...
       - uses: vladopajic/go-test-coverage@v2
         with:
           config: ./cli/.testcoverage.yml
+          threshold-total: 0
           git-token: ${{ secrets.GITHUB_TOKEN }}
           git-branch: badges
 

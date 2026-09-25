@@ -38,7 +38,6 @@ const (
 // Model is the live pane: the step in progress, or the form being answered.
 type Model struct {
 	phase     phase
-	title     string
 	item      string
 	done      int
 	total     int
@@ -47,6 +46,7 @@ type Model struct {
 	spinner   spinner.Model
 	form      *huh.Form
 	formDone  chan<- error
+	size      *tea.WindowSizeMsg // arrives once at startup, usually before any form opens
 	cancelled *atomic.Bool
 	err       error
 }
@@ -74,9 +74,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateForm(msg)
 	}
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.size = &msg
 	case PromptMsg:
 		m.phase, m.form, m.formDone = inForm, forms.Styled(msg.Form), msg.Done
-		return m, m.form.Init()
+		cmd := m.form.Init()
+		if m.size != nil {
+			size := *m.size
+			size.Height-- // huh leaves the blank line above its help footer out of the group height
+			next, sizeCmd := m.form.Update(size)
+			m.form, cmd = next.(*huh.Form), tea.Batch(cmd, sizeCmd)
+		}
+		return m, cmd
 	case tea.KeyPressMsg:
 		if msg.String() == "ctrl+c" {
 			m.cancelled.Store(true)
@@ -87,7 +96,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.phase, m.err = finished, msg.Err
 		return m, tea.Quit
 	case StepStartedMsg:
-		m.title, m.item, m.done, m.total, m.tail = msg.Title, "", 0, msg.Total, nil
+		m.item, m.done, m.total, m.tail = "", 0, msg.Total, nil
 	case ItemStartedMsg:
 		m.item, m.tail = msg.Name, nil
 	case ItemDoneMsg:
@@ -137,12 +146,15 @@ func (m Model) View() tea.View {
 		return tea.NewView(m.form.View())
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s %s", m.spinner.View(), titleTxt.Render(m.title))
+	b.WriteString(m.spinner.View())
 	if m.total > 0 {
 		fmt.Fprintf(&b, " %s", dimTxt.Render(fmt.Sprintf("%d/%d", m.done, m.total)))
 	}
 	if m.item != "" {
 		fmt.Fprintf(&b, "  %s", m.item)
+	}
+	if m.total == 0 && m.item == "" {
+		fmt.Fprintf(&b, " %s", dimTxt.Render("working…"))
 	}
 	if m.failures > 0 {
 		fmt.Fprintf(&b, "  %s", failedTxt.Render(fmt.Sprintf("%d failed", m.failures)))
