@@ -58,9 +58,10 @@ jobs:
         with:
           go-version-file: cli/go.mod
           cache-dependency-path: cli/go.sum
+      # -count=1: cached test results replay coverage profiles from older code.
       - name: Generate coverage profile
         working-directory: cli
-        run: go test ./... -coverprofile=cover.out -covermode=atomic -coverpkg=./...
+        run: go test -count=1 ./... -coverprofile=cover.out -covermode=atomic -coverpkg=./...
       - name: Coverage gate
         uses: vladopajic/go-test-coverage@v2
         with:

@@ -166,8 +166,11 @@ its steps are explicit commands, not Makefile recipes. Eight checks:
 (the Docker build), `nvim` (headless Lua smoke tests against the repo's `nvim/` via
 `XDG_CONFIG_HOME`), and `goreleaser` (`goreleaser check`). Reproduce locally from `cli/` with the
 same commands before handing work over; `gh pr checks <n> --watch` is the final gate.
-`.github/workflows/vhs.yml` re-records the README GIFs via PR when anything under `vhs/`
-other than the GIFs changes on `main`.
+`.github/workflows/vhs.yml` records every tape (`demo`, `init`, `sessions`, `profiles`) on each
+PR and posts the GIFs as a sticky PR comment (stored on the `vhs-previews` branch); on `main`
+it re-records the README GIFs via PR when anything under `vhs/` other than the GIFs changes.
+Coverage is enforced pre-merge by the required `coverage` check; the release job only
+refreshes the badge. Both run `go test -count=1` so cached results never replay stale profiles.
 
 ## Development Patterns (TDD)
 

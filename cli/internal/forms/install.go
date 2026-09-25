@@ -13,7 +13,7 @@ var categorizedPackages = map[string][]string{
 		"claude-code", "gemini-cli", "pi",
 	},
 	"Terminal Utilities & Editors": {
-		"neovim", "byobu", "gh", "lazygit", "jq", "bat", "eza",
+		"neovim", "tree-sitter-cli", "byobu", "gh", "lazygit", "jq", "bat", "eza",
 		"k9s", "lazydocker", "k3d", "golangci-lint", "fzf", "ripgrep",
 	},
 	"Languages & Runtimes": {
@@ -58,6 +58,7 @@ func InstallForm(tools []pkg.ToolInfo) (*huh.Form, func() []string) {
 				Title(cat).
 				Description("Installed tools show their version and start unchecked.").
 				Options(options...).
+				Height(len(options)+2). // huh subtracts the title and description rows from the options
 				Value(&selected),
 		))
 	}

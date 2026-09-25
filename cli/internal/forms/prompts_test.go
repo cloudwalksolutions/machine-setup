@@ -1,6 +1,7 @@
 package forms_test
 
 import (
+	"github.com/charmbracelet/x/ansi"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -37,6 +38,28 @@ var _ = Describe("form builders", func() {
 	It("InstallForm starts with only the missing tools selected", func() {
 		_, collect := forms.InstallForm([]pkg.ToolInfo{{Name: "neovim", Installed: true}, {Name: "fzf"}, {Name: "go"}})
 		Expect(collect()).To(Equal([]string{"fzf", "go"}))
+	})
+
+	It("InstallForm shows every tool of a category without scrolling", func() {
+		names := []string{"neovim", "byobu", "gh", "lazygit", "jq", "bat", "eza", "k9s", "fzf", "ripgrep"}
+		tools := make([]pkg.ToolInfo, len(names))
+		for i, n := range names {
+			tools[i] = pkg.ToolInfo{Name: n}
+		}
+		form, _ := forms.InstallForm(tools)
+		form = forms.Styled(form)
+		form.Init()
+
+		for _, n := range names {
+			Expect(ansi.Strip(form.View())).To(ContainSubstring(n))
+		}
+	})
+
+	It("InstallForm lists tree-sitter-cli with the editors", func() {
+		form, _ := forms.InstallForm([]pkg.ToolInfo{{Name: "neovim"}, {Name: "tree-sitter-cli"}})
+		form.Init()
+
+		Expect(ansi.Strip(form.View())).To(And(ContainSubstring("Terminal Utilities & Editors"), ContainSubstring("tree-sitter-cli")))
 	})
 
 	It("WizardForm starts with every wizard selected", func() {

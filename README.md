@@ -53,7 +53,9 @@ The installer verifies the release checksum; override the directory with
    and Powerlevel10k, then the config components. Finished steps scroll up as ✓/✗ lines,
    so the terminal history is the log. Nothing needs sudo: fonts go into your user font
    dir. A failed step is marked and setup continues; fix the cause and run `tars pull`.
-   Ctrl+C stops after the current item.
+   Ctrl+C stops after the current item; at a picker it skips that choice.
+
+   ![tars init demo](vhs/init.gif)
 2. **Start a new shell** so the configs load.
    ```bash
    exec zsh
