@@ -48,10 +48,12 @@ The installer verifies the release checksum; override the directory with
    ```bash
    tars init                  # interactive; or: TARS_NO_FORM=1 tars init  (installs what is missing)
    ```
-   You get a tool checklist (Enter accepts all), brew or apt installs, oh-my-zsh and
-   Powerlevel10k, then one line per config component. Nothing needs sudo: fonts go
-   into your user font dir. A failed component is listed and setup continues; fix the
-   cause and run `tars pull`.
+   One screen from start to finish: a tool checklist (installed tools show their
+   version and start unchecked), brew or apt installs with a live output pane, oh-my-zsh
+   and Powerlevel10k, then the config components. Finished steps scroll up as ✓/✗ lines,
+   so the terminal history is the log. Nothing needs sudo: fonts go into your user font
+   dir. A failed step is marked and setup continues; fix the cause and run `tars pull`.
+   Ctrl+C stops after the current item.
 2. **Start a new shell** so the configs load.
    ```bash
    exec zsh

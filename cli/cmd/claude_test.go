@@ -12,6 +12,7 @@ import (
 	"tars/cmd"
 	"tars/internal/config"
 	"tars/internal/forms"
+	"tars/internal/report"
 )
 
 type spyClaudeAsker struct {
@@ -20,7 +21,7 @@ type spyClaudeAsker struct {
 	err     error
 }
 
-func (s *spyClaudeAsker) Ask(rules []string) (config.ClaudeConfig, error) {
+func (s *spyClaudeAsker) AskClaude(rules []string) (config.ClaudeConfig, error) {
 	s.offered = rules
 	return s.answer, s.err
 }
@@ -30,6 +31,7 @@ var _ = Describe("ClaudeInit.Run", func() {
 		asker  *spyClaudeAsker
 		store  *memConfigStore
 		pulled []config.ClaudeConfig
+		stdout *bytes.Buffer
 		init   *cmd.ClaudeInit
 	)
 
@@ -38,12 +40,13 @@ var _ = Describe("ClaudeInit.Run", func() {
 		asker = &spyClaudeAsker{answer: config.ClaudeConfig{Hook: &off, Rules: []string{"10-tdd"}}}
 		store = newMemConfigStore("/cfg/config.yaml")
 		pulled = nil
+		stdout = &bytes.Buffer{}
 		init = &cmd.ClaudeInit{
 			Asker:  asker,
 			Config: store,
 			Rules:  []string{"10-tdd", "60-simplicity"},
 			Pull:   func(c config.ClaudeConfig) error { pulled = append(pulled, c); return nil },
-			Stdout: &bytes.Buffer{},
+			Report: report.Text{Stdout: stdout, Stderr: &bytes.Buffer{}},
 		}
 	})
 
@@ -52,6 +55,7 @@ var _ = Describe("ClaudeInit.Run", func() {
 
 		Expect(asker.offered).To(Equal([]string{"10-tdd", "60-simplicity"}))
 		Expect(store.cfg.Claude).To(Equal(asker.answer))
+		Expect(stdout.String()).To(ContainSubstring("Choices saved to /cfg/config.yaml"))
 	})
 
 	It("pulls with the saved answers", func() {
@@ -95,7 +99,7 @@ type spyProjectAsker struct {
 	err    error
 }
 
-func (s *spyProjectAsker) Ask(defaultName string) (forms.ProjectAnswers, error) {
+func (s *spyProjectAsker) AskProject(defaultName string) (forms.ProjectAnswers, error) {
 	if s.answer.Name == "" {
 		s.answer.Name = defaultName
 	}
@@ -180,7 +184,7 @@ var _ = Describe("claude composition roots", func() {
 	})
 
 	It("NewClaudeInit wires the form, config store, repo rules and a puller", func() {
-		c, err := cmd.NewClaudeInit(&bytes.Buffer{}, &bytes.Buffer{})
+		c, err := cmd.NewClaudeInit(report.Text{Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}}, forms.Headless{})
 
 		Expect(err).NotTo(HaveOccurred())
 		Expect(c.Asker).NotTo(BeNil())
@@ -190,7 +194,7 @@ var _ = Describe("claude composition roots", func() {
 	})
 
 	It("NewProjectInit points at the repo template", func() {
-		p, err := cmd.NewProjectInit(&bytes.Buffer{}, &bytes.Buffer{}, true)
+		p, err := cmd.NewProjectInit(report.Text{Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}}, forms.Headless{}, true)
 
 		Expect(err).NotTo(HaveOccurred())
 		Expect(p.Asker).NotTo(BeNil())

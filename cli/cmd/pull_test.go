@@ -9,6 +9,7 @@ import (
 
 	"tars/cmd"
 	"tars/internal/components"
+	"tars/internal/report"
 )
 
 type spyPullable struct {
@@ -33,8 +34,7 @@ var _ = Describe("SequentialPuller.PullAll", func() {
 				&spyPullable{name: "zsh", log: &log, err: errors.New("disk full")},
 				&spyPullable{name: "fonts", log: &log, err: errors.New("no sudo")},
 			},
-			Stdout: &bytes.Buffer{},
-			Stderr: stderr,
+			Report: report.Text{Stdout: &bytes.Buffer{}, Stderr: stderr},
 		}
 
 		err := puller.PullAll()
@@ -51,8 +51,7 @@ var _ = Describe("SequentialPuller.PullAll", func() {
 		var log []string
 		puller := cmd.SequentialPuller{
 			Components: []components.Component{&spyPullable{name: "vim", log: &log}},
-			Stdout:     &bytes.Buffer{},
-			Stderr:     &bytes.Buffer{},
+			Report:     report.Text{Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}},
 		}
 
 		Expect(puller.PullAll()).To(Succeed())

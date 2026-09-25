@@ -2,26 +2,26 @@ package cmd
 
 import (
 	"fmt"
-	"io"
 	"os"
 
 	"github.com/spf13/cobra"
+
 	"tars/internal/components"
 	"tars/internal/repo"
+	"tars/internal/report"
 )
 
 // SequentialPusher iterates the configured pushable components, printing
 // progress and capturing per-component failures (mirrors SequentialPuller).
 type SequentialPusher struct {
 	Components []components.Pushable
-	Stdout     io.Writer
-	Stderr     io.Writer
+	Report     report.Reporter
 }
 
 // PushAll pushes every component, reporting failures inline without aborting,
 // and returns an aggregate error naming the components that failed.
 func (p SequentialPusher) PushAll() error {
-	return runComponents(p.Components, components.Pushable.Name, components.Pushable.Push, p.Stdout, p.Stderr)
+	return runComponents(p.Components, components.Pushable.Name, components.Pushable.Push, p.Report)
 }
 
 var pushCmd = &cobra.Command{
@@ -55,8 +55,7 @@ read-only. Exits non-zero when any component fails, listing each failure.`,
 		fmt.Fprintln(stdout, "Pushing configuration files...")
 		if err := (SequentialPusher{
 			Components: components.AllPushable(opts),
-			Stdout:     stdout,
-			Stderr:     stderr,
+			Report:     report.Text{Stdout: stdout, Stderr: stderr},
 		}).PushAll(); err != nil {
 			return fmt.Errorf("push completed with failures: %w", err)
 		}
