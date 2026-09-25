@@ -2,7 +2,6 @@ package tui
 
 import (
 	"context"
-	"io"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -23,26 +22,17 @@ type Asker interface {
 	AskProject(defaultName string) (forms.ProjectAnswers, error)
 }
 
-// Run drives an init flow: headless (TARS_NO_FORM) prints plain text and answers
-// with defaults; otherwise the flow runs in a goroutine while the program renders
-// its progress and forms. The flow's error is the result.
-func Run(headless bool, stdout, stderr io.Writer, flow func(report.Reporter, Asker) error) error {
-	if headless {
-		return flow(report.Text{Stdout: stdout, Stderr: stderr}, forms.Headless{})
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+// Flow is an init orchestration: it reports progress and asks questions, and
+// its error is the command's result.
+type Flow func(report.Reporter, Asker) error
 
-	model := New()
-	program := tea.NewProgram(model, tea.WithOutput(stdout), tea.WithContext(ctx))
+// Start runs the flow in its own goroutine against the program that renders
+// model, reached only through send: finished lines are printed above the pane,
+// state and prompts become messages, and the flow's result ends the program.
+func Start(ctx context.Context, send func(tea.Msg), model Model, flow Flow) {
+	println := func(line string) { send(tea.Println(line)()) }
 	go func() {
-		println := func(line string) { program.Println(line) }
-		err := flow(newReporter(program.Send, println, model.cancelled), Prompts{Send: program.Send, Ctx: ctx})
-		program.Send(RunDoneMsg{Err: err})
+		err := flow(newReporter(send, println, model.cancelled), Prompts{Send: send, Ctx: ctx})
+		send(RunDoneMsg{Err: err})
 	}()
-	final, err := program.Run()
-	if err != nil {
-		return err
-	}
-	return final.(Model).Err()
 }

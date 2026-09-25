@@ -99,9 +99,11 @@ Tests are layered:
      `report.Reporter` (`report.Text` in specs and headless runs, the TUI otherwise) and ask
      questions through narrow prompt interfaces (`Welcomer`, `InstallPicker`, `ClaudeAsker`…)
      that `tui.Prompts` and `forms.Headless` both satisfy.
-   - TUI specs (`internal/tui`) drive `Model.Update`/`View` directly with messages and key
-     presses; the reporter's `send`/`println` seams are fakes that record instead of reaching
-     a program. Only `program.go` (the tea.Program runner) is untested.
+   - TUI specs (`internal/tui`) are layered like the code: `Model.Update`/`View` driven with
+     messages and key presses; the reporter and prompts with recording fakes; and `Start` (the
+     flow goroutine wired to a program) under a real Bubble Tea program via `teatest/v2`
+     (`GinkgoTB()` satisfies its `testing.TB`), asserting the printed lines, the form, the key
+     press and the flow's result. Only `run.go` (tea.NewProgram on the terminal) is untested.
 2. **Integration** (`make integration`) — real external deps: brew installers gated by
    `INTEGRATION=1` (installs/removes `hello`) plus the Neovim config tests (real `nvim`).
    Off by default in `go test`.

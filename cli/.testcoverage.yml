@@ -9,4 +9,4 @@ threshold:
 exclude:
   paths:
     - internal/assets # embedded dotfile mirror; the Go shim is a thin embed wrapper
-    - internal/tui/program.go  # the tea.Program runner is the one untested seam; models, reporter and prompts have specs
+    - internal/tui/run.go  # needs a real terminal; Start is proven under a teatest program
