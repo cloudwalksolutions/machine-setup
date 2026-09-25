@@ -86,6 +86,19 @@ test("Plugin configurations are valid", function()
   assert(#errors == 0, "Found " .. #errors .. " configuration errors: " .. table.concat(errors, "; "))
 end)
 
+test("Markdown code fences parse their injected language", function()
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "# Install", "", "```bash", "brew install tars", "```" })
+  vim.treesitter.get_parser(buf, "markdown"):parse(true)
+end)
+
+test("Treesitter highlights filetypes that have a parser", function()
+  local buf = vim.api.nvim_create_buf(true, false)
+  vim.api.nvim_set_current_buf(buf)
+  vim.bo[buf].filetype = "c"
+  assert(vim.treesitter.highlighter.active[buf], "treesitter highlighter not started for c")
+end)
+
 -- Summary
 print("\n" .. string.rep("=", 50))
 print("Test Summary:")

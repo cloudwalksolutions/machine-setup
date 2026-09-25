@@ -204,7 +204,7 @@ func (n NeovimTarball) Install(stdout, stderr io.Writer) error {
 		arch = "x86_64"
 	}
 
-	url := fmt.Sprintf("https://github.com/neovim/neovim/releases/download/v0.11.6/nvim-linux-%s.tar.gz", arch)
+	url := fmt.Sprintf("https://github.com/neovim/neovim/releases/download/v0.12.5/nvim-linux-%s.tar.gz", arch)
 	destRoot := filepath.Join(n.Home, ".local", "nvim")
 
 	fmt.Fprintf(stdout, "Downloading Neovim to %s...\n", destRoot)
@@ -226,6 +226,77 @@ func (n NeovimTarball) Install(stdout, stderr io.Writer) error {
 		return err
 	}
 	return os.Symlink(filepath.Join(destRoot, "bin", "nvim"), link)
+}
+
+// TreeSitterCLI installs the upstream tree-sitter release binary to
+// <Home>/.local/bin; Ubuntu's apt package is too old for nvim-treesitter.
+type TreeSitterCLI struct {
+	Fetch Fetcher
+	Home  string
+	Arch  string // "amd64" | "arm64"; empty means runtime.GOARCH
+	Cmd   CmdRunner
+}
+
+// Name matches the brew formula so both platforms list the same tool.
+func (TreeSitterCLI) Name() string { return "tree-sitter-cli" }
+
+// Description returns the picker blurb.
+func (TreeSitterCLI) Description() string { return "Builds Neovim treesitter parsers" }
+
+// Status reports the version ~/.local/bin/tree-sitter prints.
+func (t TreeSitterCLI) Status() (pkg.InstallStatus, string, error) {
+	bin := filepath.Join(t.Home, ".local", "bin", "tree-sitter")
+	if _, err := os.Stat(bin); err != nil {
+		return pkg.StatusNotInstalled, "", nil
+	}
+	var out bytes.Buffer
+	if err := t.Cmd([]string{bin, "--version"}, &out, io.Discard); err != nil {
+		return pkg.StatusUpToDate, "", nil
+	}
+	fields := strings.Fields(out.String())
+	if len(fields) < 2 {
+		return pkg.StatusUpToDate, "", nil
+	}
+	return pkg.StatusUpToDate, fields[1], nil
+}
+
+// Install downloads the gzipped binary and writes it executable onto PATH.
+func (t TreeSitterCLI) Install(stdout, _ io.Writer) error {
+	arch := t.Arch
+	if arch == "" {
+		arch = runtime.GOARCH
+	}
+	if arch == "amd64" {
+		arch = "x64"
+	}
+	url := fmt.Sprintf("https://github.com/tree-sitter/tree-sitter/releases/download/v0.27.0/tree-sitter-linux-%s.gz", arch)
+	bin := filepath.Join(t.Home, ".local", "bin", "tree-sitter")
+
+	fmt.Fprintf(stdout, "Downloading tree-sitter to %s...\n", bin)
+	body, err := t.Fetch(url)
+	if err != nil {
+		return fmt.Errorf("downloading tree-sitter: %w", err)
+	}
+	defer body.Close()
+
+	gz, err := gzip.NewReader(body)
+	if err != nil {
+		return fmt.Errorf("extracting tree-sitter: %w", err)
+	}
+	defer func() { _ = gz.Close() }()
+
+	if err := os.MkdirAll(filepath.Dir(bin), 0o755); err != nil {
+		return err
+	}
+	f, err := os.OpenFile(bin, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o755)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(f, gz); err != nil {
+		_ = f.Close()
+		return fmt.Errorf("extracting tree-sitter: %w", err)
+	}
+	return f.Close()
 }
 
 // extractTarGz unpacks a gzipped tarball into destRoot, stripping the single
