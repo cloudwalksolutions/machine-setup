@@ -17,6 +17,9 @@ type Formula struct {
 	name        string
 	description string
 	run         Runner
+	// Binary is the executable to look for when brew does not list the formula; defaults to name.
+	Binary string
+	Probe  pkg.PathProbe
 }
 
 // NewFormula returns a Formula bound to a runner.
@@ -35,20 +38,30 @@ func (f Formula) Install(stdout, stderr io.Writer) error {
 	return f.run([]string{"install", f.name}, stdout, stderr)
 }
 
-// Status reports the installed version via `brew list --versions <name>`.
+// Status reports the brew-listed version, else whatever the binary on PATH reports.
 func (f Formula) Status() (pkg.InstallStatus, string, error) {
-	return listedVersion(f.run, "list", "--versions", f.name)
+	if version, ok := listedVersion(f.run, "list", "--versions", f.name); ok {
+		return pkg.StatusUpToDate, version, nil
+	}
+	return f.Probe.Status(binaryOr(f.Binary, f.name))
 }
 
-// listedVersion parses `<name> <version>` from brew's stdout; a non-zero exit means not installed.
-func listedVersion(run Runner, args ...string) (pkg.InstallStatus, string, error) {
+// listedVersion parses `<name> <version>` from brew's stdout; a non-zero exit means brew does not manage it.
+func listedVersion(run Runner, args ...string) (string, bool) {
 	var out bytes.Buffer
 	if err := run(args, &out, io.Discard); err != nil {
-		return pkg.StatusNotInstalled, "", nil
+		return "", false
 	}
 	fields := strings.Fields(out.String())
 	if len(fields) < 2 {
-		return pkg.StatusNotInstalled, "", nil
+		return "", false
 	}
-	return pkg.StatusUpToDate, fields[len(fields)-1], nil
+	return fields[len(fields)-1], true
+}
+
+func binaryOr(binary, name string) string {
+	if binary != "" {
+		return binary
+	}
+	return name
 }

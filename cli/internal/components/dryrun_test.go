@@ -93,13 +93,12 @@ var _ = Describe("dry-run pull", func() {
 		localDir := filepath.Join(tmp, "installed-fonts")
 		Expect(os.MkdirAll(localDir, 0o755)).To(Succeed())
 
-		calls := 0
 		f := components.NewFontsForOS(newOpts(true), "linux")
 		f.LocalOverride = localDir
-		f.CopyFn = func(src, dst string) error { calls++; return nil }
 
 		Expect(f.Pull()).To(Succeed())
-		Expect(calls).To(Equal(0))
+		_, err := os.Stat(filepath.Join(localDir, "Hack Regular.ttf"))
+		Expect(os.IsNotExist(err)).To(BeTrue())
 	})
 
 	It("does not touch terminal preferences", func() {

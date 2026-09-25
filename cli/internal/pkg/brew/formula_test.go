@@ -50,10 +50,31 @@ var _ = Describe("Formula.Status", func() {
 		Expect(version).To(Equal("1.22.22"))
 	})
 
-	It("reports not installed when brew exits non-zero", func() {
-		fake := func(_ []string, _, _ io.Writer) error { return errors.New("exit status 1") }
+	It("falls back to the binary on PATH when brew does not list the formula", func() {
+		brewMissing := func(_ []string, _, _ io.Writer) error { return errors.New("exit status 1") }
+		f := brew.NewFormula("yarn", "", brewMissing)
+		f.Probe = pkg.PathProbe{
+			LookPath: func(file string) (string, error) { return "/usr/local/bin/" + file, nil },
+			Run: func(cmd []string, stdout, _ io.Writer) error {
+				Expect(cmd).To(Equal([]string{"/usr/local/bin/yarn", "--version"}))
+				_, _ = io.WriteString(stdout, "1.22.22\n")
+				return nil
+			},
+		}
 
-		status, version, err := brew.NewFormula("yarn", "", fake).Status()
+		status, version, err := f.Status()
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(status).To(Equal(pkg.StatusUpToDate))
+		Expect(version).To(Equal("1.22.22"))
+	})
+
+	It("reports not installed when neither brew nor PATH has it", func() {
+		brewMissing := func(_ []string, _, _ io.Writer) error { return errors.New("exit status 1") }
+		f := brew.NewFormula("yarn", "", brewMissing)
+		f.Probe = pkg.PathProbe{LookPath: func(string) (string, error) { return "", errors.New("not found") }}
+
+		status, version, err := f.Status()
 
 		Expect(err).NotTo(HaveOccurred())
 		Expect(status).To(Equal(pkg.StatusNotInstalled))
