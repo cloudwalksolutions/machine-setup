@@ -161,7 +161,7 @@ var _ = Describe("NeovimTarball", func() {
 		nv := apt.NeovimTarball{Fetch: fetch, Home: home, Arch: "arm64"}
 		Expect(nv.Install(&bytes.Buffer{}, &bytes.Buffer{})).To(Succeed())
 
-		Expect(gotURL).To(ContainSubstring("nvim-linux-arm64.tar.gz"))
+		Expect(gotURL).To(Equal("https://github.com/neovim/neovim/releases/download/v0.12.5/nvim-linux-arm64.tar.gz"))
 
 		bin := filepath.Join(home, ".local", "nvim", "bin", "nvim")
 		data, err := os.ReadFile(bin)
@@ -353,5 +353,92 @@ var _ = Describe("GCloudCLI", func() {
 		Expect(steps[5]).To(Equal(apt.SudoAptArgs([]string{"install", "-y", "google-cloud-cli"})))
 		joined := fmt.Sprint(steps)
 		Expect(joined).To(ContainSubstring("arch=$(dpkg --print-architecture)"))
+	})
+})
+
+var _ = Describe("TreeSitterCLI", func() {
+	gzipped := func(body string) io.ReadCloser {
+		var buf bytes.Buffer
+		gz := gzip.NewWriter(&buf)
+		_, err := gz.Write([]byte(body))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(gz.Close()).To(Succeed())
+		return io.NopCloser(&buf)
+	}
+
+	It("downloads the arch release binary to an executable ~/.local/bin/tree-sitter", func() {
+		home := GinkgoT().TempDir()
+		var gotURL string
+		fetch := func(url string) (io.ReadCloser, error) {
+			gotURL = url
+			return gzipped("ELF-TS"), nil
+		}
+
+		ts := apt.TreeSitterCLI{Fetch: fetch, Home: home, Arch: "arm64"}
+		Expect(ts.Install(&bytes.Buffer{}, &bytes.Buffer{})).To(Succeed())
+
+		Expect(gotURL).To(Equal("https://github.com/tree-sitter/tree-sitter/releases/download/v0.27.0/tree-sitter-linux-arm64.gz"))
+		bin := filepath.Join(home, ".local", "bin", "tree-sitter")
+		data, err := os.ReadFile(bin)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(string(data)).To(Equal("ELF-TS"))
+		info, err := os.Stat(bin)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(info.Mode().Perm() & 0o111).NotTo(BeZero())
+	})
+
+	It("requests the x64 asset for amd64", func() {
+		var gotURL string
+		fetch := func(url string) (io.ReadCloser, error) {
+			gotURL = url
+			return gzipped("ELF-TS"), nil
+		}
+
+		ts := apt.TreeSitterCLI{Fetch: fetch, Home: GinkgoT().TempDir(), Arch: "amd64"}
+		Expect(ts.Install(&bytes.Buffer{}, &bytes.Buffer{})).To(Succeed())
+
+		Expect(gotURL).To(HaveSuffix("/tree-sitter-linux-x64.gz"))
+	})
+
+	It("reports the version ~/.local/bin/tree-sitter prints once it exists", func() {
+		home := GinkgoT().TempDir()
+		bin := filepath.Join(home, ".local", "bin", "tree-sitter")
+		Expect(os.MkdirAll(filepath.Dir(bin), 0o755)).To(Succeed())
+		Expect(os.WriteFile(bin, nil, 0o755)).To(Succeed())
+		var gotArgv []string
+		spy := func(argv []string, stdout, _ io.Writer) error {
+			gotArgv = argv
+			_, _ = io.WriteString(stdout, "tree-sitter 0.27.0 (a1b2c3d)\n")
+			return nil
+		}
+
+		status, detail, err := apt.TreeSitterCLI{Home: home, Cmd: spy}.Status()
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(gotArgv).To(Equal([]string{bin, "--version"}))
+		Expect(status).To(Equal(pkg.StatusUpToDate))
+		Expect(detail).To(Equal("0.27.0"))
+	})
+
+	It("reports installed without a version when --version prints nothing", func() {
+		home := GinkgoT().TempDir()
+		bin := filepath.Join(home, ".local", "bin", "tree-sitter")
+		Expect(os.MkdirAll(filepath.Dir(bin), 0o755)).To(Succeed())
+		Expect(os.WriteFile(bin, nil, 0o755)).To(Succeed())
+		silent := func([]string, io.Writer, io.Writer) error { return nil }
+
+		status, detail, err := apt.TreeSitterCLI{Home: home, Cmd: silent}.Status()
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(status).To(Equal(pkg.StatusUpToDate))
+		Expect(detail).To(BeEmpty())
+	})
+
+	It("reports not installed on a fresh home", func() {
+		status, detail, err := apt.TreeSitterCLI{Home: GinkgoT().TempDir()}.Status()
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(status).To(Equal(pkg.StatusNotInstalled))
+		Expect(detail).To(BeEmpty())
 	})
 })

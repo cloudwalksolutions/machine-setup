@@ -80,7 +80,7 @@ demos:           ## Re-record the README demo GIFs (Docker + VHS)
 
 .PHONY: test-nvim
 test-nvim:       ## Neovim smoke tests (headless)
-	nvim -u nvim/init.lua --headless -l nvim/tests/smoke_test.lua
+	XDG_CONFIG_HOME=$(CURDIR) nvim -u nvim/init.lua --headless -l nvim/tests/smoke_test.lua
 
 .PHONY: health-nvim
 health-nvim:     ## Neovim health checks

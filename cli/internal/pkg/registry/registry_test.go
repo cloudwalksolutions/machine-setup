@@ -210,8 +210,8 @@ var _ = Describe("RegistryFactory", func() {
 	It("on darwin, lists the formulas by popularity: editors and terminal first, fzf/ripgrep last, then languages, then devops", func() {
 		names := factory.For("darwin").Names()
 
-		Expect(names[:22]).To(Equal([]string{
-			"neovim", "byobu", "gh", "lazygit", "jq", "bat", "eza", "k9s", "lazydocker", "k3d", "golangci-lint", "fzf", "ripgrep",
+		Expect(names[:23]).To(Equal([]string{
+			"neovim", "tree-sitter-cli", "byobu", "gh", "lazygit", "jq", "bat", "eza", "k9s", "lazydocker", "k3d", "golangci-lint", "fzf", "ripgrep",
 			"go", "node", "python", "ruby", "rustup", "ghcup", "yarn", "n",
 			"ansible",
 		}))
@@ -251,7 +251,7 @@ var _ = Describe("RegistryFactory", func() {
 
 	It("on linux, lists tools in the same popularity order", func() {
 		Expect(factory.For("linux").Names()).To(Equal([]string{
-			"neovim", "byobu", "gh", "jq", "bat", "fzf", "ripgrep",
+			"neovim", "tree-sitter-cli", "byobu", "gh", "jq", "bat", "fzf", "ripgrep",
 			"go", "node", "python",
 			"gcloud",
 		}))
@@ -322,6 +322,8 @@ var _ = Describe("RegistryFactory", func() {
 	It("on linux, every installable reports its status through the injected command seam", func() {
 		kit := spyKit()
 		Expect(os.MkdirAll(filepath.Join(kit.Home, ".local", "nvim"), 0o755)).To(Succeed())
+		Expect(os.MkdirAll(filepath.Join(kit.Home, ".local", "bin"), 0o755)).To(Succeed())
+		Expect(os.WriteFile(filepath.Join(kit.Home, ".local", "bin", "tree-sitter"), nil, 0o755)).To(Succeed())
 		reg := registry.NewRegistryFactory(brew.Runner(brewSpy.Run), kit, nothingOnPath).For("linux")
 
 		for _, tool := range reg.Installables() {

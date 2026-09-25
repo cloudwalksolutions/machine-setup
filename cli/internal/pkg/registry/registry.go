@@ -112,6 +112,7 @@ type tool struct {
 // first within each group. Tapped formulas go in darwinTappedFormulas instead.
 var darwinFormulas = []tool{
 	{name: "neovim", description: "Modern Vim: LSP, treesitter, Lua config", bin: "nvim"},
+	{name: "tree-sitter-cli", description: "Builds Neovim treesitter parsers", bin: "tree-sitter"},
 	{name: "byobu", description: "tmux sessions with a status bar and F-keys"},
 	{name: "gh", description: "GitHub from the terminal: PRs, issues, runs"},
 	{name: "lazygit", description: "Keyboard git UI for staging, log, rebase"},
@@ -190,6 +191,7 @@ var linuxAptPackages = []tool{
 
 func (f RegistryFactory) wireLinux(r *DevToolRegistry) {
 	r.Add(apt.NeovimTarball{Fetch: f.aptKit.Fetch, Home: f.aptKit.Home, Cmd: f.aptKit.Cmd})
+	r.Add(apt.TreeSitterCLI{Fetch: f.aptKit.Fetch, Home: f.aptKit.Home, Cmd: f.aptKit.Cmd})
 	r.Add(apt.NewPackage("byobu", "tmux sessions with a status bar and F-keys", f.aptKit.Apt, f.aptKit.Cmd))
 	r.Add(apt.NewGitHubCLI(f.aptKit.Cmd))
 	for _, t := range linuxAptPackages {

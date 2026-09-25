@@ -270,7 +270,7 @@ e2e on amd64 and arm64, the Neovim smoke tests, and `goreleaser check`. Every me
 ## Known limitations
 
 - The Linux package list is thinner than macOS's (no eza/lazygit/k9s/terraform yet)
-- Neovim on Linux installs a pinned upstream tarball (v0.11.6) without checksum pinning
+- Neovim and tree-sitter on Linux install pinned upstream release binaries (v0.12.5, v0.27.0) without checksum pinning
 - `tars push` writes into the clone it finds; keep shared clones read-only
 
 ## License
