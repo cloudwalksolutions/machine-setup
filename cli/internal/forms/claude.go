@@ -3,7 +3,7 @@ package forms
 import (
 	"os"
 
-	"github.com/charmbracelet/huh"
+	"charm.land/huh/v2"
 
 	"tars/internal/config"
 )
@@ -34,17 +34,14 @@ func ShowClaudeInitForm(rules []string) (config.ClaudeConfig, error) {
 	}
 	err := run(huh.NewForm(
 		huh.NewGroup(
-			huh.NewConfirm().
-				Title("Install the edit-blocking hook?").
-				Description("Denies sed -i / heredoc / interpreter writes so every change is a reviewable Edit or Write.").
-				Value(&hook),
-			huh.NewConfirm().
-				Title("Merge model, theme, plugins and the hook entry into ~/.claude/settings.json?").
-				Description("Machine-local keys such as autoMode and permissions are kept as they are.").
-				Value(&settings),
+			confirm("Install the edit-blocking hook?",
+				"Denies sed -i / heredoc / interpreter writes so every change is a reviewable Edit or Write.",
+				&hook),
+			confirm("Merge settings into ~/.claude/settings.json?",
+				"Model, theme, plugins and the hook entry. Machine-local keys such as autoMode and permissions are kept.",
+				&settings),
 			huh.NewMultiSelect[string]().
 				Title("Global rules to render into ~/.claude/CLAUDE.md").
-				Description("All are pre-selected. Space to toggle, Enter to confirm.").
 				Options(options...).
 				Value(&selected),
 		),

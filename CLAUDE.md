@@ -54,7 +54,7 @@ session manager. The user-facing CLI is **`tars`** (Go, in `cli/`) with five ver
 │       ├── paths/               # repo→local file mappings (ForOS: OS-aware)
 │       ├── repo/                # repo-root discovery (markers: cli/go.mod + nvim/)
 │       ├── pkg/                 # installable dev tools (brew/apt/rvm) + registry
-│       ├── forms/               # huh TUI (honors TARS_NO_FORM=1)
+│       ├── forms/               # huh v2 forms + shared theme (honors TARS_NO_FORM=1)
 │       ├── shell/               # oh-my-zsh / powerlevel10k installers
 │       └── config/              # persisted YAML config
 ├── nvim/  zsh/  byobu/  vim/     # the dotfiles tars manages
