@@ -8,7 +8,7 @@ Require tars
 Set Shell "bash"
 Set FontSize 18
 Set Width 1200
-Set Height 820
+Set Height 1080
 Set Padding 20
 Set Theme "Catppuccin Mocha"
 Set TypingSpeed 60ms
