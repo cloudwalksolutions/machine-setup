@@ -15,6 +15,7 @@ import (
 	"tars/internal/components"
 	"tars/internal/config"
 	"tars/internal/pkg"
+	"tars/internal/report"
 )
 
 // ── Test doubles ─────────────────────────────────────────────────────────
@@ -24,7 +25,7 @@ type spyWelcome struct {
 	err   error
 }
 
-func (s *spyWelcome) Show() error { s.calls++; return s.err }
+func (s *spyWelcome) Welcome() error { s.calls++; return s.err }
 
 type spyPicker struct {
 	offered []string
@@ -32,7 +33,7 @@ type spyPicker struct {
 	err     error
 }
 
-func (s *spyPicker) Pick(offered []string) ([]string, error) {
+func (s *spyPicker) PickWizards(offered []string) ([]string, error) {
 	s.offered = offered
 	if s.err != nil {
 		return nil, s.err
@@ -49,7 +50,7 @@ type spyInstallPicker struct {
 	err     error
 }
 
-func (s *spyInstallPicker) Pick(offered []pkg.ToolInfo) ([]string, error) {
+func (s *spyInstallPicker) PickTools(offered []pkg.ToolInfo) ([]string, error) {
 	s.offered = offered
 	if s.err != nil {
 		return nil, s.err
@@ -62,6 +63,17 @@ func (s *spyInstallPicker) Pick(offered []pkg.ToolInfo) ([]string, error) {
 		names[i] = t.Name
 	}
 	return names, nil
+}
+
+// spyReporter records step titles and otherwise prints like the plain-text reporter.
+type spyReporter struct {
+	report.Text
+	steps []string
+}
+
+func (s *spyReporter) StepStarted(title string, total int) {
+	s.steps = append(s.steps, title)
+	s.Text.StepStarted(title, total)
 }
 
 type memConfigStore struct {
@@ -195,6 +207,7 @@ type fixture struct {
 
 	Stdout *bytes.Buffer
 	Stderr *bytes.Buffer
+	Report *spyReporter
 
 	Setup *cmd.Setup
 }
@@ -251,6 +264,7 @@ func (f *fixture) assemble() {
 		}})
 	}
 
+	f.Report = &spyReporter{Text: report.Text{Stdout: f.Stdout, Stderr: f.Stderr}}
 	f.Setup = &cmd.Setup{
 		Welcome:   f.Welcome,
 		Picker:    f.Picker,
@@ -262,8 +276,7 @@ func (f *fixture) assemble() {
 		Pull:      f.Puller,
 		Wizards:   f.Wizards,
 		Inits:     inits,
-		Stdout:    f.Stdout,
-		Stderr:    f.Stderr,
+		Report:    f.Report,
 	}
 }
 
@@ -278,6 +291,23 @@ var _ = Describe("Setup.Run", func() {
 		It("invokes the Welcomer exactly once", func() {
 			Expect(f.Setup.Run()).To(Succeed())
 			Expect(f.Welcome.calls).To(Equal(1))
+		})
+	})
+
+	Describe("reporting", func() {
+		It("announces each step on the reporter, in order", func() {
+			f.Wizards.pick = []string{"claude"}
+
+			Expect(f.Setup.Run()).To(Succeed())
+
+			Expect(f.Report.steps).To(Equal([]string{
+				"Checking installed tools",
+				"Installing packages",
+				"Installing oh-my-zsh",
+				"Installing powerlevel10k",
+				"Pulling configuration files",
+				"Initializing claude",
+			}))
 		})
 	})
 

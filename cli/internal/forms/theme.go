@@ -57,7 +57,12 @@ func confirm(title, description string, value *bool) *huh.Confirm {
 	return huh.NewConfirm().Title(title).Description(description).WithButtonAlignment(lipgloss.Left).Value(value)
 }
 
-// run applies the shared theme and keymap so every tars form looks and behaves the same.
+// Styled applies the shared theme and keymap so every tars form looks and behaves the same.
+func Styled(f *huh.Form) *huh.Form {
+	return f.WithTheme(theme()).WithKeyMap(keymap())
+}
+
+// run shows a styled form on its own, outside the init TUI.
 func run(f *huh.Form) error {
-	return f.WithTheme(theme()).WithKeyMap(keymap()).Run()
+	return Styled(f).Run()
 }

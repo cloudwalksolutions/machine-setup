@@ -2,7 +2,6 @@ package forms
 
 import (
 	"fmt"
-	"os"
 
 	"charm.land/huh/v2"
 
@@ -33,23 +32,13 @@ var categoriesOrder = []string{
 	"Other Tools",
 }
 
-// ShowInstallForm displays a multi-select over the catalog grouped by category, in
-// catalog order. Installed tools show their version and start unchecked; the rest start
-// checked. When TARS_NO_FORM=1 it selects every tool that is not installed yet (tests/CI).
-func ShowInstallForm(tools []pkg.ToolInfo) ([]string, error) {
-	if os.Getenv("TARS_NO_FORM") != "" {
-		var missing []string
-		for _, t := range tools {
-			if !t.Installed {
-				missing = append(missing, t.Name)
-			}
-		}
-		return missing, nil
-	}
-
+// InstallForm builds the tool picker over the catalog grouped by category, in catalog
+// order. Installed tools show their version and start unchecked; the rest start checked.
+// collect returns the chosen names in category order.
+func InstallForm(tools []pkg.ToolInfo) (*huh.Form, func() []string) {
 	byCategory := groupByCategory(tools)
 	var groups []*huh.Group
-	selections := make(map[string]*[]string)
+	var selections []*[]string
 	for _, cat := range categoriesOrder {
 		catTools := byCategory[cat]
 		if len(catTools) == 0 {
@@ -63,7 +52,7 @@ func ShowInstallForm(tools []pkg.ToolInfo) ([]string, error) {
 				selected = append(selected, t.Name)
 			}
 		}
-		selections[cat] = &selected
+		selections = append(selections, &selected)
 		groups = append(groups, huh.NewGroup(
 			huh.NewMultiSelect[string]().
 				Title(cat).
@@ -72,18 +61,14 @@ func ShowInstallForm(tools []pkg.ToolInfo) ([]string, error) {
 				Value(&selected),
 		))
 	}
-
-	if err := run(huh.NewForm(groups...)); err != nil {
-		return nil, err
-	}
-
-	var final []string
-	for _, cat := range categoriesOrder {
-		if sel, ok := selections[cat]; ok {
+	collect := func() []string {
+		var final []string
+		for _, sel := range selections {
 			final = append(final, *sel...)
 		}
+		return final
 	}
-	return final, nil
+	return huh.NewForm(groups...), collect
 }
 
 func groupByCategory(tools []pkg.ToolInfo) map[string][]pkg.ToolInfo {

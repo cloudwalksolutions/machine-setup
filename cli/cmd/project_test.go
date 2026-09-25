@@ -10,6 +10,7 @@ import (
 
 	"tars/cmd"
 	"tars/internal/forms"
+	"tars/internal/report"
 )
 
 var _ = Describe("ProjectInit.Run", func() {
@@ -17,6 +18,7 @@ var _ = Describe("ProjectInit.Run", func() {
 		tmp     string
 		dir     string
 		asker   *spyProjectAsker
+		stdout  *bytes.Buffer
 		project *cmd.ProjectInit
 	)
 
@@ -35,17 +37,19 @@ var _ = Describe("ProjectInit.Run", func() {
 		asker = &spyProjectAsker{answer: forms.ProjectAnswers{
 			Agents: []string{"claude", "gemini"}, Description: "Does things", TestCommand: "make test",
 		}}
+		stdout = &bytes.Buffer{}
 		project = &cmd.ProjectInit{
 			Asker:      asker,
 			Template:   tpl,
 			BackupRoot: filepath.Join(tmp, "backups"),
-			Stdout:     &bytes.Buffer{},
+			Report:     report.Text{Stdout: stdout, Stderr: &bytes.Buffer{}},
 		}
 	})
 
 	It("renders AGENTS.md from the template and a pointer file per selected agent", func() {
 		Expect(project.Run(dir)).To(Succeed())
 
+		Expect(stdout.String()).To(ContainSubstring("Wrote " + filepath.Join(dir, "AGENTS.md")))
 		Expect(read(filepath.Join(dir, "AGENTS.md"))).To(Equal("# my-app\n\nDoes things\n\n```\nmake test\n```\n"))
 		Expect(read(filepath.Join(dir, "CLAUDE.md"))).To(Equal("@AGENTS.md\n"))
 		Expect(read(filepath.Join(dir, "GEMINI.md"))).To(Equal("@./AGENTS.md\n"))
