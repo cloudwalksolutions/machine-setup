@@ -2,9 +2,8 @@ package forms
 
 import (
 	"errors"
-	"os"
 
-	"github.com/charmbracelet/huh"
+	"charm.land/huh/v2"
 )
 
 // ShowSessionPicker displays a single-select over the given session options.
@@ -13,7 +12,7 @@ func ShowSessionPicker(options []string) (string, error) {
 	if len(options) == 0 {
 		return "", errors.New("no sessions to pick from")
 	}
-	if os.Getenv("TARS_NO_FORM") != "" {
+	if headless() {
 		return options[0], nil
 	}
 

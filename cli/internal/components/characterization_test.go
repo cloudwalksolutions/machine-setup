@@ -2,7 +2,6 @@ package components_test
 
 import (
 	"bytes"
-	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -213,20 +212,6 @@ var _ = Describe("pull", func() {
 		newFonts := func() *components.Fonts {
 			f := components.NewFontsForOS(opts, "linux")
 			f.LocalOverride = localDir
-			f.CopyFn = func(src, dst string) error {
-				in, err := os.Open(src)
-				if err != nil {
-					return err
-				}
-				defer in.Close()
-				out, err := os.Create(dst)
-				if err != nil {
-					return err
-				}
-				defer out.Close()
-				_, err = io.Copy(out, in)
-				return err
-			}
 			return f
 		}
 

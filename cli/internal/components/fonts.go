@@ -2,110 +2,53 @@ package components
 
 import (
 	"fmt"
-	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 
-	"tars/internal/fsutil"
 	"tars/internal/paths"
 )
 
-// Fonts installs the bundled Nerd Font files into the OS font directory.
-//
-// On darwin, the system font dir (/Library/Fonts) requires sudo, so the
-// default CopyFn shells out to `sudo cp`. On other OSes, a plain copy is used.
-// Tests inject CopyFn (and optionally LocalOverride) to avoid sudo.
+// Fonts installs the bundled Nerd Font files into the per-user font directory.
 type Fonts struct {
 	opts          Options
 	p             paths.FontsPaths
-	CopyFn        func(src, dst string) error
 	LocalOverride string // when non-empty, overrides p.Local (test seam)
 }
 
-// NewFonts returns a Fonts component with platform defaults for the current OS.
+// NewFonts returns a Fonts component for the current OS.
 func NewFonts(opts Options) *Fonts {
 	return NewFontsForOS(opts, runtime.GOOS)
 }
 
 // NewFontsForOS is the OS-explicit form, useful for tests.
 func NewFontsForOS(opts Options, goos string) *Fonts {
-	p := paths.ForOS(opts.RepoRoot, opts.Home, goos).Fonts
-	f := &Fonts{opts: opts, p: p}
-	f.CopyFn = defaultFontCopy(goos)
-	return f
+	return &Fonts{opts: opts, p: paths.ForOS(opts.RepoRoot, opts.Home, goos).Fonts}
 }
 
 // Name returns "fonts".
 func (f *Fonts) Name() string { return "fonts" }
 
-// Pull copies every file in <repo>/fonts/ to the OS-appropriate font directory.
+// Pull copies every file in <repo>/fonts/ into the font directory, backing up
+// and skipping identical files like every other component.
 func (f *Fonts) Pull() error {
 	dst := f.p.Local
 	if f.LocalOverride != "" {
 		dst = f.LocalOverride
 	}
-	if err := os.MkdirAll(dst, 0o755); err != nil {
-		return err
-	}
 	entries, err := os.ReadDir(f.p.Repo)
 	if err != nil {
 		return err
 	}
+	copier := f.opts.copier()
 	for _, e := range entries {
 		if e.IsDir() {
 			continue
 		}
 		src := filepath.Join(f.p.Repo, e.Name())
-		dstFile := filepath.Join(dst, e.Name())
-		// Idempotent: skip fonts already installed identically (avoids a sudo prompt).
-		if same, err := fsutil.SameContent(src, dstFile); err == nil && same {
-			continue
-		}
-		if f.opts.DryRun {
-			fmt.Fprintf(f.opts.Stdout, "    would install font  %s\n", dstFile)
-			continue
-		}
-		if _, err := fsutil.Backup(dstFile, f.Name(), f.opts.BackupRoot); err != nil {
-			return fmt.Errorf("backup font %s: %w", e.Name(), err)
-		}
-		if err := f.CopyFn(src, dstFile); err != nil {
+		if err := copier.SafeCopy(src, filepath.Join(dst, e.Name()), f.Name(), f.opts.BackupRoot); err != nil {
 			return fmt.Errorf("install font %s: %w", e.Name(), err)
 		}
 	}
 	return nil
-}
-
-// defaultFontCopy returns a per-OS copy function. darwin uses `sudo cp` because
-// /Library/Fonts is system-owned; other OSes use a plain in-process copy.
-func defaultFontCopy(goos string) func(src, dst string) error {
-	if goos == "darwin" {
-		return func(src, dst string) error {
-			cmd := exec.Command("sudo", "cp", src, dst)
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			// Without this, sudo falls back to /dev/tty and hangs when there is none.
-			cmd.Stdin = os.Stdin
-			return cmd.Run()
-		}
-	}
-	return plainCopy
-}
-
-func plainCopy(src, dst string) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	out, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	if _, err := io.Copy(out, in); err != nil {
-		_ = out.Close()
-		return err
-	}
-	return out.Close()
 }

@@ -9,7 +9,9 @@ import (
 	. "github.com/onsi/gomega"
 
 	"tars/cmd"
+	"tars/internal/forms"
 	"tars/internal/pkg"
+	"tars/internal/report"
 )
 
 var _ = Describe("IterativeInstaller.InstallAll", func() {
@@ -23,7 +25,7 @@ var _ = Describe("IterativeInstaller.InstallAll", func() {
 			&spyInstallable{name: "unpicked", log: &log},
 		}
 
-		cmd.IterativeInstaller{Stdout: &bytes.Buffer{}, Stderr: stderr}.
+		cmd.IterativeInstaller{Report: report.Text{Stdout: &bytes.Buffer{}, Stderr: stderr}}.
 			InstallAll(available, []string{"jq", "go", "fzf"})
 
 		Expect(log).To(Equal([]string{"jq", "go", "fzf"}))
@@ -73,7 +75,7 @@ var _ = Describe("composition roots", func() {
 		GinkgoT().Setenv("HOME", GinkgoT().TempDir())
 		cfgPath := filepath.Join(GinkgoT().TempDir(), "config.yaml")
 
-		s, err := cmd.NewSetup(&bytes.Buffer{}, &bytes.Buffer{}, cfgPath)
+		s, err := cmd.NewSetup(report.Text{Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}}, forms.Headless{}, cfgPath)
 
 		Expect(err).NotTo(HaveOccurred())
 		Expect(s.Welcome).NotTo(BeNil())

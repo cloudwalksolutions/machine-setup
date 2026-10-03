@@ -10,6 +10,7 @@ import (
 
 	"tars/cmd"
 	"tars/internal/components"
+	"tars/internal/report"
 )
 
 type spyPushable struct {
@@ -34,8 +35,7 @@ var _ = Describe("SequentialPusher.PushAll", func() {
 				&spyPushable{name: "zsh", log: &log, err: errors.New("boom")},
 				&spyPushable{name: "terminal", log: &log},
 			},
-			Stdout: &bytes.Buffer{},
-			Stderr: stderr,
+			Report: report.Text{Stdout: &bytes.Buffer{}, Stderr: stderr},
 		}
 
 		err := pusher.PushAll()
@@ -50,8 +50,7 @@ var _ = Describe("SequentialPusher.PushAll", func() {
 		var log []string
 		pusher := cmd.SequentialPusher{
 			Components: []components.Pushable{&spyPushable{name: "vim", log: &log}},
-			Stdout:     &bytes.Buffer{},
-			Stderr:     &bytes.Buffer{},
+			Report:     report.Text{Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}},
 		}
 
 		Expect(pusher.PushAll()).To(Succeed())

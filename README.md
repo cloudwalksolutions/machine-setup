@@ -46,12 +46,16 @@ The installer verifies the release checksum; override the directory with
 
 1. **Bootstrap the machine.**
    ```bash
-   tars init                  # interactive; or: TARS_NO_FORM=1 tars init  (installs everything)
+   tars init                  # interactive; or: TARS_NO_FORM=1 tars init  (installs what is missing)
    ```
-   You get a tool checklist (Enter accepts all), brew or apt installs, oh-my-zsh and
-   Powerlevel10k, then one line per config component. macOS asks for your password
-   once, to copy fonts into `/Library/Fonts`. A failed component is listed and setup
-   continues; fix the cause and run `tars pull`.
+   One screen from start to finish: a tool checklist (installed tools show their
+   version and start unchecked), brew or apt installs with a live output pane, oh-my-zsh
+   and Powerlevel10k, then the config components. Finished steps scroll up as ✓/✗ lines,
+   so the terminal history is the log. Nothing needs sudo: fonts go into your user font
+   dir. A failed step is marked and setup continues; fix the cause and run `tars pull`.
+   Ctrl+C stops after the current item; at a picker it skips that choice.
+
+   ![tars init demo](vhs/init.gif)
 2. **Start a new shell** so the configs load.
    ```bash
    exec zsh
@@ -68,7 +72,7 @@ The installer verifies the release checksum; override the directory with
 
 | Command | Alias | What it does |
 |---|---|---|
-| `tars init` | `i` | Full bootstrap: pick tools, install them, install oh-my-zsh + Powerlevel10k, apply all configs, then run the agent setups you pick |
+| `tars init` | `i` | Full bootstrap: pick tools (installed ones show their version and start unchecked), install them, install oh-my-zsh + Powerlevel10k, apply all configs, then run the agent setups you pick |
 | `tars pull` | | Apply configs only: no installs, no network. `--dry-run` previews |
 | `tars push` | | Capture local config edits back into a repo clone |
 | `tars sessions` | `s`, `by` | Open byobu sessions from a simple config |
@@ -89,7 +93,7 @@ Every file below is archived to `~/.local/state/tars/backups/<component>/vN`
 - `~/.zshrc`, `~/.zshrc_aliases`, and the login profile (`~/.zprofile` on macOS, `~/.profile` on Linux)
 - `~/.config/nvim/` (replaced wholesale), `~/.vimrc`, `~/.vim/colors/`
 - `~/.byobu/` configs and status scripts
-- Hack Nerd Font into `/Library/Fonts` (macOS, sudo) or `~/.local/share/fonts` (Linux)
+- Hack Nerd Font into `~/Library/Fonts` (macOS) or `~/.local/share/fonts` (Linux)
 - macOS only: the iTerm2 and Terminal.app font and profile
 - With profiles configured: the managed block in `~/.gitconfig` and `~/.config/tars/profiles/<alias>.gitconfig`
 - `~/.claude/`: the `block-unreviewable-edits.sh` hook, a `CLAUDE.md` rendered from
@@ -200,8 +204,8 @@ For each account (example: name `cloudwalk`, alias `cws`):
   `~/.profile` on Linux)
 - `~/.config/nvim/` (replaced wholesale), `~/.vimrc`, `~/.vim/colors/`
 - `~/.byobu/` configs and status scripts
-- Fonts: Hack Nerd Font → `/Library/Fonts` (macOS, needs sudo) or
-  `~/.local/share/fonts` (Linux, no sudo)
+- Fonts: Hack Nerd Font → `~/Library/Fonts` (macOS) or `~/.local/share/fonts`
+  (Linux); per-user, no sudo
 - macOS only: sets the iTerm2 + Terminal.app font/profile
 - With a profiles config: the managed block in `~/.gitconfig` and
   `~/.config/tars/profiles/<alias>.gitconfig`
@@ -246,7 +250,7 @@ gets a `CLAUDE.md` that imports it (`@AGENTS.md`), Gemini CLI a `GEMINI.md`
 | Variable | Effect |
 |---|---|
 | `TARS_REPO` | Use this clone as the config source (beats discovery) |
-| `TARS_NO_FORM` | Skip all TUIs: `setup` selects everything, pickers take the first entry. `p add` is interactive only |
+| `TARS_NO_FORM` | Skip all TUIs: `init` installs every tool not yet installed, pickers take the first entry. `p add` is interactive only |
 | `TARS_BACKUP_ROOT` | Backup location (default `~/.local/state/tars/backups`) |
 | `TARS_CONFIG_PATH` | Tool-selection config (default `~/.config/tars/config.yaml`) |
 | `TARS_SESSIONS_PATH` | Sessions file (default `~/.config/tars/sessions.yaml`) |
@@ -270,7 +274,7 @@ e2e on amd64 and arm64, the Neovim smoke tests, and `goreleaser check`. Every me
 ## Known limitations
 
 - The Linux package list is thinner than macOS's (no eza/lazygit/k9s/terraform yet)
-- Neovim on Linux installs a pinned upstream tarball (v0.11.6) without checksum pinning
+- Neovim and tree-sitter on Linux install pinned upstream release binaries (v0.12.5, v0.27.0) without checksum pinning
 - `tars push` writes into the clone it finds; keep shared clones read-only
 
 ## License

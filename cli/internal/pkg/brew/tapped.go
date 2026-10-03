@@ -10,18 +10,23 @@ import (
 // `brew install <tap>/<name>` so the tap is fetched on first use and the
 // install resolves to the qualified formula.
 type TappedFormula struct {
-	name string
-	tap  string
-	run  Runner
+	name        string
+	description string
+	tap         string
+	run         Runner
+	Probe       pkg.PathProbe
 }
 
 // NewTappedFormula binds a name + its tap to a runner.
-func NewTappedFormula(name, tap string, run Runner) TappedFormula {
-	return TappedFormula{name: name, tap: tap, run: run}
+func NewTappedFormula(name, description, tap string, run Runner) TappedFormula {
+	return TappedFormula{name: name, description: description, tap: tap, run: run}
 }
 
 // Name returns the formula's unqualified name (what the user sees).
 func (t TappedFormula) Name() string { return t.name }
+
+// Description returns the picker blurb.
+func (t TappedFormula) Description() string { return t.description }
 
 // Install taps then installs.
 func (t TappedFormula) Install(stdout, stderr io.Writer) error {
@@ -31,7 +36,10 @@ func (t TappedFormula) Install(stdout, stderr io.Writer) error {
 	return t.run([]string{"install", t.tap + "/" + t.name}, stdout, stderr)
 }
 
-// Status returns the current installation status of the tapped formula.
+// Status reports the brew-listed version, else whatever the binary on PATH reports.
 func (t TappedFormula) Status() (pkg.InstallStatus, string, error) {
-	return pkg.StatusNotInstalled, "", nil
+	if version, ok := listedVersion(t.run, "list", "--versions", t.name); ok {
+		return pkg.StatusUpToDate, version, nil
+	}
+	return t.Probe.Status(t.name)
 }

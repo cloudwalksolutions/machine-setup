@@ -11,14 +11,20 @@ import (
 
 	"tars/cmd"
 	"tars/internal/config"
+	"tars/internal/forms"
+	"tars/internal/report"
 )
 
 type spyPiAsker struct {
 	answer config.PiConfig
 	err    error
+	inputs forms.PiInputs
 }
 
-func (s *spyPiAsker) Ask() (config.PiConfig, error) { return s.answer, s.err }
+func (s *spyPiAsker) AskPi(in forms.PiInputs) (config.PiConfig, error) {
+	s.inputs = in
+	return s.answer, s.err
+}
 
 type spyPiOps struct {
 	log *[]string
@@ -36,23 +42,44 @@ func (o *spyPiOps) InstallPackages(p []string) error {
 
 var _ = Describe("PiInit.Run", func() {
 	var (
-		asker *spyPiAsker
-		store *memConfigStore
-		log   []string
-		init  *cmd.PiInit
+		asker  *spyPiAsker
+		store  *memConfigStore
+		log    []string
+		stdout *bytes.Buffer
+		init   *cmd.PiInit
 	)
 
 	BeforeEach(func() {
 		asker = &spyPiAsker{answer: config.PiConfig{Packages: []string{"npm:pi-subagents"}, OllamaModels: []string{"m"}, DefaultModel: "m"}}
 		store = newMemConfigStore("/cfg/config.yaml")
 		log = nil
-		init = &cmd.PiInit{Asker: asker, Config: store, Ops: &spyPiOps{log: &log}, Stdout: &bytes.Buffer{}}
+		stdout = &bytes.Buffer{}
+		init = &cmd.PiInit{
+			Asker: asker,
+			Inputs: func() forms.PiInputs {
+				return forms.PiInputs{OllamaModels: []string{"m"}, Packages: []string{"npm:pi-subagents"}}
+			},
+			Config: store,
+			Ops:    &spyPiOps{log: &log},
+			Report: report.Text{Stdout: stdout, Stderr: &bytes.Buffer{}},
+		}
 	})
 
-	It("saves the answers into the config", func() {
+	It("asks with what the machine reports and saves the answers into the config", func() {
 		Expect(init.Run()).To(Succeed())
 
+		Expect(asker.inputs).To(Equal(forms.PiInputs{OllamaModels: []string{"m"}, Packages: []string{"npm:pi-subagents"}}))
 		Expect(store.cfg.Pi).To(Equal(asker.answer))
+		Expect(stdout.String()).To(ContainSubstring("Choices saved to /cfg/config.yaml"))
+	})
+
+	It("announces the package install as a step", func() {
+		spy := &spyReporter{Text: report.Text{Stdout: stdout, Stderr: &bytes.Buffer{}}}
+		init.Report = spy
+
+		Expect(init.Run()).To(Succeed())
+
+		Expect(spy.steps).To(Equal([]string{"Installing pi packages"}))
 	})
 
 	It("then pulls and installs the packages, in that order", func() {
@@ -74,7 +101,7 @@ var _ = Describe("PiInit.Run", func() {
 		GinkgoT().Setenv("HOME", GinkgoT().TempDir())
 		GinkgoT().Setenv("TARS_CONFIG_PATH", filepath.Join(GinkgoT().TempDir(), "config.yaml"))
 
-		p, err := cmd.NewPiInit(&bytes.Buffer{}, &bytes.Buffer{})
+		p, err := cmd.NewPiInit(report.Text{Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}}, forms.Headless{})
 
 		Expect(err).NotTo(HaveOccurred())
 		Expect(p.Asker).NotTo(BeNil())

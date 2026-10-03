@@ -25,35 +25,75 @@ var _ = Describe("SudoAptArgs", func() {
 	})
 })
 
-var _ = Describe("Package.Install", func() {
-	It("resolves brew-style names to their apt equivalents", func() {
+var _ = Describe("Package", func() {
+	It("carries its name and description", func() {
+		p := apt.NewPackage("byobu", "tmux sessions with a status bar", nil)
+		Expect(p.Name()).To(Equal("byobu"))
+		Expect(p.Description()).To(Equal("tmux sessions with a status bar"))
+	})
+
+	It("describes the Linux-only installables in place", func() {
+		Expect(apt.NeovimTarball{}.Description()).NotTo(BeEmpty())
+		Expect(apt.GitHubCLI{}.Description()).NotTo(BeEmpty())
+		Expect(apt.GCloudCLI{}.Description()).NotTo(BeEmpty())
+	})
+
+	It("Install resolves brew-style names to their apt equivalents", func() {
 		var gotArgs []string
 		spy := func(args []string, _, _ io.Writer) error {
 			gotArgs = args
 			return nil
 		}
 
-		Expect(apt.NewPackage("go", spy).Install(&bytes.Buffer{}, &bytes.Buffer{})).To(Succeed())
+		Expect(apt.NewPackage("go", "", spy).Install(&bytes.Buffer{}, &bytes.Buffer{})).To(Succeed())
 		Expect(gotArgs).To(Equal([]string{"install", "-y", "golang"}))
 
-		Expect(apt.NewPackage("node", spy).Install(&bytes.Buffer{}, &bytes.Buffer{})).To(Succeed())
+		Expect(apt.NewPackage("node", "", spy).Install(&bytes.Buffer{}, &bytes.Buffer{})).To(Succeed())
 		Expect(gotArgs).To(Equal([]string{"install", "-y", "nodejs"}))
 
-		Expect(apt.NewPackage("python", spy).Install(&bytes.Buffer{}, &bytes.Buffer{})).To(Succeed())
+		Expect(apt.NewPackage("python", "", spy).Install(&bytes.Buffer{}, &bytes.Buffer{})).To(Succeed())
 		Expect(gotArgs).To(Equal([]string{"install", "-y", "python3"}))
 	})
 
-	It("invokes the runner with [install -y <name>] for a name without mapping", func() {
+	It("Install invokes the runner with [install -y <name>] for a name without mapping", func() {
 		var gotArgs []string
 		spy := func(args []string, _, _ io.Writer) error {
 			gotArgs = args
 			return nil
 		}
 
-		err := apt.NewPackage("byobu", spy).Install(&bytes.Buffer{}, &bytes.Buffer{})
+		err := apt.NewPackage("byobu", "", spy).Install(&bytes.Buffer{}, &bytes.Buffer{})
 
 		Expect(err).NotTo(HaveOccurred())
 		Expect(gotArgs).To(Equal([]string{"install", "-y", "byobu"}))
+	})
+})
+
+var _ = Describe("Package.Status", func() {
+	It("reads the installed version of the resolved apt name via dpkg-query", func() {
+		var gotArgv []string
+		query := func(argv []string, stdout, _ io.Writer) error {
+			gotArgv = argv
+			_, _ = io.WriteString(stdout, "2:1.22.4-1ubuntu1")
+			return nil
+		}
+
+		status, version, err := apt.NewPackage("go", "", nil, query).Status()
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(gotArgv).To(Equal([]string{"dpkg-query", "-W", "-f=${Version}", "golang"}))
+		Expect(status).To(Equal(pkg.StatusUpToDate))
+		Expect(version).To(Equal("2:1.22.4-1ubuntu1"))
+	})
+
+	It("reports not installed when dpkg-query exits non-zero", func() {
+		query := func(_ []string, _, _ io.Writer) error { return errors.New("exit status 1") }
+
+		status, version, err := apt.NewPackage("byobu", "", nil, query).Status()
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(status).To(Equal(pkg.StatusNotInstalled))
+		Expect(version).To(BeEmpty())
 	})
 })
 
@@ -82,15 +122,22 @@ func fakeNvimTarball(topDir string) io.ReadCloser {
 }
 
 var _ = Describe("NeovimTarball.Status", func() {
-	It("reports up to date once ~/.local/nvim exists", func() {
+	It("reports the version printed by ~/.local/nvim/bin/nvim once it exists", func() {
 		home := GinkgoT().TempDir()
 		Expect(os.MkdirAll(filepath.Join(home, ".local", "nvim"), 0o755)).To(Succeed())
+		var gotArgv []string
+		spy := func(argv []string, stdout, _ io.Writer) error {
+			gotArgv = argv
+			_, _ = io.WriteString(stdout, "NVIM v0.12.0\nBuild type: Release\n")
+			return nil
+		}
 
-		status, detail, err := apt.NeovimTarball{Home: home}.Status()
+		status, detail, err := apt.NeovimTarball{Home: home, Cmd: spy}.Status()
 
 		Expect(err).NotTo(HaveOccurred())
+		Expect(gotArgv).To(Equal([]string{filepath.Join(home, ".local", "nvim", "bin", "nvim"), "--version"}))
 		Expect(status).To(Equal(pkg.StatusUpToDate))
-		Expect(detail).To(HavePrefix("v"))
+		Expect(detail).To(Equal("v0.12.0"))
 	})
 
 	It("reports not installed on a fresh home", func() {
@@ -114,7 +161,7 @@ var _ = Describe("NeovimTarball", func() {
 		nv := apt.NeovimTarball{Fetch: fetch, Home: home, Arch: "arm64"}
 		Expect(nv.Install(&bytes.Buffer{}, &bytes.Buffer{})).To(Succeed())
 
-		Expect(gotURL).To(ContainSubstring("nvim-linux-arm64.tar.gz"))
+		Expect(gotURL).To(Equal("https://github.com/neovim/neovim/releases/download/v0.12.5/nvim-linux-arm64.tar.gz"))
 
 		bin := filepath.Join(home, ".local", "nvim", "bin", "nvim")
 		data, err := os.ReadFile(bin)
@@ -232,6 +279,22 @@ var _ = Describe("GitHubCLI", func() {
 		Expect(apt.GitHubCLI{}.Name()).To(Equal("gh"))
 	})
 
+	It("reads the installed gh version via dpkg-query on its runner", func() {
+		var gotArgv []string
+		spy := func(argv []string, stdout, _ io.Writer) error {
+			gotArgv = argv
+			_, _ = io.WriteString(stdout, "2.60.1")
+			return nil
+		}
+
+		status, version, err := apt.NewGitHubCLI(spy).Status()
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(gotArgv).To(Equal([]string{"dpkg-query", "-W", "-f=${Version}", "gh"}))
+		Expect(status).To(Equal(pkg.StatusUpToDate))
+		Expect(version).To(Equal("2.60.1"))
+	})
+
 	It("adds GitHub's apt repo non-interactively, then installs gh", func() {
 		var steps [][]string
 		spy := func(argv []string, _, _ io.Writer) error {
@@ -259,6 +322,22 @@ var _ = Describe("GCloudCLI", func() {
 		Expect(apt.GCloudCLI{}.Name()).To(Equal("gcloud"))
 	})
 
+	It("reads the installed google-cloud-cli version via dpkg-query on its runner", func() {
+		var gotArgv []string
+		spy := func(argv []string, stdout, _ io.Writer) error {
+			gotArgv = argv
+			_, _ = io.WriteString(stdout, "540.0.0-0")
+			return nil
+		}
+
+		status, version, err := apt.NewGCloudCLI(spy).Status()
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(gotArgv).To(Equal([]string{"dpkg-query", "-W", "-f=${Version}", "google-cloud-cli"}))
+		Expect(status).To(Equal(pkg.StatusUpToDate))
+		Expect(version).To(Equal("540.0.0-0"))
+	})
+
 	It("drives the injected runner through the documented apt steps", func() {
 		var steps [][]string
 		spy := func(argv []string, _, _ io.Writer) error {
@@ -274,5 +353,92 @@ var _ = Describe("GCloudCLI", func() {
 		Expect(steps[5]).To(Equal(apt.SudoAptArgs([]string{"install", "-y", "google-cloud-cli"})))
 		joined := fmt.Sprint(steps)
 		Expect(joined).To(ContainSubstring("arch=$(dpkg --print-architecture)"))
+	})
+})
+
+var _ = Describe("TreeSitterCLI", func() {
+	gzipped := func(body string) io.ReadCloser {
+		var buf bytes.Buffer
+		gz := gzip.NewWriter(&buf)
+		_, err := gz.Write([]byte(body))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(gz.Close()).To(Succeed())
+		return io.NopCloser(&buf)
+	}
+
+	It("downloads the arch release binary to an executable ~/.local/bin/tree-sitter", func() {
+		home := GinkgoT().TempDir()
+		var gotURL string
+		fetch := func(url string) (io.ReadCloser, error) {
+			gotURL = url
+			return gzipped("ELF-TS"), nil
+		}
+
+		ts := apt.TreeSitterCLI{Fetch: fetch, Home: home, Arch: "arm64"}
+		Expect(ts.Install(&bytes.Buffer{}, &bytes.Buffer{})).To(Succeed())
+
+		Expect(gotURL).To(Equal("https://github.com/tree-sitter/tree-sitter/releases/download/v0.27.0/tree-sitter-linux-arm64.gz"))
+		bin := filepath.Join(home, ".local", "bin", "tree-sitter")
+		data, err := os.ReadFile(bin)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(string(data)).To(Equal("ELF-TS"))
+		info, err := os.Stat(bin)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(info.Mode().Perm() & 0o111).NotTo(BeZero())
+	})
+
+	It("requests the x64 asset for amd64", func() {
+		var gotURL string
+		fetch := func(url string) (io.ReadCloser, error) {
+			gotURL = url
+			return gzipped("ELF-TS"), nil
+		}
+
+		ts := apt.TreeSitterCLI{Fetch: fetch, Home: GinkgoT().TempDir(), Arch: "amd64"}
+		Expect(ts.Install(&bytes.Buffer{}, &bytes.Buffer{})).To(Succeed())
+
+		Expect(gotURL).To(HaveSuffix("/tree-sitter-linux-x64.gz"))
+	})
+
+	It("reports the version ~/.local/bin/tree-sitter prints once it exists", func() {
+		home := GinkgoT().TempDir()
+		bin := filepath.Join(home, ".local", "bin", "tree-sitter")
+		Expect(os.MkdirAll(filepath.Dir(bin), 0o755)).To(Succeed())
+		Expect(os.WriteFile(bin, nil, 0o755)).To(Succeed())
+		var gotArgv []string
+		spy := func(argv []string, stdout, _ io.Writer) error {
+			gotArgv = argv
+			_, _ = io.WriteString(stdout, "tree-sitter 0.27.0 (a1b2c3d)\n")
+			return nil
+		}
+
+		status, detail, err := apt.TreeSitterCLI{Home: home, Cmd: spy}.Status()
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(gotArgv).To(Equal([]string{bin, "--version"}))
+		Expect(status).To(Equal(pkg.StatusUpToDate))
+		Expect(detail).To(Equal("0.27.0"))
+	})
+
+	It("reports installed without a version when --version prints nothing", func() {
+		home := GinkgoT().TempDir()
+		bin := filepath.Join(home, ".local", "bin", "tree-sitter")
+		Expect(os.MkdirAll(filepath.Dir(bin), 0o755)).To(Succeed())
+		Expect(os.WriteFile(bin, nil, 0o755)).To(Succeed())
+		silent := func([]string, io.Writer, io.Writer) error { return nil }
+
+		status, detail, err := apt.TreeSitterCLI{Home: home, Cmd: silent}.Status()
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(status).To(Equal(pkg.StatusUpToDate))
+		Expect(detail).To(BeEmpty())
+	})
+
+	It("reports not installed on a fresh home", func() {
+		status, detail, err := apt.TreeSitterCLI{Home: GinkgoT().TempDir()}.Status()
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(status).To(Equal(pkg.StatusNotInstalled))
+		Expect(detail).To(BeEmpty())
 	})
 })

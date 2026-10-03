@@ -67,3 +67,6 @@ vhs/tars-linux
 
 # go-mutesting artifacts
 cli/report.json
+
+# copilot state written while make test-nvim runs with the repo as XDG_CONFIG_HOME
+/github-copilot/

@@ -63,8 +63,8 @@ type TerminalPaths struct {
 	ProfileRepo string
 }
 
-// FontsPaths holds the font repo→local mapping. Local destination
-// is OS-dependent: /Library/Fonts on darwin, ~/.local/share/fonts elsewhere.
+// FontsPaths holds the font repo→local mapping. Local destination is the
+// per-user font dir: ~/Library/Fonts on darwin, ~/.local/share/fonts elsewhere.
 type FontsPaths struct {
 	Repo  string
 	Local string
@@ -148,7 +148,7 @@ func For(repoRoot, home string) Paths {
 func ForOS(repoRoot, home, goos string) Paths {
 	fontsLocal := filepath.Join(home, ".local", "share", "fonts")
 	if goos == "darwin" {
-		fontsLocal = "/Library/Fonts"
+		fontsLocal = filepath.Join(home, "Library", "Fonts")
 	}
 
 	// zsh login shells read ~/.zprofile and never ~/.profile, so on macOS

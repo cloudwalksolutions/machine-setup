@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"strings"
 
@@ -12,11 +11,13 @@ import (
 	"tars/internal/config"
 	"tars/internal/forms"
 	"tars/internal/paths"
+	"tars/internal/report"
+	"tars/internal/tui"
 )
 
 // ClaudeAsker presents the `tars init claude` form over the available rule names.
 type ClaudeAsker interface {
-	Ask(rules []string) (config.ClaudeConfig, error)
+	AskClaude(rules []string) (config.ClaudeConfig, error)
 }
 
 // ClaudeInit orchestrates `tars init claude`: ask, persist the choices, pull.
@@ -25,8 +26,7 @@ type ClaudeInit struct {
 	Config ConfigStore
 	Rules  []string
 	Pull   func(config.ClaudeConfig) error
-
-	Stdout io.Writer
+	Report report.Reporter
 }
 
 // Run asks the user which pieces to provision, saves the answers, and applies them.
@@ -35,9 +35,9 @@ func (c *ClaudeInit) Run() error {
 	if err != nil {
 		return fmt.Errorf("loading config: %w", err)
 	}
-	answer, err := c.Asker.Ask(c.Rules)
+	answer, err := c.Asker.AskClaude(c.Rules)
 	if err != nil && err.Error() == "user aborted" {
-		fmt.Fprintln(c.Stdout, "Aborted; nothing changed.")
+		c.Report.Note("Aborted; nothing changed.")
 		return nil
 	}
 	if err != nil {
@@ -47,23 +47,16 @@ func (c *ClaudeInit) Run() error {
 	if err := c.Config.Save(cfg); err != nil {
 		return fmt.Errorf("saving config: %w", err)
 	}
-	fmt.Fprintf(c.Stdout, "Choices saved to %s\n", c.Config.Path())
+	c.Report.Note("Choices saved to " + c.Config.Path())
 	return c.Pull(cfg.Claude)
 }
 
 // ProjectAsker presents the `tars claude project` form.
 type ProjectAsker interface {
-	Ask(defaultName string) (forms.ProjectAnswers, error)
+	AskProject(defaultName string) (forms.ProjectAnswers, error)
 }
 
 // ── Production collaborators ─────────────────────────────────────────────
-
-// FormsClaudeAsker wraps forms.ShowClaudeInitForm.
-type FormsClaudeAsker struct{}
-
-func (FormsClaudeAsker) Ask(rules []string) (config.ClaudeConfig, error) {
-	return forms.ShowClaudeInitForm(rules)
-}
 
 // configPath honors --config, else the default (env-overridable) location.
 func configPath() string {
@@ -97,7 +90,8 @@ func ruleNames(dir string) ([]string, error) {
 }
 
 // NewClaudeInit wires the production `tars init claude`.
-func NewClaudeInit(stdout, stderr io.Writer) (*ClaudeInit, error) {
+func NewClaudeInit(r report.Reporter, ask ClaudeAsker) (*ClaudeInit, error) {
+	stdout, stderr := r.Output()
 	opts, err := buildOptions(stdout, stderr)
 	if err != nil {
 		return nil, err
@@ -107,18 +101,17 @@ func NewClaudeInit(stdout, stderr io.Writer) (*ClaudeInit, error) {
 		return nil, err
 	}
 	return &ClaudeInit{
-		Asker:  FormsClaudeAsker{},
+		Asker:  ask,
 		Config: NewFileConfigStore(configPath()),
 		Rules:  rules,
 		Pull: func(c config.ClaudeConfig) error {
 			opts.Claude = c
 			return SequentialPuller{
 				Components: []components.Component{components.NewClaude(opts)},
-				Stdout:     stdout,
-				Stderr:     stderr,
+				Report:     r,
 			}.PullAll()
 		},
-		Stdout: stdout,
+		Report: r,
 	}, nil
 }
 
@@ -130,11 +123,13 @@ var claudeInitCmd = &cobra.Command{
 	Short:   "Choose and apply the Claude Code pieces for this machine (alias: c)",
 	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		c, err := NewClaudeInit(cmd.OutOrStdout(), cmd.ErrOrStderr())
-		if err != nil {
-			return err
-		}
-		return c.Run()
+		return runInit(cmd, func(r report.Reporter, ask tui.Asker) error {
+			c, err := NewClaudeInit(r, ask)
+			if err != nil {
+				return err
+			}
+			return c.Run()
+		})
 	},
 }
 

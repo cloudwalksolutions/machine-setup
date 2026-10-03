@@ -6,6 +6,7 @@ package apt
 
 import (
 	"archive/tar"
+	"bytes"
 	"compress/gzip"
 	"fmt"
 	"io"
@@ -84,30 +85,58 @@ var aptNames = map[string]string{
 // Package is an apt-installable package referenced by its brew-style name.
 // Install resolves the name to the apt package and runs `apt install -y`.
 type Package struct {
-	name string
-	run  Runner
+	name        string
+	description string
+	run         Runner
+	query       CmdRunner
 }
 
-// NewPackage returns a Package bound to a runner.
-func NewPackage(name string, run Runner) Package {
-	return Package{name: name, run: run}
+// NewPackage binds a package to the apt runner and, optionally, a CmdRunner for dpkg-query.
+func NewPackage(name, description string, run Runner, query ...CmdRunner) Package {
+	p := Package{name: name, description: description, run: run}
+	if len(query) > 0 {
+		p.query = query[0]
+	}
+	return p
 }
 
 // Name returns the brew-style name (unresolved). This is what the user sees.
 func (p Package) Name() string { return p.name }
 
-// Install runs `apt install -y <resolved-name>`.
-func (p Package) Install(stdout, stderr io.Writer) error {
-	resolved := p.name
+// Description returns the picker blurb.
+func (p Package) Description() string { return p.description }
+
+func (p Package) resolved() string {
 	if mapped, ok := aptNames[p.name]; ok {
-		resolved = mapped
+		return mapped
 	}
-	return p.run([]string{"install", "-y", resolved}, stdout, stderr)
+	return p.name
 }
 
-// Status returns the current installation status of the package.
+// Install runs `apt install -y <resolved-name>`.
+func (p Package) Install(stdout, stderr io.Writer) error {
+	return p.run([]string{"install", "-y", p.resolved()}, stdout, stderr)
+}
+
+// Status reads the installed version via dpkg-query; a non-zero exit means not installed.
 func (p Package) Status() (pkg.InstallStatus, string, error) {
-	return pkg.StatusNotInstalled, "", nil
+	return dpkgVersion(p.query, p.resolved())
+}
+
+// dpkgVersion asks dpkg for the installed version of one package.
+func dpkgVersion(run CmdRunner, name string) (pkg.InstallStatus, string, error) {
+	if run == nil {
+		run = DefaultCmdRunner()
+	}
+	var out bytes.Buffer
+	if err := run([]string{"dpkg-query", "-W", "-f=${Version}", name}, &out, io.Discard); err != nil {
+		return pkg.StatusNotInstalled, "", nil
+	}
+	version := strings.TrimSpace(out.String())
+	if version == "" {
+		return pkg.StatusNotInstalled, "", nil
+	}
+	return pkg.StatusUpToDate, version, nil
 }
 
 // Fetcher performs an HTTP GET and returns the body — the seam for downloads.
@@ -135,18 +164,34 @@ type NeovimTarball struct {
 	Fetch Fetcher
 	Home  string
 	Arch  string // "amd64" | "arm64"; empty means runtime.GOARCH
+	Cmd   CmdRunner
 }
 
 // Name reports "neovim" to match its brew counterpart for the form display.
 func (NeovimTarball) Name() string { return "neovim" }
 
-// Status returns the current installation status of Neovim.
+// Description returns the picker blurb.
+func (NeovimTarball) Description() string { return "Modern Vim: LSP, treesitter, Lua config" }
+
+// Status reports the version the extracted binary prints, once ~/.local/nvim exists.
 func (n NeovimTarball) Status() (pkg.InstallStatus, string, error) {
 	destRoot := filepath.Join(n.Home, ".local", "nvim")
-	if _, err := os.Stat(destRoot); err == nil {
-		return pkg.StatusUpToDate, "v0.11.6", nil
+	if _, err := os.Stat(destRoot); err != nil {
+		return pkg.StatusNotInstalled, "", nil
 	}
-	return pkg.StatusNotInstalled, "", nil
+	run := n.Cmd
+	if run == nil {
+		run = DefaultCmdRunner()
+	}
+	var out bytes.Buffer
+	if err := run([]string{filepath.Join(destRoot, "bin", "nvim"), "--version"}, &out, io.Discard); err != nil {
+		return pkg.StatusUpToDate, "", nil
+	}
+	fields := strings.Fields(out.String())
+	if len(fields) < 2 {
+		return pkg.StatusUpToDate, "", nil
+	}
+	return pkg.StatusUpToDate, fields[1], nil
 }
 
 // Install downloads and extracts the tarball, then links the binary onto PATH.
@@ -159,7 +204,7 @@ func (n NeovimTarball) Install(stdout, stderr io.Writer) error {
 		arch = "x86_64"
 	}
 
-	url := fmt.Sprintf("https://github.com/neovim/neovim/releases/download/v0.11.6/nvim-linux-%s.tar.gz", arch)
+	url := fmt.Sprintf("https://github.com/neovim/neovim/releases/download/v0.12.5/nvim-linux-%s.tar.gz", arch)
 	destRoot := filepath.Join(n.Home, ".local", "nvim")
 
 	fmt.Fprintf(stdout, "Downloading Neovim to %s...\n", destRoot)
@@ -181,6 +226,77 @@ func (n NeovimTarball) Install(stdout, stderr io.Writer) error {
 		return err
 	}
 	return os.Symlink(filepath.Join(destRoot, "bin", "nvim"), link)
+}
+
+// TreeSitterCLI installs the upstream tree-sitter release binary to
+// <Home>/.local/bin; Ubuntu's apt package is too old for nvim-treesitter.
+type TreeSitterCLI struct {
+	Fetch Fetcher
+	Home  string
+	Arch  string // "amd64" | "arm64"; empty means runtime.GOARCH
+	Cmd   CmdRunner
+}
+
+// Name matches the brew formula so both platforms list the same tool.
+func (TreeSitterCLI) Name() string { return "tree-sitter-cli" }
+
+// Description returns the picker blurb.
+func (TreeSitterCLI) Description() string { return "Builds Neovim treesitter parsers" }
+
+// Status reports the version ~/.local/bin/tree-sitter prints.
+func (t TreeSitterCLI) Status() (pkg.InstallStatus, string, error) {
+	bin := filepath.Join(t.Home, ".local", "bin", "tree-sitter")
+	if _, err := os.Stat(bin); err != nil {
+		return pkg.StatusNotInstalled, "", nil
+	}
+	var out bytes.Buffer
+	if err := t.Cmd([]string{bin, "--version"}, &out, io.Discard); err != nil {
+		return pkg.StatusUpToDate, "", nil
+	}
+	fields := strings.Fields(out.String())
+	if len(fields) < 2 {
+		return pkg.StatusUpToDate, "", nil
+	}
+	return pkg.StatusUpToDate, fields[1], nil
+}
+
+// Install downloads the gzipped binary and writes it executable onto PATH.
+func (t TreeSitterCLI) Install(stdout, _ io.Writer) error {
+	arch := t.Arch
+	if arch == "" {
+		arch = runtime.GOARCH
+	}
+	if arch == "amd64" {
+		arch = "x64"
+	}
+	url := fmt.Sprintf("https://github.com/tree-sitter/tree-sitter/releases/download/v0.27.0/tree-sitter-linux-%s.gz", arch)
+	bin := filepath.Join(t.Home, ".local", "bin", "tree-sitter")
+
+	fmt.Fprintf(stdout, "Downloading tree-sitter to %s...\n", bin)
+	body, err := t.Fetch(url)
+	if err != nil {
+		return fmt.Errorf("downloading tree-sitter: %w", err)
+	}
+	defer body.Close()
+
+	gz, err := gzip.NewReader(body)
+	if err != nil {
+		return fmt.Errorf("extracting tree-sitter: %w", err)
+	}
+	defer func() { _ = gz.Close() }()
+
+	if err := os.MkdirAll(filepath.Dir(bin), 0o755); err != nil {
+		return err
+	}
+	f, err := os.OpenFile(bin, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o755)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(f, gz); err != nil {
+		_ = f.Close()
+		return fmt.Errorf("extracting tree-sitter: %w", err)
+	}
+	return f.Close()
 }
 
 // extractTarGz unpacks a gzipped tarball into destRoot, stripping the single
@@ -267,6 +383,9 @@ func NewGCloudCLI(run CmdRunner) GCloudCLI { return GCloudCLI{Run: run} }
 // Name reports "gcloud" to match its brew-cask counterpart for the form display.
 func (GCloudCLI) Name() string { return "gcloud" }
 
+// Description returns the picker blurb.
+func (GCloudCLI) Description() string { return "Google Cloud SDK and gcloud command" }
+
 // Install adds Google's apt source and key, then installs google-cloud-cli.
 func (g GCloudCLI) Install(stdout, stderr io.Writer) error {
 	const keyring = "/usr/share/keyrings/cloud.google.gpg"
@@ -283,9 +402,9 @@ func (g GCloudCLI) Install(stdout, stderr io.Writer) error {
 	return runSteps("gcloud", steps, g.Run, stdout, stderr)
 }
 
-// Status returns the current installation status of GCloudCLI.
+// Status reads the installed google-cloud-cli version via dpkg-query.
 func (g GCloudCLI) Status() (pkg.InstallStatus, string, error) {
-	return pkg.StatusNotInstalled, "", nil
+	return dpkgVersion(g.Run, "google-cloud-cli")
 }
 
 // GitHubCLI installs gh on Debian/Ubuntu by adding GitHub's apt repository
@@ -301,6 +420,9 @@ func NewGitHubCLI(run CmdRunner) GitHubCLI { return GitHubCLI{Run: run} }
 // Name reports "gh" to match its brew counterpart for the form display.
 func (GitHubCLI) Name() string { return "gh" }
 
+// Description returns the picker blurb.
+func (GitHubCLI) Description() string { return "GitHub from the terminal: PRs, issues, runs" }
+
 // Install adds GitHub's apt source and key, then installs gh.
 func (g GitHubCLI) Install(stdout, stderr io.Writer) error {
 	const keyring = "/etc/apt/keyrings/githubcli-archive-keyring.gpg"
@@ -314,9 +436,9 @@ func (g GitHubCLI) Install(stdout, stderr io.Writer) error {
 	return runSteps("gh", steps, g.Run, stdout, stderr)
 }
 
-// Status returns the current installation status of GitHubCLI.
+// Status reads the installed gh version via dpkg-query.
 func (g GitHubCLI) Status() (pkg.InstallStatus, string, error) {
-	return pkg.StatusNotInstalled, "", nil
+	return dpkgVersion(g.Run, "gh")
 }
 
 // runSteps drives each step through run (or the production runner when nil).

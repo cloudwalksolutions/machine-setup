@@ -8,7 +8,7 @@
 # failure fails `docker build`. The container is discarded afterward.
 #
 # Run:  docker build -f test/e2e/Dockerfile -t tars-e2e .
-FROM golang:1.24-bookworm
+FROM golang:1.26-bookworm
 
 # zsh for the shell smoke test (build-time network is fine; runtime is not).
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y zsh && rm -rf /var/lib/apt/lists/*

@@ -1,6 +1,8 @@
 package registry
 
 import (
+	"sync"
+
 	"tars/internal/pkg"
 	"tars/internal/pkg/apt"
 	"tars/internal/pkg/brew"
@@ -45,6 +47,28 @@ func (r *DevToolRegistry) Names() []string {
 	return names
 }
 
+// Catalog projects each installable into what the picker shows, in order; statuses are
+// queried concurrently because each brew/npm query takes a noticeable fraction of a second.
+func (r *DevToolRegistry) Catalog() []pkg.ToolInfo {
+	infos := make([]pkg.ToolInfo, len(r.tools))
+	var wg sync.WaitGroup
+	for i, t := range r.tools {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			status, version, _ := t.Status()
+			infos[i] = pkg.ToolInfo{
+				Name:        t.Name(),
+				Description: t.Description(),
+				Installed:   status != pkg.StatusNotInstalled,
+				Version:     version,
+			}
+		}()
+	}
+	wg.Wait()
+	return infos
+}
+
 // RegistryFactory assembles a DevToolRegistry wired for a given OS. Platform
 // runners are captured at construction, plus an optional set of *extras* — any
 // Installable the caller wants appended to every supported-OS registry (e.g.
@@ -52,13 +76,14 @@ func (r *DevToolRegistry) Names() []string {
 type RegistryFactory struct {
 	brewRun brew.Runner
 	aptKit  apt.Kit
+	probe   pkg.PathProbe
 	extras  []pkg.Installable
 }
 
-// NewRegistryFactory captures the platform runners and any cross-platform
-// extras. The extras are appended to every recognized-OS registry.
-func NewRegistryFactory(brewRun brew.Runner, aptKit apt.Kit, extras ...pkg.Installable) RegistryFactory {
-	return RegistryFactory{brewRun: brewRun, aptKit: aptKit, extras: extras}
+// NewRegistryFactory captures the platform runners, the PATH probe used when a
+// package manager does not know a tool, and any cross-platform extras.
+func NewRegistryFactory(brewRun brew.Runner, aptKit apt.Kit, probe pkg.PathProbe, extras ...pkg.Installable) RegistryFactory {
+	return RegistryFactory{brewRun: brewRun, aptKit: aptKit, probe: probe, extras: extras}
 }
 
 // For returns the curated registry for the given OS. Unsupported OS → empty
@@ -77,56 +102,100 @@ func (f RegistryFactory) For(goos string) *DevToolRegistry {
 	return r
 }
 
-// darwinFormulas is the curated list of brew formulas installed on macOS.
-// This is configuration data — adding a tool means adding a name here.
-// Tapped formulas (those that need `brew tap` first, like terraform under
-// hashicorp/tap) go in darwinTappedFormulas instead.
-var darwinFormulas = []string{
-	"neovim", "byobu", "fzf", "ripgrep", "bat", "eza",
-	"jq", "gh", "go", "node", "python",
-	"yarn", "n",
-	"rustup", "ghcup",
-	"lazygit", "lazydocker", "k9s", "k3d",
-	"ruby", "ansible", "golangci-lint",
+// tool is one curated entry: the package name, the blurb the picker shows next to it,
+// and the binary to look for on PATH when it differs from the name.
+type tool struct {
+	name, description, bin string
 }
 
-// darwinTappedFormulas pairs each name with its required tap. The TappedFormula
-// installer runs `brew tap <tap>` and then `brew install <tap>/<name>`.
-var darwinTappedFormulas = map[string]string{
-	"terraform": "hashicorp/tap",
+// darwinFormulas is the curated list of brew formulas installed on macOS, most used
+// first within each group. Tapped formulas go in darwinTappedFormulas instead.
+var darwinFormulas = []tool{
+	{name: "neovim", description: "Modern Vim: LSP, treesitter, Lua config", bin: "nvim"},
+	{name: "tree-sitter-cli", description: "Builds Neovim treesitter parsers", bin: "tree-sitter"},
+	{name: "byobu", description: "tmux sessions with a status bar and F-keys"},
+	{name: "gh", description: "GitHub from the terminal: PRs, issues, runs"},
+	{name: "lazygit", description: "Keyboard git UI for staging, log, rebase"},
+	{name: "jq", description: "Query and reshape JSON on the command line"},
+	{name: "bat", description: "cat with syntax highlighting and git marks"},
+	{name: "eza", description: "ls with colors, icons and git status"},
+	{name: "k9s", description: "Kubernetes cluster TUI"},
+	{name: "lazydocker", description: "Docker containers and logs TUI"},
+	{name: "k3d", description: "Local k3s Kubernetes clusters in Docker"},
+	{name: "golangci-lint", description: "Go linter aggregator used by CI"},
+	{name: "fzf", description: "Fuzzy finder for files, history, anything"},
+	{name: "ripgrep", description: "Fast recursive grep (rg)", bin: "rg"},
+	{name: "go", description: "Go toolchain"},
+	{name: "node", description: "Node.js runtime"},
+	{name: "python", description: "Python 3 interpreter", bin: "python3"},
+	{name: "ruby", description: "Ruby interpreter"},
+	{name: "rustup", description: "Rust toolchain manager (installs stable)"},
+	{name: "ghcup", description: "Haskell toolchain manager (installs GHC)"},
+	{name: "yarn", description: "JavaScript package manager"},
+	{name: "n", description: "Switch Node.js versions"},
+	{name: "ansible", description: "Agentless config management and playbooks"},
 }
 
-// darwinCasks is the curated list of brew casks installed on macOS (GUI apps and
-// vendor bundles distributed as casks rather than core formulas).
-var darwinCasks = []string{
-	"gcloud-cli",
+// darwinTappedFormulas need `brew tap <tap>` first; installed as <tap>/<name>.
+var darwinTappedFormulas = []struct {
+	tool
+	tap string
+}{
+	{tool{name: "terraform", description: "Infrastructure as code (HashiCorp tap)"}, "hashicorp/tap"},
+}
+
+// darwinCasks is the curated list of brew casks installed on macOS.
+var darwinCasks = []tool{
+	{name: "gcloud-cli", description: "Google Cloud SDK and gcloud command", bin: "gcloud"},
+}
+
+// postInstallSteps finish a toolchain manager's setup so no manual step is left to the user.
+var postInstallSteps = map[string][][]string{
+	"rustup": {{"rustup", "install", "stable"}, {"rustup", "default", "stable"}},
+	"ghcup":  {{"ghcup", "install", "ghc", "recommended"}, {"ghcup", "set", "ghc", "recommended"}},
 }
 
 func (f RegistryFactory) wireDarwin(r *DevToolRegistry) {
-	builder := brew.NewBuilder(f.brewRun)
-	for _, formula := range builder.Formulas(darwinFormulas...) {
+	for _, t := range darwinFormulas {
+		formula := brew.NewFormula(t.name, t.description, f.brewRun)
+		formula.Binary, formula.Probe = t.bin, f.probe
+		if steps, ok := postInstallSteps[t.name]; ok {
+			r.Add(pkg.WithPostInstall(formula, steps, f.aptKit.Cmd))
+			continue
+		}
 		r.Add(formula)
 	}
-	for name, tap := range darwinTappedFormulas {
-		r.Add(brew.NewTappedFormula(name, tap, f.brewRun))
+	for _, t := range darwinTappedFormulas {
+		tapped := brew.NewTappedFormula(t.name, t.description, t.tap, f.brewRun)
+		tapped.Probe = f.probe
+		r.Add(tapped)
 	}
-	for _, cask := range builder.Casks(darwinCasks...) {
+	for _, t := range darwinCasks {
+		cask := brew.NewCask(t.name, t.description, f.brewRun)
+		cask.Binary, cask.Probe = t.bin, f.probe
 		r.Add(cask)
 	}
 }
 
 // linuxAptPackages is the curated list of apt packages installed on Linux.
-// gh is NOT here — Ubuntu's archives don't carry it; see GitHubCLI below.
-var linuxAptPackages = []string{
-	"byobu", "fzf", "ripgrep", "bat",
-	"jq", "go", "node", "python",
+// gh is NOT here — Ubuntu's archives don't carry it; see GitHubCLI.
+var linuxAptPackages = []tool{
+	{name: "jq", description: "Query and reshape JSON on the command line"},
+	{name: "bat", description: "cat with syntax highlighting and git marks"},
+	{name: "fzf", description: "Fuzzy finder for files, history, anything"},
+	{name: "ripgrep", description: "Fast recursive grep (rg)"},
+	{name: "go", description: "Go toolchain"},
+	{name: "node", description: "Node.js runtime"},
+	{name: "python", description: "Python 3 interpreter"},
 }
 
 func (f RegistryFactory) wireLinux(r *DevToolRegistry) {
-	r.Add(apt.NeovimTarball{Fetch: f.aptKit.Fetch, Home: f.aptKit.Home})
-	for _, name := range linuxAptPackages {
-		r.Add(apt.NewPackage(name, f.aptKit.Apt))
-	}
+	r.Add(apt.NeovimTarball{Fetch: f.aptKit.Fetch, Home: f.aptKit.Home, Cmd: f.aptKit.Cmd})
+	r.Add(apt.TreeSitterCLI{Fetch: f.aptKit.Fetch, Home: f.aptKit.Home, Cmd: f.aptKit.Cmd})
+	r.Add(apt.NewPackage("byobu", "tmux sessions with a status bar and F-keys", f.aptKit.Apt, f.aptKit.Cmd))
 	r.Add(apt.NewGitHubCLI(f.aptKit.Cmd))
+	for _, t := range linuxAptPackages {
+		r.Add(apt.NewPackage(t.name, t.description, f.aptKit.Apt, f.aptKit.Cmd))
+	}
 	r.Add(apt.NewGCloudCLI(f.aptKit.Cmd))
 }

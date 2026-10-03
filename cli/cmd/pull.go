@@ -4,7 +4,9 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+
 	"tars/internal/components"
+	"tars/internal/report"
 )
 
 var pullDryRun bool
@@ -35,8 +37,7 @@ component fails, listing each failure.`,
 		}
 		if err := (SequentialPuller{
 			Components: components.AllPullable(opts),
-			Stdout:     stdout,
-			Stderr:     stderr,
+			Report:     report.Text{Stdout: stdout, Stderr: stderr},
 		}).PullAll(); err != nil {
 			return fmt.Errorf("pull completed with failures: %w", err)
 		}

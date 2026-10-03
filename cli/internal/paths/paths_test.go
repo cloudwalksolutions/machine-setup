@@ -45,6 +45,18 @@ var _ = Describe("ForOS Zsh.ProfileLocalOverride", func() {
 	})
 })
 
+var _ = Describe("ForOS Fonts", func() {
+	It("installs into the per-user font dir on darwin, so no sudo is needed", func() {
+		p := paths.ForOS("/repo", "/home/u", "darwin")
+		Expect(p.Fonts.Local).To(Equal("/home/u/Library/Fonts"))
+	})
+
+	It("installs into ~/.local/share/fonts on linux", func() {
+		p := paths.ForOS("/repo", "/home/u", "linux")
+		Expect(p.Fonts.Local).To(Equal("/home/u/.local/share/fonts"))
+	})
+})
+
 var _ = Describe("ForOS Profiles", func() {
 	It("renders under ~/.config/tars/profiles and manages ~/.gitconfig on every OS", func() {
 		for _, goos := range []string{"darwin", "linux"} {

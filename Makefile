@@ -63,7 +63,7 @@ run: build       ## Build and run `tars init`
 # /private but not home dirs like ~/Desktop, which macOS privacy blocks).
 VHS_STAGE := $(shell cd /tmp && pwd -P)/tars-vhs
 
-VHS_TAPES := demo sessions profiles
+VHS_TAPES := demo init sessions profiles
 VHS_VERSION := $(shell git describe --tags --abbrev=0 2>/dev/null || echo dev)
 VHS_LDFLAGS := -s -w -X main.version=$(VHS_VERSION) -X main.commit=$(shell git rev-parse --short HEAD) -X main.date=$(shell date -u +%Y-%m-%d)
 
@@ -80,7 +80,7 @@ demos:           ## Re-record the README demo GIFs (Docker + VHS)
 
 .PHONY: test-nvim
 test-nvim:       ## Neovim smoke tests (headless)
-	nvim -u nvim/init.lua --headless -l nvim/tests/smoke_test.lua
+	XDG_CONFIG_HOME=$(CURDIR) nvim -u nvim/init.lua --headless -l nvim/tests/smoke_test.lua
 
 .PHONY: health-nvim
 health-nvim:     ## Neovim health checks

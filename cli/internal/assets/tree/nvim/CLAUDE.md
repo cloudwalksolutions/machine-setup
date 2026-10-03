@@ -219,6 +219,8 @@ Both are registered in which-key for discoverability. Press the prefix key to se
   - Health check module exists
   - Log utilities exist
   - Plugin configurations are valid
+  - Markdown code fences parse their injected language (nvim-treesitter must track `main`)
+  - Treesitter highlighting starts for filetypes with a parser
 - **ALWAYS run tests after configuration changes**
 
 ### Health Checks

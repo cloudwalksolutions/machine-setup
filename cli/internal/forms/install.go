@@ -1,9 +1,11 @@
 package forms
 
 import (
-	"os"
+	"fmt"
 
-	"github.com/charmbracelet/huh"
+	"charm.land/huh/v2"
+
+	"tars/internal/pkg"
 )
 
 var categorizedPackages = map[string][]string{
@@ -11,91 +13,88 @@ var categorizedPackages = map[string][]string{
 		"claude-code", "gemini-cli", "pi",
 	},
 	"Terminal Utilities & Editors": {
-		"neovim", "byobu", "fzf", "ripgrep", "bat", "eza",
-		"jq", "gh", "lazygit", "lazydocker", "k9s", "k3d", "golangci-lint",
+		"neovim", "tree-sitter-cli", "byobu", "gh", "lazygit", "jq", "bat", "eza",
+		"k9s", "lazydocker", "k3d", "golangci-lint", "fzf", "ripgrep",
 	},
 	"Languages & Runtimes": {
-		"go", "node", "python", "yarn", "n", "rustup", "ghcup", "ruby", "rvm",
+		"go", "node", "python", "ruby", "rustup", "ghcup", "yarn", "n", "rvm",
 	},
 	"DevOps & Infrastructure": {
 		"terraform", "ansible", "gcloud-cli", "gcloud",
 	},
 }
 
-// ShowInstallForm displays a multi-select with all dev tool names grouped by category.
-// When TARS_NO_FORM=1 it returns toolNames unmodified (tests/CI).
-func ShowInstallForm(toolNames []string) ([]string, error) {
-	if os.Getenv("TARS_NO_FORM") != "" {
-		result := make([]string, len(toolNames))
-		copy(result, toolNames)
-		return result, nil
-	}
+var categoriesOrder = []string{
+	"Agentic Coding Tools",
+	"Terminal Utilities & Editors",
+	"Languages & Runtimes",
+	"DevOps & Infrastructure",
+	"Other Tools",
+}
 
-	categoriesOrder := []string{
-		"Agentic Coding Tools",
-		"Terminal Utilities & Editors",
-		"Languages & Runtimes",
-		"DevOps & Infrastructure",
-		"Other Tools",
-	}
-
-	// Invert categorizedPackages map for fast O(1) runtime lookups
-	packageToCategory := make(map[string]string)
-	for cat, pkgs := range categorizedPackages {
-		for _, pkgName := range pkgs {
-			packageToCategory[pkgName] = cat
-		}
-	}
-
-	// Map each tool name to its category
-	categorizedTools := make(map[string][]string)
-	for _, name := range toolNames {
-		cat := packageToCategory[name]
-		if cat == "" {
-			cat = "Other Tools"
-		}
-		categorizedTools[cat] = append(categorizedTools[cat], name)
-	}
-
+// InstallForm builds the tool picker over the catalog grouped by category, in catalog
+// order. Installed tools show their version and start unchecked; the rest start checked.
+// collect returns the chosen names in category order.
+func InstallForm(tools []pkg.ToolInfo) (*huh.Form, func() []string) {
+	byCategory := groupByCategory(tools)
 	var groups []*huh.Group
-	selectedMap := make(map[string]*[]string)
-
+	var selections []*[]string
 	for _, cat := range categoriesOrder {
-		tools := categorizedTools[cat]
-		if len(tools) == 0 {
+		catTools := byCategory[cat]
+		if len(catTools) == 0 {
 			continue
 		}
-
-		selected := make([]string, len(tools))
-		copy(selected, tools)
-		selectedMap[cat] = &selected
-
-		options := make([]huh.Option[string], len(tools))
-		for i, name := range tools {
-			options[i] = huh.NewOption(name, name).Selected(true)
+		selected := []string{}
+		options := make([]huh.Option[string], len(catTools))
+		for i, t := range catTools {
+			options[i] = huh.NewOption(row(t), t.Name).Selected(!t.Installed)
+			if !t.Installed {
+				selected = append(selected, t.Name)
+			}
 		}
-
+		selections = append(selections, &selected)
 		groups = append(groups, huh.NewGroup(
 			huh.NewMultiSelect[string]().
 				Title(cat).
-				Description("Select which ones to install. Space to toggle, Enter to confirm.").
+				Description("Installed tools show their version and start unchecked.").
 				Options(options...).
+				Height(len(options)+2). // huh subtracts the title and description rows from the options
 				Value(&selected),
 		))
 	}
-
-	err := run(huh.NewForm(groups...))
-	if err != nil {
-		return nil, err
+	collect := func() []string {
+		var final []string
+		for _, sel := range selections {
+			final = append(final, *sel...)
+		}
+		return final
 	}
+	return huh.NewForm(groups...), collect
+}
 
-	// Merge all selected slices preserving the categorized order
-	var finalSelected []string
-	for _, cat := range categoriesOrder {
-		if sel, ok := selectedMap[cat]; ok {
-			finalSelected = append(finalSelected, *sel...)
+func groupByCategory(tools []pkg.ToolInfo) map[string][]pkg.ToolInfo {
+	categoryOf := make(map[string]string)
+	for cat, names := range categorizedPackages {
+		for _, n := range names {
+			categoryOf[n] = cat
 		}
 	}
+	grouped := make(map[string][]pkg.ToolInfo)
+	for _, t := range tools {
+		cat := categoryOf[t.Name]
+		if cat == "" {
+			cat = "Other Tools"
+		}
+		grouped[cat] = append(grouped[cat], t)
+	}
+	return grouped
+}
 
-	return finalSelected, nil
+// row renders `name  description  ✓ version` as one aligned option label.
+func row(t pkg.ToolInfo) string {
+	status := ""
+	if t.Installed {
+		status = "✓ " + t.Version
+	}
+	return fmt.Sprintf("%-14s %-44s %s", t.Name, t.Description, status)
 }

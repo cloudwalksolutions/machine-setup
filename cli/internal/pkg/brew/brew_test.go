@@ -33,7 +33,7 @@ var _ = Describe("Formula.Install (integration)", Ordered, func() {
 	It("installs hello via real brew and the binary becomes executable", func() {
 		skipUnlessIntegration()
 
-		err := brew.NewFormula("hello", brew.DefaultRunner()).
+		err := brew.NewFormula("hello", "GNU hello", brew.DefaultRunner()).
 			Install(GinkgoWriter, GinkgoWriter)
 		Expect(err).NotTo(HaveOccurred())
 

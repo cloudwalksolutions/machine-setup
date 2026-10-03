@@ -54,7 +54,9 @@ session manager. The user-facing CLI is **`tars`** (Go, in `cli/`) with five ver
 │       ├── paths/               # repo→local file mappings (ForOS: OS-aware)
 │       ├── repo/                # repo-root discovery (markers: cli/go.mod + nvim/)
 │       ├── pkg/                 # installable dev tools (brew/apt/rvm) + registry
-│       ├── forms/               # huh TUI (honors TARS_NO_FORM=1)
+│       ├── forms/               # huh v2 form builders, shared theme, Headless defaults (TARS_NO_FORM=1)
+│       ├── report/              # Reporter seam: orchestrators report steps/items; Text prints plain lines
+│       ├── tui/                 # Bubble Tea v2 program for `tars init`: live pane + embedded forms
 │       ├── shell/               # oh-my-zsh / powerlevel10k installers
 │       └── config/              # persisted YAML config
 ├── nvim/  zsh/  byobu/  vim/     # the dotfiles tars manages
@@ -93,7 +95,15 @@ Tests are layered:
      Pull/Push, `fsutil` backup/copy, `paths` OS-awareness, the `pkg` registry.
    - Command specs (`cmd/`) that construct `Setup`/`SequentialPuller`/`SequentialPusher`/
      `Sessions`/`Profiles` with **spy collaborators** and assert orchestration (order, failure-tolerance),
-     never touching the real machine.
+     never touching the real machine. Orchestrators never print: they call a
+     `report.Reporter` (`report.Text` in specs and headless runs, the TUI otherwise) and ask
+     questions through narrow prompt interfaces (`Welcomer`, `InstallPicker`, `ClaudeAsker`…)
+     that `tui.Prompts` and `forms.Headless` both satisfy.
+   - TUI specs (`internal/tui`) are layered like the code: `Model.Update`/`View` driven with
+     messages and key presses; the reporter and prompts with recording fakes; and `Start` (the
+     flow goroutine wired to a program) under a real Bubble Tea program via `teatest/v2`
+     (`GinkgoTB()` satisfies its `testing.TB`), asserting the printed lines, the form, the key
+     press and the flow's result. Only `run.go` (tea.NewProgram on the terminal) is untested.
 2. **Integration** (`make integration`) — real external deps: brew installers gated by
    `INTEGRATION=1` (installs/removes `hello`) plus the Neovim config tests (real `nvim`).
    Off by default in `go test`.
@@ -110,12 +120,13 @@ Tests are layered:
    on every PR on amd64 and arm64.
 
 **The seam pattern (critical).** Unit tests must never touch the real system (plists,
-`sudo cp`, network, `/Library/Fonts`). Anything that does is injected behind a seam so a
+network, package managers, PATH lookups). Anything that does is injected behind a seam so a
 spec can drive a fake and still fail red-first:
 
-- **Function-typed fields** for side-effecting ops, e.g. `Fonts.CopyFn(src,dst)` (real:
-  `sudo cp`), and `Terminal.CurrentFontFn / SetFontFn / IsRunningFn / DefaultProfileFn /
-  ApplyFn / ExportFn` (real: PlistBuddy / `pgrep` / `open` / `defaults`). Tests assign
+- **Function-typed fields** for side-effecting ops, e.g. `pkg.PathProbe{LookPath, Run}`
+  (real: `exec.LookPath` + `<bin> --version`), and `Terminal.CurrentFontFn / SetFontFn /
+  IsRunningFn / DefaultProfileFn / ApplyFn / ExportFn` (real: PlistBuddy / `pgrep` /
+  `open` / `defaults`). Tests assign
   fakes; the real impl is left untested by unit tests and validated via the E2E and
   manual runs.
 - **Dry-run seam**: every component writes through `Options.copier()` → `fsutil.Copier`;
@@ -125,7 +136,7 @@ spec can drive a fake and still fail red-first:
   so darwin-only paths are exercised on any host. CI also runs a `macos-latest` matrix leg
   so darwin-only code compiles and its unit tests run for real.
 - **Path/env overrides**: `Fonts.LocalOverride`, `TARS_REPO`,
-  `TARS_NO_FORM=1` (skips the TUIs), `TARS_CONFIG_PATH`,
+  `TARS_NO_FORM=1` (no tea.Program: plain-text reporter + default answers), `TARS_CONFIG_PATH`,
   `TARS_SESSIONS_PATH`, `TARS_PROFILES_PATH`, `TARS_BACKUP_ROOT`,
   `Profiles.ConfigPath` (component), and
   `UPDATE_GOLDEN=1` (regenerates `components/testdata/pull_manifest.golden`; review the diff).
@@ -155,8 +166,11 @@ its steps are explicit commands, not Makefile recipes. Eight checks:
 (the Docker build), `nvim` (headless Lua smoke tests against the repo's `nvim/` via
 `XDG_CONFIG_HOME`), and `goreleaser` (`goreleaser check`). Reproduce locally from `cli/` with the
 same commands before handing work over; `gh pr checks <n> --watch` is the final gate.
-`.github/workflows/vhs.yml` re-records the README GIFs via PR when anything under `vhs/`
-other than the GIFs changes on `main`.
+`.github/workflows/vhs.yml` records every tape (`demo`, `init`, `sessions`, `profiles`) on each
+PR and posts the GIFs as a sticky PR comment (stored on the `vhs-previews` branch); on `main`
+it re-records the README GIFs via PR when anything under `vhs/` other than the GIFs changes.
+Coverage is enforced pre-merge by the required `coverage` check; the release job only
+refreshes the badge. Both run `go test -count=1` so cached results never replay stale profiles.
 
 ## Development Patterns (TDD)
 
@@ -240,9 +254,10 @@ bumps are a manual tag push; see `docs/releasing.md`. Test locally with
   artifacts — stay vigilant.
 - **Backups are versioned** (v1, v2, v3…), live under `~/.local/state/tars/backups`,
   and are never auto-deleted.
-- **macOS-first, Linux-supported.** Homebrew, `/Library/Fonts`, iTerm2/Terminal.app
+- **macOS-first, Linux-supported.** Homebrew, `~/Library/Fonts`, iTerm2/Terminal.app
   plists are macOS; Linux gets the full dotfile pull plus apt/tarball installs
-  (Neovim tarball, GitHub/GCloud apt repos) suitable for shared bastions.
+  (Neovim tarball, GitHub/GCloud apt repos) suitable for shared bastions. Nothing
+  tars does needs sudo except apt installs.
 - **Neovim is the primary editor**; vim is a minimal fallback. Neovim needs Python3,
   Node.js, and language servers (auto-installed via Mason).
 - **ALWAYS run Neovim tests**: after ANY change to the Neovim config, run `make test-nvim`
