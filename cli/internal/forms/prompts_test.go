@@ -8,6 +8,8 @@ import (
 	"tars/internal/config"
 	"tars/internal/forms"
 	"tars/internal/pkg"
+	"tars/internal/projects"
+	"tars/internal/sessions"
 )
 
 var _ = Describe("Headless", func() {
@@ -31,6 +33,28 @@ var _ = Describe("Headless", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(project.Agents).To(Equal([]string{"claude", "pi", "gemini"}))
 		Expect(project.Name).To(Equal("app"))
+	})
+})
+
+var _ = Describe("session form builders", func() {
+	It("TemplateForm starts from the project's current template", func() {
+		t := projects.Template{Windows: []sessions.Window{{Name: "code", Command: "nvim"}}}
+
+		_, collect := forms.TemplateForm("api", t)
+
+		Expect(collect()).To(Equal(t))
+	})
+
+	It("RenameForm starts from the session's current name", func() {
+		_, collect := forms.RenameForm("scratch")
+
+		Expect(collect()).To(Equal("scratch"))
+	})
+
+	It("KillForm keeps the session unless confirmed", func() {
+		_, collect := forms.KillForm("scratch")
+
+		Expect(collect()).To(BeFalse())
 	})
 })
 

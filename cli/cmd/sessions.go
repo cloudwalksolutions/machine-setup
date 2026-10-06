@@ -4,27 +4,37 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 	"tars/internal/forms"
+	"tars/internal/profiles"
+	"tars/internal/projects"
 	"tars/internal/sessions"
+	"tars/internal/tui"
 )
 
-// SessionStore loads the sessions config file.
-type SessionStore interface {
-	Load() (sessions.File, error)
-	Path() string
-	Seed() error
+// LiveSessions drives the running byobu sessions.
+type LiveSessions interface {
+	List() ([]sessions.Live, error)
+	Attach(name string) error
+	Open(name string, windows []sessions.Window) error
+	Kill(name string) error
+	Rename(old, name string) error
 }
 
-// SessionOpener drives byobu for configured sessions.
-type SessionOpener interface {
-	Open(sessions.Session) error
-	OpenAll(sessions.File) error
-	Fresh(name string) error
+// ProjectCatalog finds the projects and their session templates.
+type ProjectCatalog interface {
+	Projects() ([]projects.Project, error)
+	Templates() (projects.File, error)
+	Path() string
+	Seed() error
+	SaveTemplates(projects.File) error
 }
 
 // SessionPicker asks the user to choose one of the offered options.
@@ -32,123 +42,288 @@ type SessionPicker interface {
 	Pick(options []string) (string, error)
 }
 
-const (
-	pickAll   = "(all)"
-	pickFresh = "(fresh)"
-)
-
 // Sessions orchestrates the `tars sessions` verbs over injected collaborators.
 type Sessions struct {
-	Store  SessionStore
-	Opener SessionOpener
-	Picker SessionPicker
-	EditFn func(path string) error // real: $EDITOR on the config file
-	Stdout io.Writer
-	Stderr io.Writer
+	Live     LiveSessions
+	Catalog  ProjectCatalog
+	Picker   SessionPicker
+	EditFn   func(path string) error // real: $EDITOR on the projects file
+	Getwd    func() (string, error)
+	Manage   func(tui.Manager) (string, error) // real: the interactive manager; returns what to open
+	Headless bool                              // TARS_NO_FORM: no terminal to manage in
+	Stdout   io.Writer
 }
 
-// PickAndRun shows the session picker and runs the chosen action.
-func (s *Sessions) PickAndRun() error {
-	f, err := s.load()
+const pickNew = " (new)"
+
+// PickAndOpen offers the running sessions and the projects without one, then opens the choice.
+func (s *Sessions) PickAndOpen() error {
+	live, err := s.Live.List()
 	if err != nil {
 		return err
 	}
-	choice, err := s.Picker.Pick(append(sessionNames(f), pickAll, pickFresh))
-	if err != nil {
-		if err.Error() == "user aborted" { // huh's Ctrl+C, non-fatal (as in setup)
-			return nil
-		}
-		return err
-	}
-	switch choice {
-	case pickAll:
-		return s.Opener.OpenAll(f)
-	case pickFresh:
-		return s.Opener.Fresh("")
-	default:
-		return s.Open(choice)
-	}
-}
-
-// Edit seeds the config file if missing and opens it in the editor.
-func (s *Sessions) Edit() error {
-	if err := s.Store.Seed(); err != nil {
-		return err
-	}
-	return s.EditFn(s.Store.Path())
-}
-
-// load wraps Store.Load with guidance when no config exists yet.
-func (s *Sessions) load() (sessions.File, error) {
-	f, err := s.Store.Load()
-	if errors.Is(err, os.ErrNotExist) {
-		return f, fmt.Errorf("no sessions configured — run `tars sessions edit` to create %s", s.Store.Path())
-	}
-	return f, err
-}
-
-// Open opens the configured session with the given name.
-func (s *Sessions) Open(name string) error {
-	f, err := s.load()
+	found, err := s.Catalog.Projects()
 	if err != nil {
 		return err
 	}
-	for _, sess := range f.Sessions {
-		if sess.Name == name {
-			return s.Opener.Open(sess)
+	running := map[string]bool{}
+	var options []string
+	for _, l := range live {
+		running[l.Name] = true
+		options = append(options, l.Name)
+	}
+	for _, p := range found {
+		if !running[p.Name] {
+			options = append(options, p.Name+pickNew)
 		}
 	}
-	return fmt.Errorf("unknown session %q (configured: %s)", name, strings.Join(sessionNames(f), ", "))
-}
-
-// All opens every configured session, attaching to the first.
-func (s *Sessions) All() error {
-	f, err := s.load()
+	choice, err := s.Picker.Pick(options)
+	if err != nil && err.Error() == "user aborted" { // huh's Ctrl+C, non-fatal (as in setup)
+		return nil
+	}
 	if err != nil {
 		return err
 	}
-	return s.Opener.OpenAll(f)
+	return s.Open(strings.TrimSuffix(choice, pickNew))
 }
 
-// New opens a fresh byobu session (optionally named); reads no config.
-func (s *Sessions) New(name string) error {
-	return s.Opener.Fresh(name)
+// Interactive runs the sessions manager, then opens what the user picked in it.
+func (s *Sessions) Interactive() error {
+	if s.Headless {
+		return s.List()
+	}
+	chosen, err := s.Manage(sessionsManager{s})
+	if err != nil || chosen == "" {
+		return err
+	}
+	return s.Open(chosen)
 }
 
-// List prints the configured sessions and their dirs.
+// sessionsManager is the tui.Manager over the live sessions and the project catalog.
+type sessionsManager struct{ s *Sessions }
+
+func (m sessionsManager) Rows() ([]tui.Row, error) {
+	live, err := m.s.Live.List()
+	if err != nil {
+		return nil, err
+	}
+	found, err := m.s.Catalog.Projects()
+	if err != nil {
+		return nil, err
+	}
+	dirs := map[string]string{}
+	for _, p := range found {
+		dirs[p.Name] = p.Dir
+	}
+	var rows []tui.Row
+	for _, l := range live {
+		rows = append(rows, tui.Row{Name: l.Name, Live: true, Windows: l.Windows, Attached: l.Attached, Dir: dirs[l.Name]})
+		delete(dirs, l.Name)
+	}
+	for _, p := range found {
+		if dir, idle := dirs[p.Name]; idle {
+			rows = append(rows, tui.Row{Name: p.Name, Dir: dir})
+		}
+	}
+	return rows, nil
+}
+
+func (m sessionsManager) Kill(name string) error { return m.s.Live.Kill(name) }
+
+func (m sessionsManager) Rename(old, name string) error { return m.s.Live.Rename(old, name) }
+
+func (m sessionsManager) Template(project string) (projects.Template, error) {
+	found, err := m.s.Catalog.Projects()
+	if err != nil {
+		return projects.Template{}, err
+	}
+	templates, err := m.s.Catalog.Templates()
+	if err != nil {
+		return projects.Template{}, err
+	}
+	for _, p := range found {
+		if p.Name == project {
+			return templates.Template(p), nil
+		}
+	}
+	return projects.Template{}, fmt.Errorf("no project %q", project)
+}
+
+func (m sessionsManager) SaveTemplate(project string, t projects.Template) error {
+	templates, err := m.s.Catalog.Templates()
+	if err != nil {
+		return err
+	}
+	saved := maps.Clone(templates.Projects)
+	if saved == nil {
+		saved = map[string]projects.Template{}
+	}
+	saved[project] = t
+	return m.s.Catalog.SaveTemplates(projects.File{Projects: saved})
+}
+
+// List prints the running sessions, marking the attached one with '*' and naming their project.
 func (s *Sessions) List() error {
-	f, err := s.load()
+	live, err := s.Live.List()
 	if err != nil {
 		return err
 	}
-	for _, sess := range f.Sessions {
-		fmt.Fprintf(s.Stdout, "%s\n", sess.Name)
-		for _, dir := range sess.Dirs {
-			fmt.Fprintf(s.Stdout, "  %s\n", dir)
+	found, err := s.Catalog.Projects()
+	if err != nil {
+		return err
+	}
+	dirs := map[string]string{}
+	for _, p := range found {
+		dirs[p.Name] = p.Dir
+	}
+	w := tabwriter.NewWriter(s.Stdout, 0, 0, 2, ' ', 0)
+	for _, l := range live {
+		marker := " "
+		if l.Attached {
+			marker = "*"
+		}
+		fmt.Fprintf(w, "%s %s\t%d windows", marker, l.Name, l.Windows)
+		if dir, ok := dirs[l.Name]; ok {
+			fmt.Fprintf(w, "\tproject %s", dir)
+		}
+		fmt.Fprintln(w)
+	}
+	return w.Flush()
+}
+
+// Projects prints every project, marking running ones with '●' and naming its template.
+func (s *Sessions) Projects() error {
+	live, err := s.Live.List()
+	if err != nil {
+		return err
+	}
+	found, err := s.Catalog.Projects()
+	if err != nil {
+		return err
+	}
+	templates, err := s.Catalog.Templates()
+	if err != nil {
+		return err
+	}
+	running := map[string]bool{}
+	for _, l := range live {
+		running[l.Name] = true
+	}
+	w := tabwriter.NewWriter(s.Stdout, 0, 0, 2, ' ', 0)
+	for _, p := range found {
+		marker, template := " ", "default"
+		if running[p.Name] {
+			marker = "●"
+		}
+		if _, ok := templates.Projects[p.Name]; ok {
+			template = "template"
+		}
+		fmt.Fprintf(w, "%s %s\t%s\t%s\n", marker, p.Name, p.Dir, template)
+	}
+	return w.Flush()
+}
+
+// Edit seeds the projects file if missing and opens it in the editor.
+func (s *Sessions) Edit() error {
+	if err := s.Catalog.Seed(); err != nil {
+		return err
+	}
+	return s.EditFn(s.Catalog.Path())
+}
+
+// Kill ends a running session.
+func (s *Sessions) Kill(name string) error { return s.Live.Kill(name) }
+
+// Rename gives a running session a new name.
+func (s *Sessions) Rename(old, name string) error { return s.Live.Rename(old, name) }
+
+// Open attaches to the running session called target, or starts the project of that name;
+// an empty target means the project containing the current dir.
+func (s *Sessions) Open(target string) error {
+	if target == "" {
+		here, err := s.projectHere()
+		if err != nil {
+			return err
+		}
+		target = here
+	}
+	live, err := s.Live.List()
+	if err != nil {
+		return err
+	}
+	var running []string
+	for _, l := range live {
+		if l.Name == target {
+			return s.Live.Attach(target)
+		}
+		running = append(running, l.Name)
+	}
+	found, err := s.Catalog.Projects()
+	if err != nil {
+		return err
+	}
+	templates, err := s.Catalog.Templates()
+	if err != nil {
+		return err
+	}
+	var names []string
+	for _, p := range found {
+		if p.Name == target {
+			return s.Live.Open(p.Name, templates.Windows(p))
+		}
+		names = append(names, p.Name)
+	}
+	return fmt.Errorf("no session or project %q (running: %s; projects: %s)",
+		target, strings.Join(running, ", "), strings.Join(names, ", "))
+}
+
+func (s *Sessions) projectHere() (string, error) {
+	cwd, err := s.Getwd()
+	if err != nil {
+		return "", err
+	}
+	found, err := s.Catalog.Projects()
+	if err != nil {
+		return "", err
+	}
+	for _, p := range found {
+		if rel, err := filepath.Rel(p.Dir, cwd); err == nil && !strings.HasPrefix(rel, "..") {
+			return p.Name, nil
 		}
 	}
-	return nil
+	return "", fmt.Errorf("%s is not inside a project", cwd)
 }
 
-func sessionNames(f sessions.File) []string {
-	names := make([]string, len(f.Sessions))
-	for i, s := range f.Sessions {
-		names[i] = s.Name
+// FileProjectCatalog finds projects under the profiles' projects_dir and templates in the projects file.
+type FileProjectCatalog struct {
+	ProfilesPath string
+	File         string
+	Home         string
+}
+
+// Projects discovers the git repos under projects_dir.
+func (c FileProjectCatalog) Projects() ([]projects.Project, error) {
+	f, err := profiles.Load(c.ProfilesPath, c.Home)
+	if errors.Is(err, os.ErrNotExist) {
+		return projects.Discover(profiles.DefaultProjectsDir(c.Home))
 	}
-	return names
+	if err != nil {
+		return nil, err
+	}
+	return projects.Discover(f.ProjectsDir)
 }
 
-// FileSessionStore is the production SessionStore over the yaml config file.
-type FileSessionStore struct{ path string }
+// Templates loads the projects file.
+func (c FileProjectCatalog) Templates() (projects.File, error) { return projects.Load(c.File) }
 
-// Load reads the sessions config from disk.
-func (s FileSessionStore) Load() (sessions.File, error) { return sessions.Load(s.path) }
+// Path is the projects file location.
+func (c FileProjectCatalog) Path() string { return c.File }
 
-// Path returns the config file location.
-func (s FileSessionStore) Path() string { return s.path }
+// Seed writes the example projects file if none exists.
+func (c FileProjectCatalog) Seed() error { return projects.Seed(c.File) }
 
-// Seed writes the example config if none exists.
-func (s FileSessionStore) Seed() error { return sessions.Seed(s.path) }
+// SaveTemplates writes the projects file.
+func (c FileProjectCatalog) SaveTemplates(f projects.File) error { return projects.Save(c.File, f) }
 
 // FormsSessionPicker adapts the huh single-select to SessionPicker.
 type FormsSessionPicker struct{}
@@ -170,91 +345,97 @@ func defaultEditor(path string) error {
 }
 
 // NewSessions wires the production collaborators for the sessions verbs.
-func NewSessions(stdout, stderr io.Writer) (*Sessions, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil, fmt.Errorf("locating home dir: %w", err)
-	}
+func NewSessions(stdout io.Writer) *Sessions {
+	home, _ := os.UserHomeDir()
 	return &Sessions{
-		Store: FileSessionStore{path: sessions.DefaultPath()},
-		Opener: sessions.Launcher{
+		Live: sessions.Launcher{
 			Run:       sessions.DefaultRunner(),
+			Output:    sessions.DefaultOutput(),
 			LookupEnv: os.LookupEnv,
-			Home:      home,
-			Stdout:    stdout,
-			Stderr:    stderr,
 		},
-		Picker: FormsSessionPicker{},
-		EditFn: defaultEditor,
-		Stdout: stdout,
-		Stderr: stderr,
-	}, nil
+		Catalog:  FileProjectCatalog{ProfilesPath: profiles.DefaultPath(), File: projects.DefaultPath(), Home: home},
+		Picker:   FormsSessionPicker{},
+		EditFn:   defaultEditor,
+		Getwd:    os.Getwd,
+		Manage:   tui.RunSessions,
+		Headless: os.Getenv("TARS_NO_FORM") != "",
+		Stdout:   stdout,
+	}
 }
 
 // sessionsRunE builds the production Sessions and runs fn on it.
 func sessionsRunE(fn func(s *Sessions, args []string) error) func(*cobra.Command, []string) error {
 	return func(cmd *cobra.Command, args []string) error {
-		s, err := NewSessions(cmd.OutOrStdout(), cmd.ErrOrStderr())
-		if err != nil {
-			return err
-		}
-		return fn(s, args)
+		return fn(NewSessions(cmd.OutOrStdout()), args)
 	}
 }
 
 var sessionsCmd = &cobra.Command{
 	Use:     "sessions",
 	Aliases: []string{"s", "by"},
-	Short:   "Open byobu sessions from a simple config of dirs (aliases: s, by)",
-	Long: `Manage a set of byobu sessions declared in a simple yaml config
-(~/.config/tars/sessions.yaml): each session is a name plus a list
-of dirs, one window per dir. Opening is idempotent — existing sessions are
-attached, never duplicated. Run bare for an interactive picker.`,
-	RunE: sessionsRunE(func(s *Sessions, _ []string) error { return s.PickAndRun() }),
+	Short:   "Manage live byobu sessions and start them from project templates (aliases: s, by)",
+	Long: `Every git repo under projects_dir (profiles.yaml, default ~/Desktop/projects)
+is a project; opening one starts a byobu session named after it, laid out by its
+template in ~/.config/tars/projects.yaml (default: one window at the repo root).
+Opening is idempotent: a running session is attached, never duplicated.
+Run bare for a picker over running sessions and projects, or with -i for a
+manager that opens, kills and renames sessions and edits project templates.`,
+	RunE: sessionsRunE(func(s *Sessions, _ []string) error {
+		if sessionsInteractive {
+			return s.Interactive()
+		}
+		return s.PickAndOpen()
+	}),
 }
+
+var sessionsInteractive bool
 
 var sessionsOpenCmd = &cobra.Command{
-	Use:     "open <name>",
+	Use:     "open [session|project]",
 	Aliases: []string{"o"},
-	Short:   "Open one configured session (alias: o)",
-	Args:    cobra.ExactArgs(1),
-	RunE:    sessionsRunE(func(s *Sessions, args []string) error { return s.Open(args[0]) }),
-}
-
-var sessionsAllCmd = &cobra.Command{
-	Use:     "all",
-	Aliases: []string{"a"},
-	Short:   "Open every configured session and attach to the first (alias: a)",
-	Args:    cobra.NoArgs,
-	RunE:    sessionsRunE(func(s *Sessions, _ []string) error { return s.All() }),
-}
-
-var sessionsNewCmd = &cobra.Command{
-	Use:     "new [name]",
-	Aliases: []string{"n"},
-	Short:   "Open a fresh byobu session, optionally named (alias: n)",
+	Short:   "Attach to a running session, or start one for a project; defaults to the current dir's project (alias: o)",
 	Args:    cobra.MaximumNArgs(1),
 	RunE: sessionsRunE(func(s *Sessions, args []string) error {
-		name := ""
-		if len(args) == 1 {
-			name = args[0]
-		}
-		return s.New(name)
+		return s.Open(strings.Join(args, ""))
 	}),
 }
 
 var sessionsListCmd = &cobra.Command{
 	Use:     "list",
 	Aliases: []string{"l", "ls"},
-	Short:   "List the configured sessions and their dirs (aliases: l, ls)",
+	Short:   "List the running byobu sessions and their projects (aliases: l, ls)",
 	Args:    cobra.NoArgs,
 	RunE:    sessionsRunE(func(s *Sessions, _ []string) error { return s.List() }),
+}
+
+var sessionsProjectsCmd = &cobra.Command{
+	Use:     "projects",
+	Aliases: []string{"p"},
+	Short:   "List the projects under projects_dir, which are running, and their templates (alias: p)",
+	Args:    cobra.NoArgs,
+	RunE:    sessionsRunE(func(s *Sessions, _ []string) error { return s.Projects() }),
+}
+
+var sessionsKillCmd = &cobra.Command{
+	Use:     "kill <session>",
+	Aliases: []string{"k"},
+	Short:   "Kill a running byobu session (alias: k)",
+	Args:    cobra.ExactArgs(1),
+	RunE:    sessionsRunE(func(s *Sessions, args []string) error { return s.Kill(args[0]) }),
+}
+
+var sessionsRenameCmd = &cobra.Command{
+	Use:     "rename <session> <new-name>",
+	Aliases: []string{"r"},
+	Short:   "Rename a running byobu session (alias: r)",
+	Args:    cobra.ExactArgs(2),
+	RunE:    sessionsRunE(func(s *Sessions, args []string) error { return s.Rename(args[0], args[1]) }),
 }
 
 var sessionsEditCmd = &cobra.Command{
 	Use:     "edit",
 	Aliases: []string{"e"},
-	Short:   "Edit the sessions config in $EDITOR, seeding an example if missing (alias: e)",
+	Short:   "Edit the project session templates in $EDITOR, seeding an example if missing (alias: e)",
 	Args:    cobra.NoArgs,
 	RunE:    sessionsRunE(func(s *Sessions, _ []string) error { return s.Edit() }),
 }
@@ -262,8 +443,10 @@ var sessionsEditCmd = &cobra.Command{
 func init() {
 	// Runtime errors (unknown session, byobu failures) shouldn't dump usage.
 	sessionsCmd.SilenceUsage = true
+	sessionsCmd.Flags().BoolVarP(&sessionsInteractive, "interactive", "i", false,
+		"manage sessions and project templates in a full-screen list")
 	for _, c := range []*cobra.Command{
-		sessionsOpenCmd, sessionsAllCmd, sessionsNewCmd, sessionsListCmd, sessionsEditCmd,
+		sessionsOpenCmd, sessionsListCmd, sessionsProjectsCmd, sessionsKillCmd, sessionsRenameCmd, sessionsEditCmd,
 	} {
 		c.SilenceUsage = true
 		sessionsCmd.AddCommand(c)
