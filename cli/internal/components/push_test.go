@@ -88,6 +88,14 @@ var _ = Describe("Component Push (local → repo, archiving the repo copy)", fun
 		Expect(read(filepath.Join(opts.BackupRoot, "byobu-repo", "v1", "keybindings.tmux"))).To(Equal("OLD"))
 	})
 
+	It("byobu pushes the quiet-status flag set locally by byobu-quiet", func() {
+		write(filepath.Join(home, ".byobu", "status.disable"), "")
+
+		Expect(components.NewByobu(opts).Push()).To(Succeed())
+
+		Expect(filepath.Join(repoRoot, "byobu", "status.disable")).To(BeARegularFile())
+	})
+
 	It("nvim pushes the local config tree to the repo and archives the old repo copy", func() {
 		write(filepath.Join(repoRoot, "nvim", "init.lua"), "OLD")
 		write(filepath.Join(home, ".config", "nvim", "init.lua"), "NEW")

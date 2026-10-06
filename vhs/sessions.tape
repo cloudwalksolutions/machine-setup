@@ -17,7 +17,7 @@ Set WindowBar Colorful
 Env HOME "/tmp/tars-demo"
 
 Hide
-Type "rm -rf /tmp/tars-demo && mkdir -p /tmp/tars-demo/Desktop/projects/api/.git /tmp/tars-demo/Desktop/projects/api/frontend /tmp/tars-demo/Desktop/projects/infra/.git /tmp/tars-demo/.config/tars && cd /tmp/tars-demo && printf 'projects:\n  api:\n    windows:\n      - {name: shell, command: ls}\n      - {name: web, dir: frontend, command: pwd}\n' > /tmp/tars-demo/.config/tars/projects.yaml && clear"
+Type "rm -rf /tmp/tars-demo && mkdir -p /tmp/tars-demo/Desktop/projects/api/.git /tmp/tars-demo/Desktop/projects/api/frontend /tmp/tars-demo/Desktop/projects/infra/.git /tmp/tars-demo/.config/tars && cd /tmp/tars-demo && printf 'projects:\n  api:\n    windows:\n      - {name: shell, command: ls}\n      - {name: web, dir: frontend, command: pwd}\n' > /tmp/tars-demo/.config/tars/projects.yaml && tars pull >/dev/null && clear"
 Enter
 Show
 

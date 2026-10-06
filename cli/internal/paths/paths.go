@@ -117,6 +117,9 @@ type ByobuPaths struct {
 	StatusrcLocal    string
 	ColorRepo        string
 	ColorLocal       string
+	// StatusDisable is byobu-quiet's flag: its presence hides the status indicators.
+	StatusDisableRepo  string
+	StatusDisableLocal string
 }
 
 func piPaths(repoRoot, agent string) PiPaths {
@@ -184,18 +187,20 @@ func ForOS(repoRoot, home, goos string) Paths {
 			SecretLocal:          filepath.Join(home, ".zshrc_secret"),
 		},
 		Byobu: ByobuPaths{
-			BinRepo:          filepath.Join(repoRoot, "byobu", "bin"),
-			BinLocal:         filepath.Join(home, ".byobu", "bin"),
-			TmuxConfRepo:     filepath.Join(repoRoot, "byobu", ".tmux.conf"),
-			TmuxConfLocal:    filepath.Join(home, ".byobu", ".tmux.conf"),
-			KeybindingsRepo:  filepath.Join(repoRoot, "byobu", "keybindings.tmux"),
-			KeybindingsLocal: filepath.Join(home, ".byobu", "keybindings.tmux"),
-			DatetimeRepo:     filepath.Join(repoRoot, "byobu", "datetime.tmux"),
-			DatetimeLocal:    filepath.Join(home, ".byobu", "datetime.tmux"),
-			StatusrcRepo:     filepath.Join(repoRoot, "byobu", "statusrc"),
-			StatusrcLocal:    filepath.Join(home, ".byobu", "statusrc"),
-			ColorRepo:        filepath.Join(repoRoot, "byobu", "color.tmux"),
-			ColorLocal:       filepath.Join(home, ".byobu", "color.tmux"),
+			BinRepo:            filepath.Join(repoRoot, "byobu", "bin"),
+			BinLocal:           filepath.Join(home, ".byobu", "bin"),
+			TmuxConfRepo:       filepath.Join(repoRoot, "byobu", ".tmux.conf"),
+			TmuxConfLocal:      filepath.Join(home, ".byobu", ".tmux.conf"),
+			KeybindingsRepo:    filepath.Join(repoRoot, "byobu", "keybindings.tmux"),
+			KeybindingsLocal:   filepath.Join(home, ".byobu", "keybindings.tmux"),
+			DatetimeRepo:       filepath.Join(repoRoot, "byobu", "datetime.tmux"),
+			DatetimeLocal:      filepath.Join(home, ".byobu", "datetime.tmux"),
+			StatusrcRepo:       filepath.Join(repoRoot, "byobu", "statusrc"),
+			StatusrcLocal:      filepath.Join(home, ".byobu", "statusrc"),
+			ColorRepo:          filepath.Join(repoRoot, "byobu", "color.tmux"),
+			ColorLocal:         filepath.Join(home, ".byobu", "color.tmux"),
+			StatusDisableRepo:  filepath.Join(repoRoot, "byobu", "status.disable"),
+			StatusDisableLocal: filepath.Join(home, ".byobu", "status.disable"),
 		},
 		Vim: VimPaths{
 			VimrcRepo:   filepath.Join(repoRoot, "vim", "vimrc"),

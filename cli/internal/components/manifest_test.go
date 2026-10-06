@@ -103,6 +103,7 @@ var _ = Describe("pull write manifest", func() {
 		write("byobu/datetime.tmux", "DATETIME")
 		write("byobu/statusrc", "STATUSRC")
 		write("byobu/color.tmux", "COLOR")
+		write("byobu/status.disable", "QUIET")
 		write("byobu/bin/1_git", "GITSCRIPT")
 
 		write("nvim/init.lua", "INIT")

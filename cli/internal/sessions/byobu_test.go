@@ -23,6 +23,9 @@ var _ = Describe("Launcher against real byobu", func() {
 		GinkgoT().Setenv("TMUX_TMPDIR", socketDir)
 		GinkgoT().Setenv("TMUX", "")
 		GinkgoT().Setenv("HOME", GinkgoT().TempDir())
+		// Inside a byobu session these point at its install and the user's ~/.byobu.
+		GinkgoT().Setenv("BYOBU_PREFIX", "")
+		GinkgoT().Setenv("BYOBU_CONFIG_DIR", "")
 		DeferCleanup(func() { _ = exec.Command("tmux", "kill-server").Run() })
 		l = sessions.Launcher{Run: sessions.DefaultRunner(), Output: sessions.DefaultOutput(), LookupEnv: os.LookupEnv}
 	})

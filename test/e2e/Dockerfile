@@ -34,6 +34,7 @@ RUN test -f "$HOME/.vimrc" \
  && test -f "$HOME/.zshrc_aliases" \
  && test -f "$HOME/.profile" \
  && test -f "$HOME/.byobu/.tmux.conf" \
+ && test -f "$HOME/.byobu/status.disable" \
  && test -x "$HOME/.byobu/bin/1_git" \
  && test -d "$HOME/.config/nvim" \
  && ls "$HOME/.local/share/fonts/"*.ttf >/dev/null \
@@ -114,6 +115,7 @@ ENV TARS_REPO=
 RUN tars pull \
  && test -f "$HOME/.local/share/tars/repo/zsh/zshrc" \
  && test -f "$HOME/.zshrc" \
+ && test -f "$HOME/.byobu/status.disable" \
  && test -x "$HOME/.byobu/bin/1_git" \
  && ls "$HOME/.local/share/fonts/"*.ttf >/dev/null \
  && zsh -ic 'exit'

@@ -92,7 +92,9 @@ Every file below is archived to `~/.local/state/tars/backups/<component>/vN`
 
 - `~/.zshrc`, `~/.zshrc_aliases`, and the login profile (`~/.zprofile` on macOS, `~/.profile` on Linux)
 - `~/.config/nvim/` (replaced wholesale), `~/.vimrc`, `~/.vim/colors/`
-- `~/.byobu/` configs and status scripts
+- `~/.byobu/` configs and status scripts, including byobu-quiet's `status.disable` flag:
+  the status bar shows only windows and the clock (`byobu-quiet --undo` or delete the
+  file to bring the indicators back; `tars pull` puts it back)
 - Hack Nerd Font into `~/Library/Fonts` (macOS) or `~/.local/share/fonts` (Linux)
 - macOS only: the iTerm2 and Terminal.app font and profile
 - With profiles configured: the managed block in `~/.gitconfig` and `~/.config/tars/profiles/<alias>.gitconfig`
@@ -212,7 +214,7 @@ For each account (example: name `cloudwalk`, alias `cws`):
 - `~/.zshrc`, `~/.zshrc_aliases`, and the login profile (`~/.zprofile` on macOS,
   `~/.profile` on Linux)
 - `~/.config/nvim/` (replaced wholesale), `~/.vimrc`, `~/.vim/colors/`
-- `~/.byobu/` configs and status scripts
+- `~/.byobu/` configs and status scripts, plus the quiet-status flag
 - Fonts: Hack Nerd Font → `~/Library/Fonts` (macOS) or `~/.local/share/fonts`
   (Linux); per-user, no sudo
 - macOS only: sets the iTerm2 + Terminal.app font/profile
