@@ -31,6 +31,9 @@ type File struct {
 
 var identifierRe = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
 
+// DefaultProjectsDir is where projects live when projects_dir is unset.
+func DefaultProjectsDir(home string) string { return filepath.Join(home, "Desktop", "projects") }
+
 // Load reads and parses the profiles config at path, resolving conventions against home.
 func Load(path, home string) (File, error) {
 	data, err := os.ReadFile(path)
@@ -42,7 +45,7 @@ func Load(path, home string) (File, error) {
 		return File{}, err
 	}
 	if f.ProjectsDir == "" {
-		f.ProjectsDir = filepath.Join(home, "Desktop", "projects")
+		f.ProjectsDir = DefaultProjectsDir(home)
 	}
 	f.ProjectsDir = expandHome(f.ProjectsDir, home)
 	names, aliases := map[string]bool{}, map[string]bool{}

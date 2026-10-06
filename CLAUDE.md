@@ -6,8 +6,8 @@ Guidance for Claude Code (claude.ai/code) when working in this repository.
 
 A dev-machine provisioning tool for macOS (primary) and Linux (incl. shared bastions). It goes
 from a fresh machine to a production-ready dev environment: dev tools, dotfiles
-(Neovim, Zsh, Byobu, Vim), fonts, and terminal settings, plus a declarative byobu
-session manager. The user-facing CLI is **`tars`** (Go, in `cli/`) with five verbs:
+(Neovim, Zsh, Byobu, Vim), fonts, and terminal settings, plus a manager for live byobu
+sessions, one per project (git repo under `projects_dir`). The user-facing CLI is **`tars`** (Go, in `cli/`) with five verbs:
 `init` (bootstrap; subcommands `init claude`, `init pi`, `init project`), `pull`, `push`,
 `sessions`, `profiles`.
 
@@ -15,8 +15,9 @@ session manager. The user-facing CLI is **`tars`** (Go, in `cli/`) with five ver
 
 - **One command to provision**: `tars init` installs packages (brew on macOS,
   apt/tarball on Linux), oh-my-zsh, Powerlevel10k, then applies all configs.
-  Day-to-day: `pull`/`push` sync configs, `sessions` opens byobu workspaces, `profiles`
-  switches git/GitHub/SSH identity per project dir.
+  Day-to-day: `pull`/`push` sync configs, `sessions` manages the running byobu sessions and
+  starts one per project from its template (`-i` for the TUI), `profiles` switches
+  git/GitHub/SSH identity per project dir.
 - **Bidirectional sync**: `tars pull` applies repo configs to the machine (no installs,
   no network — safe to re-run); `tars push` copies local edits back into the repo.
 - **Versioned backups**: every overwrite is archived first under
@@ -40,13 +41,14 @@ session manager. The user-facing CLI is **`tars`** (Go, in `cli/`) with five ver
 │   ├── cmd/                     # cobra commands: setup, pull, push, sessions, profiles (+ root)
 │   │   ├── setup.go             # Setup orchestrator + SequentialPuller (DI, testable)
 │   │   ├── pull.go / push.go    # apply / capture configs; SequentialPusher
-│   │   ├── sessions.go          # byobu sessions command group (aliases s/by)
+│   │   ├── sessions.go          # sessions command group (aliases s/by): live sessions × projects, -i manager
 │   │   ├── profiles.go          # account identities command group (alias p)
 │   │   ├── backup.go            # BackupRoot: ~/.local/state/tars/backups (+ env override)
 │   │   ├── resolve.go           # ResolveRepo: clone discovery → embedded-assets fallback
 │   └── internal/
 │       ├── components/          # per-tool Pull/Push: vim, zsh, byobu, nvim, fonts, terminal, profiles, claude, pi
-│       ├── sessions/            # declarative byobu sessions: yaml config + idempotent launcher
+│       ├── sessions/            # byobu driver: list/create-from-windows/attach/kill/rename live sessions
+│       ├── projects/            # git repos under projects_dir + their session templates (projects.yaml)
 │       ├── profiles/            # account identities: yaml config, gitconfig/env rendering, active marker
 │       ├── dotfiles/            # specs only: lint the shipped zsh files + terminal font string
 │       ├── assets/              # dotfiles embedded in the binary (tree/ mirror; `make sync-assets`)
@@ -56,7 +58,7 @@ session manager. The user-facing CLI is **`tars`** (Go, in `cli/`) with five ver
 │       ├── pkg/                 # installable dev tools (brew/apt/rvm) + registry
 │       ├── forms/               # huh v2 form builders, shared theme, Headless defaults (TARS_NO_FORM=1)
 │       ├── report/              # Reporter seam: orchestrators report steps/items; Text prints plain lines
-│       ├── tui/                 # Bubble Tea v2 program for `tars init`: live pane + embedded forms
+│       ├── tui/                 # Bubble Tea v2: `tars init` live pane + embedded forms; `tars sessions -i` list manager
 │       ├── shell/               # oh-my-zsh / powerlevel10k installers
 │       └── config/              # persisted YAML config
 ├── nvim/  zsh/  byobu/  vim/     # the dotfiles tars manages
@@ -105,7 +107,9 @@ Tests are layered:
      (`GinkgoTB()` satisfies its `testing.TB`), asserting the printed lines, the form, the key
      press and the flow's result. Only `run.go` (tea.NewProgram on the terminal) is untested.
 2. **Integration** (`make integration`) — real external deps: brew installers gated by
-   `INTEGRATION=1` (installs/removes `hello`) plus the Neovim config tests (real `nvim`).
+   `INTEGRATION=1` (installs/removes `hello`), the session launcher against real byobu/tmux
+   on an isolated socket (also run by the Linux `test` CI job), plus the Neovim config tests
+   (real `nvim`).
    Off by default in `go test`.
 3. **End-to-end** (`make e2e`) — `test/e2e/Dockerfile`: builds `tars` against a
    **root-owned, read-only** repo clone shared by two non-root users, plus a third user
@@ -137,7 +141,7 @@ spec can drive a fake and still fail red-first:
   so darwin-only code compiles and its unit tests run for real.
 - **Path/env overrides**: `Fonts.LocalOverride`, `TARS_REPO`,
   `TARS_NO_FORM=1` (no tea.Program: plain-text reporter + default answers), `TARS_CONFIG_PATH`,
-  `TARS_SESSIONS_PATH`, `TARS_PROFILES_PATH`, `TARS_BACKUP_ROOT`,
+  `TARS_PROJECTS_PATH`, `TARS_PROFILES_PATH`, `TARS_BACKUP_ROOT`,
   `Profiles.ConfigPath` (component), and
   `UPDATE_GOLDEN=1` (regenerates `components/testdata/pull_manifest.golden`; review the diff).
 
@@ -262,5 +266,5 @@ bumps are a manual tag push; see `docs/releasing.md`. Test locally with
   Node.js, and language servers (auto-installed via Mason).
 - **ALWAYS run Neovim tests**: after ANY change to the Neovim config, run `make test-nvim`
   automatically (don't ask) to validate.
-- The user handles all `git` operations themselves — make changes and stop; don't commit,
-  branch, or push.
+- Land work as a branch and a pull request (never push to `main`): commit, push, open the PR
+  with `gh`, watch `gh pr checks <n> --watch`, and always give the user the PR link.

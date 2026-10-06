@@ -29,6 +29,7 @@ var _ = Describe("Byobu.Pull", func() {
 		Expect(os.WriteFile(filepath.Join(repoRoot, "byobu", "datetime.tmux"), []byte("TIME"), 0o644)).To(Succeed())
 		Expect(os.WriteFile(filepath.Join(repoRoot, "byobu", "statusrc"), []byte("STATUS"), 0o644)).To(Succeed())
 		Expect(os.WriteFile(filepath.Join(repoRoot, "byobu", "color.tmux"), []byte("COLOR"), 0o644)).To(Succeed())
+		Expect(os.WriteFile(filepath.Join(repoRoot, "byobu", "status.disable"), []byte("QUIET"), 0o644)).To(Succeed())
 		Expect(os.WriteFile(filepath.Join(repoRoot, "byobu", "bin", "1_git"), []byte("GIT_SCRIPT"), 0o755)).To(Succeed())
 
 		opts = components.Options{
@@ -53,6 +54,7 @@ var _ = Describe("Byobu.Pull", func() {
 		mustEqual(filepath.Join(home, ".byobu", "datetime.tmux"), "TIME")
 		mustEqual(filepath.Join(home, ".byobu", "statusrc"), "STATUS")
 		mustEqual(filepath.Join(home, ".byobu", "color.tmux"), "COLOR")
+		mustEqual(filepath.Join(home, ".byobu", "status.disable"), "QUIET")
 	})
 
 	It("copies repo byobu/bin/* into ~/.byobu/bin/ (flat, not nested)", func() {

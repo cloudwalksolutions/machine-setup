@@ -29,6 +29,7 @@ func (b *Byobu) Pull() error {
 		{b.p.DatetimeRepo, b.p.DatetimeLocal},
 		{b.p.StatusrcRepo, b.p.StatusrcLocal},
 		{b.p.ColorRepo, b.p.ColorLocal},
+		{b.p.StatusDisableRepo, b.p.StatusDisableLocal},
 	}
 	for _, c := range copies {
 		if err := b.opts.copier().SafeCopy(c.src, c.dst, b.Name(), b.opts.BackupRoot); err != nil {
@@ -48,6 +49,7 @@ func (b *Byobu) Push() error {
 		{b.p.DatetimeLocal, b.p.DatetimeRepo},
 		{b.p.StatusrcLocal, b.p.StatusrcRepo},
 		{b.p.ColorLocal, b.p.ColorRepo},
+		{b.p.StatusDisableLocal, b.p.StatusDisableRepo},
 	}
 	for _, c := range copies {
 		if _, err := os.Stat(c.src); err != nil {

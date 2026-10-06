@@ -3,6 +3,7 @@ package cmd_test
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"path/filepath"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -11,7 +12,9 @@ import (
 	"tars/cmd"
 	"tars/internal/forms"
 	"tars/internal/pkg"
+	"tars/internal/projects"
 	"tars/internal/report"
+	"tars/internal/sessions"
 )
 
 var _ = Describe("IterativeInstaller.InstallAll", func() {
@@ -91,31 +94,56 @@ var _ = Describe("composition roots", func() {
 	})
 
 	It("NewSessions wires a complete production Sessions", func() {
-		GinkgoT().Setenv("HOME", GinkgoT().TempDir())
+		s := cmd.NewSessions(&bytes.Buffer{})
 
-		s, err := cmd.NewSessions(&bytes.Buffer{}, &bytes.Buffer{})
-
-		Expect(err).NotTo(HaveOccurred())
-		Expect(s.Store).NotTo(BeNil())
-		Expect(s.Opener).NotTo(BeNil())
+		Expect(s.Live).NotTo(BeNil())
 		Expect(s.Picker).NotTo(BeNil())
 		Expect(s.EditFn).NotTo(BeNil())
+		Expect(s.Getwd).NotTo(BeNil())
+		Expect(s.Manage).NotTo(BeNil())
+	})
+
+	It("NewSessions manages headless under TARS_NO_FORM", func() {
+		GinkgoT().Setenv("TARS_NO_FORM", "1")
+
+		Expect(cmd.NewSessions(&bytes.Buffer{}).Headless).To(BeTrue())
 	})
 })
 
-var _ = Describe("FileSessionStore", func() {
-	It("seeds, loads, and reports its path", func() {
-		path := filepath.Join(GinkgoT().TempDir(), "sessions.yaml")
-		GinkgoT().Setenv("TARS_SESSIONS_PATH", path)
-		GinkgoT().Setenv("HOME", GinkgoT().TempDir())
+var _ = Describe("FileProjectCatalog", func() {
+	It("discovers the repos under the profiles' projects_dir", func() {
+		root := GinkgoT().TempDir()
+		Expect(os.MkdirAll(filepath.Join(root, "api", ".git"), 0o755)).To(Succeed())
+		profilesPath := filepath.Join(GinkgoT().TempDir(), "profiles.yaml")
+		Expect(os.WriteFile(profilesPath, []byte("projects_dir: "+root+"\n"), 0o644)).To(Succeed())
+		GinkgoT().Setenv("TARS_PROFILES_PATH", profilesPath)
 
-		s, err := cmd.NewSessions(&bytes.Buffer{}, &bytes.Buffer{})
-		Expect(err).NotTo(HaveOccurred())
+		Expect(cmd.NewSessions(&bytes.Buffer{}).Catalog.Projects()).To(Equal([]projects.Project{
+			{Name: "api", Dir: filepath.Join(root, "api")},
+		}))
+	})
 
-		Expect(s.Store.Path()).To(Equal(path))
-		Expect(s.Store.Seed()).To(Succeed())
-		f, err := s.Store.Load()
-		Expect(err).NotTo(HaveOccurred())
-		Expect(f.Sessions).NotTo(BeEmpty(), "the seeded example should parse")
+	It("seeds, reports, saves and loads the projects file at TARS_PROJECTS_PATH", func() {
+		path := filepath.Join(GinkgoT().TempDir(), "projects.yaml")
+		GinkgoT().Setenv("TARS_PROJECTS_PATH", path)
+		catalog := cmd.NewSessions(&bytes.Buffer{}).Catalog
+		saved := projects.File{Projects: map[string]projects.Template{"api": {Windows: []sessions.Window{{Name: "code"}}}}}
+
+		Expect(catalog.Path()).To(Equal(path))
+		Expect(catalog.Seed()).To(Succeed())
+		Expect(catalog.Templates()).To(Equal(projects.File{}))
+		Expect(catalog.SaveTemplates(saved)).To(Succeed())
+		Expect(catalog.Templates()).To(Equal(saved))
+	})
+
+	It("falls back to the default projects_dir without a profiles file", func() {
+		home := GinkgoT().TempDir()
+		GinkgoT().Setenv("HOME", home)
+		GinkgoT().Setenv("TARS_PROFILES_PATH", filepath.Join(home, "missing.yaml"))
+		Expect(os.MkdirAll(filepath.Join(home, "Desktop", "projects", "api", ".git"), 0o755)).To(Succeed())
+
+		Expect(cmd.NewSessions(&bytes.Buffer{}).Catalog.Projects()).To(Equal([]projects.Project{
+			{Name: "api", Dir: filepath.Join(home, "Desktop", "projects", "api")},
+		}))
 	})
 })

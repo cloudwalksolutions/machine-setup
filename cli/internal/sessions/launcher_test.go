@@ -2,7 +2,6 @@ package sessions_test
 
 import (
 	"errors"
-	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -33,26 +32,24 @@ var _ = Describe("Launcher", func() {
 				}
 				return "", false
 			},
-			Stdout: GinkgoWriter,
-			Stderr: GinkgoWriter,
 		}
 	})
 
-	work := sessions.Session{Name: "work", Dirs: []string{"/p/api", "/p/web"}}
+	work := []sessions.Window{{Name: "api", Dir: "/p/api"}, {Name: "web", Dir: "/p/web"}}
 
 	Describe("Ensure", func() {
 		It("only checks existence when the session already exists", func() {
-			Expect(l.Ensure(work)).To(Succeed())
+			Expect(l.Ensure("work", work)).To(Succeed())
 
 			Expect(calls).To(Equal([][]string{
 				{"has-session", "-t", "=work"},
 			}))
 		})
 
-		It("creates a detached session with one window per dir when missing", func() {
+		It("creates a detached session with one window per template window when missing", func() {
 			byErr["has-session"] = errors.New("exit status 1")
 
-			Expect(l.Ensure(work)).To(Succeed())
+			Expect(l.Ensure("work", work)).To(Succeed())
 
 			Expect(calls).To(Equal([][]string{
 				{"has-session", "-t", "=work"},
@@ -60,68 +57,90 @@ var _ = Describe("Launcher", func() {
 				{"new-window", "-t", "=work:", "-n", "web", "-c", "/p/web"},
 			}))
 		})
+
+		It("types each window's command into it", func() {
+			byErr["has-session"] = errors.New("exit status 1")
+
+			Expect(l.Ensure("work", []sessions.Window{
+				{Name: "code", Dir: "/p/api", Command: "nvim"},
+				{Name: "shell", Dir: "/p/api"},
+				{Name: "server", Dir: "/p/api", Command: "make dev"},
+			})).To(Succeed())
+
+			Expect(calls).To(ContainElements(
+				[]string{"send-keys", "-t", "=work:code", "nvim", "Enter"},
+				[]string{"send-keys", "-t", "=work:server", "make dev", "Enter"},
+			))
+			Expect(calls).To(HaveLen(6))
+		})
+
+		It("propagates a failure to type a command", func() {
+			byErr["has-session"] = errors.New("exit status 1")
+			byErr["send-keys"] = errors.New("pane gone")
+
+			Expect(l.Ensure("work", []sessions.Window{{Name: "code", Dir: "/p", Command: "nvim"}})).
+				To(MatchError(ContainSubstring("pane gone")))
+		})
 	})
 
-	Describe("Fresh", func() {
-		It("opens a named session rooted at home", func() {
-			byErr["has-session"] = errors.New("exit status 1")
-			l.Home = "/fake/home"
+	Describe("List", func() {
+		It("reads the live sessions from list-sessions", func() {
+			l.Output = func(args ...string) (string, error) {
+				calls = append(calls, args)
+				return "api\t3\t1\nscratch\t1\t0\n", nil
+			}
 
-			Expect(l.Fresh("scratch")).To(Succeed())
-
+			Expect(l.List()).To(Equal([]sessions.Live{
+				{Name: "api", Windows: 3, Attached: true},
+				{Name: "scratch", Windows: 1},
+			}))
 			Expect(calls).To(Equal([][]string{
-				{"has-session", "-t", "=scratch"},
-				{"new-session", "-d", "-s", "scratch", "-n", "home", "-c", "/fake/home"},
-				{"attach-session", "-t", "=scratch"},
+				{"list-sessions", "-F", "#{session_name}\t#{session_windows}\t#{session_attached}"},
 			}))
 		})
 
-		It("opens an attached unnamed session when no name is given outside tmux", func() {
-			Expect(l.Fresh("")).To(Succeed())
+		DescribeTable("has no sessions when no server is running",
+			func(message string) {
+				l.Output = func(...string) (string, error) { return "", errors.New(message) }
 
-			Expect(calls).To(Equal([][]string{{"new-session"}}))
+				Expect(l.List()).To(BeEmpty())
+			},
+			Entry("socket left behind", "no server running on /tmp/tmux-501/default"),
+			Entry("no socket yet", "error connecting to /tmp/tmux-1001/default (No such file or directory)"),
+		)
+
+		It("has no sessions when the server lists none", func() {
+			l.Output = func(...string) (string, error) { return "\n", nil }
+
+			Expect(l.List()).To(BeEmpty())
 		})
 
-		It("refuses an unnamed session inside tmux, asking for a name", func() {
-			tmuxEnv = "/tmp/tmux-501/default,123,0"
+		It("propagates other failures", func() {
+			l.Output = func(...string) (string, error) { return "", errors.New("byobu: not found") }
 
-			Expect(l.Fresh("")).To(MatchError(ContainSubstring("name")))
-			Expect(calls).To(BeEmpty())
+			_, err := l.List()
+			Expect(err).To(MatchError(ContainSubstring("not found")))
 		})
 	})
 
-	Describe("OpenAll", func() {
-		It("ensures every session, reports failures, and attaches to the first that succeeded", func() {
-			var stderr strings.Builder
-			l.Stderr = &stderr
-			l.Run = func(args ...string) error {
-				calls = append(calls, args)
-				if args[0] == "has-session" {
-					return errors.New("exit status 1")
-				}
-				if args[0] == "new-session" && args[3] == "bad" {
-					return errors.New("boom")
-				}
-				return nil
-			}
-			f := sessions.File{Sessions: []sessions.Session{
-				{Name: "bad", Dirs: []string{"/b"}},
-				{Name: "good", Dirs: []string{"/g"}},
-			}}
+	Describe("Kill", func() {
+		It("kills the session by exact name", func() {
+			Expect(l.Kill("api")).To(Succeed())
 
-			Expect(l.OpenAll(f)).To(Succeed())
+			Expect(calls).To(Equal([][]string{{"kill-session", "-t", "=api"}}))
+		})
+	})
 
-			Expect(stderr.String()).To(ContainSubstring("bad"))
-			Expect(calls).To(ContainElement([]string{"new-session", "-d", "-s", "good", "-n", "g", "-c", "/g"}))
-			Expect(calls[len(calls)-1]).To(Equal([]string{"attach-session", "-t", "=good"}))
+	Describe("Rename", func() {
+		It("renames the session by exact name", func() {
+			Expect(l.Rename("api", "api-old")).To(Succeed())
+
+			Expect(calls).To(Equal([][]string{{"rename-session", "-t", "=api", "api-old"}}))
 		})
 
-		It("errors when no session could be ensured", func() {
-			l.Run = func(args ...string) error { return errors.New("boom") }
-
-			Expect(l.OpenAll(sessions.File{Sessions: []sessions.Session{
-				{Name: "only", Dirs: []string{"/o"}},
-			}})).NotTo(Succeed())
+		It("refuses names tmux would read as a target", func() {
+			Expect(l.Rename("api", "api.v2")).To(MatchError(ContainSubstring("'.' and ':'")))
+			Expect(calls).To(BeEmpty())
 		})
 	})
 
@@ -130,24 +149,24 @@ var _ = Describe("Launcher", func() {
 			byErr["has-session"] = errors.New("exit status 1")
 			byErr["new-session"] = errors.New("no server")
 
-			Expect(l.Open(work)).To(MatchError(ContainSubstring("no server")))
+			Expect(l.Open("work", work)).To(MatchError(ContainSubstring("no server")))
 		})
 
 		It("propagates an attach failure", func() {
 			byErr["attach-session"] = errors.New("not a terminal")
 
-			Expect(l.Open(work)).To(MatchError(ContainSubstring("not a terminal")))
+			Expect(l.Open("work", work)).To(MatchError(ContainSubstring("not a terminal")))
 		})
 
 		It("propagates a window-creation failure", func() {
 			byErr["has-session"] = errors.New("exit status 1")
 			byErr["new-window"] = errors.New("bad window")
 
-			Expect(l.Open(work)).To(MatchError(ContainSubstring("bad window")))
+			Expect(l.Open("work", work)).To(MatchError(ContainSubstring("bad window")))
 		})
 
 		It("ensures then attaches when outside tmux", func() {
-			Expect(l.Open(work)).To(Succeed())
+			Expect(l.Open("work", work)).To(Succeed())
 
 			Expect(calls).To(Equal([][]string{
 				{"has-session", "-t", "=work"},
@@ -158,7 +177,7 @@ var _ = Describe("Launcher", func() {
 		It("ensures then switches the current client when inside tmux", func() {
 			tmuxEnv = "/tmp/tmux-501/default,123,0"
 
-			Expect(l.Open(work)).To(Succeed())
+			Expect(l.Open("work", work)).To(Succeed())
 
 			Expect(calls).To(Equal([][]string{
 				{"has-session", "-t", "=work"},

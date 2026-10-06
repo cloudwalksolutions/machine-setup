@@ -16,26 +16,31 @@ import (
 	"tars/internal/tui"
 )
 
-type harness struct{ model tui.Model }
+type harness[M tea.Model] struct {
+	model M
+	quit  bool
+}
 
-func newHarness() *harness { return &harness{model: tui.New()} }
+func newHarness() *harness[tui.Model] { return &harness[tui.Model]{model: tui.New()} }
 
 // send feeds messages to the model, running returned commands and feeding their
 // messages back, the way a program would.
-func (h *harness) send(msgs ...tea.Msg) {
+func (h *harness[M]) send(msgs ...tea.Msg) {
 	for _, msg := range msgs {
 		m, cmd := h.model.Update(msg)
-		h.model = m.(tui.Model)
+		h.model = m.(M)
 		h.run(cmd)
 	}
 }
 
-func (h *harness) run(cmd tea.Cmd) {
+func (h *harness[M]) run(cmd tea.Cmd) {
 	if cmd == nil {
 		return
 	}
 	switch msg := cmd().(type) {
 	case nil:
+	case tea.QuitMsg:
+		h.quit = true
 	case tea.BatchMsg:
 		for _, c := range msg {
 			h.run(c)
@@ -45,10 +50,10 @@ func (h *harness) run(cmd tea.Cmd) {
 	}
 }
 
-func (h *harness) view() string { return ansi.Strip(h.model.View().Content) }
+func (h *harness[M]) view() string { return ansi.Strip(h.model.View().Content) }
 
 var _ = Describe("Model", func() {
-	var h *harness
+	var h *harness[tui.Model]
 
 	BeforeEach(func() { h = newHarness() })
 

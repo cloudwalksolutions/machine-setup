@@ -1,4 +1,4 @@
-# tars sessions demo — declarative byobu sessions from a simple yaml config.
+# tars sessions demo — live byobu sessions, one per project, laid out by its template.
 # Runs against a scratch HOME; byobu/tmux live inside the recording container.
 Output vhs/sessions.gif
 
@@ -17,23 +17,31 @@ Set WindowBar Colorful
 Env HOME "/tmp/tars-demo"
 
 Hide
-Type "rm -rf /tmp/tars-demo && mkdir -p /tmp/tars-demo/work/api /tmp/tars-demo/work/infra /tmp/tars-demo/.config/tars && cd /tmp/tars-demo && printf 'sessions:\n  - name: cloudwalk\n    dirs:\n      - ~/work/api\n      - ~/work/infra\n' > /tmp/tars-demo/.config/tars/sessions.yaml && clear"
+Type "rm -rf /tmp/tars-demo && mkdir -p /tmp/tars-demo/Desktop/projects/api/.git /tmp/tars-demo/Desktop/projects/api/frontend /tmp/tars-demo/Desktop/projects/infra/.git /tmp/tars-demo/.config/tars && cd /tmp/tars-demo && printf 'projects:\n  api:\n    windows:\n      - {name: shell, command: ls}\n      - {name: web, dir: frontend, command: pwd}\n' > /tmp/tars-demo/.config/tars/projects.yaml && tars pull >/dev/null && clear"
 Enter
 Show
 
+# every git repo under projects_dir is a project
+Type "tars s p"
+Enter
+Sleep 2.5s
+
+# start api's session from its template (attaches if it is already running)
+Type "tars s o api"
+Enter
+Sleep 2.5s
+
+# the running sessions, and the manager over them
 Type "tars s ls"
 Enter
 Sleep 2s
-
-# create-or-attach: one window per dir, idempotent
-Type "tars s o cloudwalk"
-Enter
-Sleep 2s
-
-# each window opens in its dir
-Type "pwd"
+Type "tars s -i"
 Enter
 Sleep 2.5s
+Down
+Sleep 1s
+Type "q"
+Sleep 1s
 
 Hide
 Type "tmux kill-server"

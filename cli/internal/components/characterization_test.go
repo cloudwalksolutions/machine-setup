@@ -94,6 +94,7 @@ var _ = Describe("pull", func() {
 		write("byobu/datetime.tmux", "DATETIME")
 		write("byobu/statusrc", "STATUSRC")
 		write("byobu/color.tmux", "COLOR")
+		write("byobu/status.disable", "QUIET")
 		write("byobu/bin/1_git", "GITSCRIPT")
 
 		write("nvim/init.lua", "INIT")
@@ -163,7 +164,7 @@ var _ = Describe("pull", func() {
 	})
 
 	Describe("Byobu", func() {
-		It("writes exactly the five config files plus bin/", func() {
+		It("writes exactly the six config files plus bin/", func() {
 			Expect(components.NewByobu(opts).Pull()).To(Succeed())
 			Expect(relPaths(home)).To(Equal([]string{
 				".byobu/.tmux.conf",
@@ -171,6 +172,7 @@ var _ = Describe("pull", func() {
 				".byobu/color.tmux",
 				".byobu/datetime.tmux",
 				".byobu/keybindings.tmux",
+				".byobu/status.disable",
 				".byobu/statusrc",
 			}))
 		})

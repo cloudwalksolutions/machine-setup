@@ -4,6 +4,7 @@
 .byobu/color.tmux 0644 41081d8e7363
 .byobu/datetime.tmux 0644 107291fd2de3
 .byobu/keybindings.tmux 0644 3fca5061908a
+.byobu/status.disable 0644 cc7a8811d8a7
 .byobu/statusrc 0644 0e2929c717af
 .config/nvim/init.lua 0644 8426fe6df433
 .config/nvim/lua/core/settings.lua 0644 02f6ea12816a
@@ -25,6 +26,7 @@
 .byobu/color.tmux 0644 41081d8e7363
 .byobu/datetime.tmux 0644 107291fd2de3
 .byobu/keybindings.tmux 0644 3fca5061908a
+.byobu/status.disable 0644 cc7a8811d8a7
 .byobu/statusrc 0644 0e2929c717af
 .config/nvim/init.lua 0644 8426fe6df433
 .config/nvim/lua/core/settings.lua 0644 02f6ea12816a

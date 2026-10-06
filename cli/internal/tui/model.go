@@ -1,6 +1,7 @@
-// Package tui renders `tars init` as one Bubble Tea program: finished steps and
-// items scroll into the terminal history, one live pane shows what is running,
-// and forms take over the pane when the orchestrator asks a question.
+// Package tui holds the Bubble Tea programs: `tars init`, where finished steps and
+// items scroll into the terminal history, one live pane shows what is running and
+// forms take over the pane when the orchestrator asks a question; and the
+// `tars sessions -i` manager (sessions.go).
 package tui
 
 import (
@@ -12,8 +13,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/huh/v2"
 	"charm.land/lipgloss/v2"
-
-	"tars/internal/forms"
 )
 
 const tailLines = 5
@@ -44,7 +43,7 @@ type Model struct {
 	tail      []string
 	failures  int
 	spinner   spinner.Model
-	form      *huh.Form
+	form      formHost
 	formDone  chan<- error
 	size      *tea.WindowSizeMsg // arrives once at startup, usually before any form opens
 	cancelled *atomic.Bool
@@ -77,14 +76,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.size = &msg
 	case PromptMsg:
-		m.phase, m.form, m.formDone = inForm, forms.Styled(msg.Form), msg.Done
-		cmd := m.form.Init()
-		if m.size != nil {
-			size := *m.size
-			size.Height-- // huh leaves the blank line above its help footer out of the group height
-			next, sizeCmd := m.form.Update(size)
-			m.form, cmd = next.(*huh.Form), tea.Batch(cmd, sizeCmd)
-		}
+		var cmd tea.Cmd
+		m.phase, m.formDone = inForm, msg.Done
+		m.form, cmd = openForm(msg.Form, m.size)
 		return m, cmd
 	case tea.KeyPressMsg:
 		if msg.String() == "ctrl+c" {
@@ -125,9 +119,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // updateForm forwards input to the running form until it completes or aborts.
 func (m Model) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
-	next, cmd := m.form.Update(msg)
-	m.form = next.(*huh.Form)
-	switch m.form.State {
+	var (
+		cmd   tea.Cmd
+		state huh.FormState
+	)
+	m.form, cmd, state = m.form.update(msg)
+	switch state {
 	case huh.StateCompleted:
 		m.formDone <- nil
 	case huh.StateAborted:
@@ -135,7 +132,7 @@ func (m Model) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 	default:
 		return m, cmd
 	}
-	m.phase, m.form, m.formDone = working, nil, nil
+	m.phase, m.form, m.formDone = working, formHost{}, nil
 	return m, cmd
 }
 
@@ -143,7 +140,7 @@ func (m Model) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 // tail of its output.
 func (m Model) View() tea.View {
 	if m.phase == inForm {
-		return tea.NewView(m.form.View())
+		return tea.NewView(m.form.view())
 	}
 	var b strings.Builder
 	b.WriteString(m.spinner.View())

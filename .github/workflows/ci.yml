@@ -31,6 +31,12 @@ jobs:
       - run: go vet ./...
       - run: go build ./...
       - run: go test -race ./...
+      # The session launcher against real byobu/tmux: unit specs fake tmux's messages.
+      - name: byobu integration
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq byobu tmux
+          INTEGRATION=1 go test -count=1 ./internal/sessions/
 
   lint:
     runs-on: ubuntu-latest

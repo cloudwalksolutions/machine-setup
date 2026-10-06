@@ -28,3 +28,13 @@ func Run(headless bool, stdout, stderr io.Writer, flow Flow) error {
 	}
 	return final.(Model).Err()
 }
+
+// RunSessions runs the sessions manager on the terminal and returns what the user chose to open.
+// Like Run, it is the only piece that needs a real terminal; Sessions is proven with teatest.
+func RunSessions(m Manager) (string, error) {
+	final, err := tea.NewProgram(NewSessions(m)).Run()
+	if err != nil {
+		return "", err
+	}
+	return final.(Sessions).Chosen(), nil
+}

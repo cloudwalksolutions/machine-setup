@@ -75,7 +75,7 @@ The installer verifies the release checksum; override the directory with
 | `tars init` | `i` | Full bootstrap: pick tools (installed ones show their version and start unchecked), install them, install oh-my-zsh + Powerlevel10k, apply all configs, then run the agent setups you pick |
 | `tars pull` | | Apply configs only: no installs, no network. `--dry-run` previews |
 | `tars push` | | Capture local config edits back into a repo clone |
-| `tars sessions` | `s`, `by` | Open byobu sessions from a simple config |
+| `tars sessions` | `s`, `by` | Manage live byobu sessions; start one per project from its template (`-i` for a full-screen manager) |
 | `tars profiles` | `p` | Switch git, GitHub and SSH identity per project dir |
 | `tars init claude` | `i c` | Pick and apply Claude Code pieces: edit-blocking hook, settings, global rules |
 | `tars init pi` | `i pi` | Set up the pi coding agent: packages, local ollama models, baseline agent |
@@ -92,7 +92,9 @@ Every file below is archived to `~/.local/state/tars/backups/<component>/vN`
 
 - `~/.zshrc`, `~/.zshrc_aliases`, and the login profile (`~/.zprofile` on macOS, `~/.profile` on Linux)
 - `~/.config/nvim/` (replaced wholesale), `~/.vimrc`, `~/.vim/colors/`
-- `~/.byobu/` configs and status scripts
+- `~/.byobu/` configs and status scripts, including byobu-quiet's `status.disable` flag:
+  the status bar shows only windows and the clock (`byobu-quiet --undo` or delete the
+  file to bring the indicators back; `tars pull` puts it back)
 - Hack Nerd Font into `~/Library/Fonts` (macOS) or `~/.local/share/fonts` (Linux)
 - macOS only: the iTerm2 and Terminal.app font and profile
 - With profiles configured: the managed block in `~/.gitconfig` and `~/.config/tars/profiles/<alias>.gitconfig`
@@ -106,27 +108,36 @@ Never overwritten, seeded once when absent: `~/.zshrc_secret`, `~/.zprofile_loca
 
 ## Sessions
 
-Declare byobu sessions once instead of rebuilding windows after every restart.
-`tars s e` seeds the file and opens it:
+`tars sessions` works on the byobu sessions that are actually running. Every git repo
+under `projects_dir` (from `profiles.yaml`, default `~/Desktop/projects`), at
+`<projects_dir>/<repo>` or `<projects_dir>/<group>/<repo>`, is a project. Opening a
+project starts a session named after the repo, or attaches if one is already running.
+Repos that share a name become `<group>-<repo>`.
+
+A project's template describes what a new session looks like. Without one, a session
+opens a single window at the repo root. `tars s e` seeds the file and opens it:
 
 ```yaml
-# ~/.config/tars/sessions.yaml (example)
-sessions:
-  - name: cloudwalk        # no '.' or ':' in names; at least one dir
-    dirs:
-      - ~/work/api         # one window per dir
-      - ~/work/infra
+# ~/.config/tars/projects.yaml
+projects:
+  api:
+    windows:                              # no '.' or ':' in window names
+      - {name: code, command: nvim}       # dir is relative to the repo
+      - {name: server, command: make dev}
+      - {name: web, dir: frontend}
 ```
 
 ![tars sessions demo](vhs/sessions.gif)
 
 | Command | Does |
 |---|---|
-| `tars s` | interactive picker |
-| `tars s a` | open every session, attach to the first |
-| `tars s o <name>` | open one (create-or-attach, idempotent) |
-| `tars s n [name]` | fresh session rooted at `~` (a name is required inside tmux) |
-| `tars s l` / `tars s e` | list / edit the config |
+| `tars s` | picker over running sessions and projects not yet running |
+| `tars s -i` | full-screen manager: `enter` open, `x` kill, `r` rename, `t` edit template, `/` filter |
+| `tars s o [name]` | attach to a session or start a project's (default: the project you're in) |
+| `tars s l` | running sessions, `*` marks the attached one, plus their project |
+| `tars s p` | projects, `●` marks running ones, and whether each has a template |
+| `tars s k <name>` / `tars s r <old> <new>` | kill / rename a running session |
+| `tars s e` | edit the templates in `$EDITOR` |
 
 Inside byobu it switches sessions instead of nesting.
 
@@ -203,7 +214,7 @@ For each account (example: name `cloudwalk`, alias `cws`):
 - `~/.zshrc`, `~/.zshrc_aliases`, and the login profile (`~/.zprofile` on macOS,
   `~/.profile` on Linux)
 - `~/.config/nvim/` (replaced wholesale), `~/.vimrc`, `~/.vim/colors/`
-- `~/.byobu/` configs and status scripts
+- `~/.byobu/` configs and status scripts, plus the quiet-status flag
 - Fonts: Hack Nerd Font → `~/Library/Fonts` (macOS) or `~/.local/share/fonts`
   (Linux); per-user, no sudo
 - macOS only: sets the iTerm2 + Terminal.app font/profile
@@ -250,10 +261,10 @@ gets a `CLAUDE.md` that imports it (`@AGENTS.md`), Gemini CLI a `GEMINI.md`
 | Variable | Effect |
 |---|---|
 | `TARS_REPO` | Use this clone as the config source (beats discovery) |
-| `TARS_NO_FORM` | Skip all TUIs: `init` installs every tool not yet installed, pickers take the first entry. `p add` is interactive only |
+| `TARS_NO_FORM` | Skip all TUIs: `init` installs every tool not yet installed, pickers take the first entry, `s -i` prints `s l`. `p add` is interactive only |
 | `TARS_BACKUP_ROOT` | Backup location (default `~/.local/state/tars/backups`) |
 | `TARS_CONFIG_PATH` | Tool-selection config (default `~/.config/tars/config.yaml`) |
-| `TARS_SESSIONS_PATH` | Sessions file (default `~/.config/tars/sessions.yaml`) |
+| `TARS_PROJECTS_PATH` | Project session templates (default `~/.config/tars/projects.yaml`) |
 | `TARS_PROFILES_PATH` | Profiles file (default `~/.config/tars/profiles.yaml`) |
 | `TARS_INSTALL_DIR` | Where `install.sh` puts the binary |
 
