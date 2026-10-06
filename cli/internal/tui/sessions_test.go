@@ -68,6 +68,14 @@ var _ = Describe("Sessions", func() {
 		))
 	})
 
+	It("says once that there is nothing to manage", func() {
+		mgr.rows = nil
+
+		h.run(h.model.Init())
+
+		Expect(strings.Count(h.view(), "No items")).To(Equal(1))
+	})
+
 	It("shows its keys in the help line", func() {
 		Expect(h.view()).To(SatisfyAll(
 			ContainSubstring("enter open"),

@@ -42,8 +42,8 @@ unit:            ## Fast, airgapped unit tests
 	cd $(CLI) && go test ./...
 
 .PHONY: integration
-integration: test-nvim  ## External-dep tests: brew installers + Neovim
-	cd $(CLI) && INTEGRATION=1 go test ./internal/pkg/brew/...
+integration: test-nvim  ## External-dep tests: brew installers, real byobu sessions, Neovim
+	cd $(CLI) && INTEGRATION=1 go test ./internal/pkg/brew/... ./internal/sessions/
 
 .PHONY: test
 test: unit integration  ## All tests (unit + integration)

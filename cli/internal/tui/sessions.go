@@ -76,6 +76,7 @@ type Sessions struct {
 func NewSessions(m Manager) Sessions {
 	l := list.New(nil, list.NewDefaultDelegate(), 0, 0)
 	l.Title = "byobu sessions"
+	l.SetShowStatusBar(false)  // its item count repeats the empty list's "No items."
 	l.DisableQuitKeybindings() // its default quit key is "v"; q and ctrl+c are handled here
 	l.KeyMap.CursorUp.SetHelp("↑", "up")
 	l.KeyMap.CursorDown.SetHelp("↓", "down")

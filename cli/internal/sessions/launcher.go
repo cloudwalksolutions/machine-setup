@@ -67,7 +67,7 @@ type Launcher struct {
 // List returns the running sessions.
 func (l Launcher) List() ([]Live, error) {
 	out, err := l.Output("list-sessions", "-F", "#{session_name}\t#{session_windows}\t#{session_attached}")
-	if err != nil && strings.Contains(err.Error(), "no server running") {
+	if err != nil && noServer(err) {
 		return nil, nil
 	}
 	if err != nil {
@@ -83,6 +83,13 @@ func (l Launcher) List() ([]Live, error) {
 		live = append(live, Live{Name: fields[0], Windows: windows, Attached: fields[2] != "0"})
 	}
 	return live, nil
+}
+
+// noServer reports tmux's two ways of saying no server is running: a stale socket, or none yet.
+func noServer(err error) bool {
+	msg := err.Error()
+	return strings.Contains(msg, "no server running") ||
+		(strings.Contains(msg, "error connecting to") && strings.Contains(msg, "No such file or directory"))
 }
 
 // Kill ends a running session.

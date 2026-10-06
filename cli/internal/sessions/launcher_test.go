@@ -99,13 +99,15 @@ var _ = Describe("Launcher", func() {
 			}))
 		})
 
-		It("has no sessions when no server is running", func() {
-			l.Output = func(...string) (string, error) {
-				return "", errors.New("no server running on /tmp/tmux-501/default")
-			}
+		DescribeTable("has no sessions when no server is running",
+			func(message string) {
+				l.Output = func(...string) (string, error) { return "", errors.New(message) }
 
-			Expect(l.List()).To(BeEmpty())
-		})
+				Expect(l.List()).To(BeEmpty())
+			},
+			Entry("socket left behind", "no server running on /tmp/tmux-501/default"),
+			Entry("no socket yet", "error connecting to /tmp/tmux-1001/default (No such file or directory)"),
+		)
 
 		It("has no sessions when the server lists none", func() {
 			l.Output = func(...string) (string, error) { return "\n", nil }

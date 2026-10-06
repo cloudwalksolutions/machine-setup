@@ -107,7 +107,9 @@ Tests are layered:
      (`GinkgoTB()` satisfies its `testing.TB`), asserting the printed lines, the form, the key
      press and the flow's result. Only `run.go` (tea.NewProgram on the terminal) is untested.
 2. **Integration** (`make integration`) — real external deps: brew installers gated by
-   `INTEGRATION=1` (installs/removes `hello`) plus the Neovim config tests (real `nvim`).
+   `INTEGRATION=1` (installs/removes `hello`), the session launcher against real byobu/tmux
+   on an isolated socket (also run by the Linux `test` CI job), plus the Neovim config tests
+   (real `nvim`).
    Off by default in `go test`.
 3. **End-to-end** (`make e2e`) — `test/e2e/Dockerfile`: builds `tars` against a
    **root-owned, read-only** repo clone shared by two non-root users, plus a third user
