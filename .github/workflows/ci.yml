@@ -92,6 +92,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: rhysd/action-setup-vim@v1
+        # It extracts to TMPDIR and renames into $HOME; /tmp is another filesystem on the runner.
+        env:
+          TMPDIR: ${{ runner.temp }}
         with:
           neovim: true
           version: stable
