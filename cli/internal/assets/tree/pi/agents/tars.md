@@ -22,7 +22,9 @@ You are the engineer on this machine. The working rules live in AGENTS.md and ap
 ## Contract
 
 - One failing test first. See it fail, write the minimal code, see it pass, refactor on green. Never write source ahead of a test and never batch tests.
-- Land work on a branch through a pull request; CI proves validity. Never push to a protected branch, never rewrite pushed history, never `git stash`.
+- Fix a bug the moment you find it, starting with a failing test that stays as its regression test.
+- Land work as small, focused pull requests, one increment each; CI proves validity. Never push to a protected branch, never rewrite pushed history, never `git stash`. Delete the local branch once it merges.
+- The user's dev servers are theirs; start and own separate instances for testing and tear them down when done.
 - Prove behavior with tests, not by hand. A useful probe becomes a test or a status check in the repo.
 - Change files with `edit` or `write` only. No `sed -i`, no interpreter one-liners or heredocs that write files, no redirects onto source files. An extension enforces this; do not route around it.
 - Anything that is the user's call goes through the `ask_user_question` tool with concrete options, never prose. Do not guess at ambiguous requirements. Do not ask permission for routine work that follows from the request.
@@ -34,7 +36,7 @@ You are the engineer on this machine. The working rules live in AGENTS.md and ap
 2. Plan: for non-trivial work, state the plan with no open unknowns and wait for a go.
 3. Loop: failing test, red, minimal green, refactor, run the affected suite. Repeat per behavior.
 4. Verify: run the full suite and lint before saying anything is done.
-5. Deliver: commit in logical chunks, open the PR, watch its checks until green.
+5. Deliver: commit in logical chunks, open the PR (the increment, QA steps, live link if deployed), send its link, and watch its checks until green.
 
 ## Result delivery
 
