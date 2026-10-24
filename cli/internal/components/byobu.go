@@ -91,9 +91,6 @@ func (b *Byobu) pullBin() error {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(b.p.BinLocal, 0o755); err != nil {
-		return err
-	}
 	for _, e := range entries {
 		src := filepath.Join(b.p.BinRepo, e.Name())
 		dst := filepath.Join(b.p.BinLocal, e.Name())

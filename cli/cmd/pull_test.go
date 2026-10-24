@@ -24,6 +24,94 @@ func (s *spyPullable) Pull() error {
 	return s.err
 }
 
+type previewPullable struct {
+	name string
+	out  *bytes.Buffer
+	diff string
+}
+
+func (p *previewPullable) Name() string { return p.name }
+func (p *previewPullable) Pull() error {
+	p.out.WriteString(p.diff)
+	return nil
+}
+
+type spyConfirmer struct {
+	answer bool
+	err    error
+	asked  map[string]string
+}
+
+func (s *spyConfirmer) ConfirmApply(name, diff string) (bool, error) {
+	s.asked[name] = diff
+	return s.answer, s.err
+}
+
+var _ = Describe("SequentialPuller.PullAll with Confirm", func() {
+	var (
+		applied []string
+		stdout  *bytes.Buffer
+		puller  cmd.SequentialPuller
+		confirm *spyConfirmer
+	)
+
+	component := func(name, diff string) {
+		puller.Components = append(puller.Components, &spyPullable{name: name, log: &applied})
+		puller.Previews = append(puller.Previews, &previewPullable{name: name, out: puller.Diffs, diff: diff})
+	}
+
+	BeforeEach(func() {
+		applied = nil
+		stdout = &bytes.Buffer{}
+		confirm = &spyConfirmer{answer: true, asked: map[string]string{}}
+		puller = cmd.SequentialPuller{
+			Diffs:   &bytes.Buffer{},
+			Confirm: confirm,
+			Report:  report.Text{Stdout: stdout, Stderr: &bytes.Buffer{}},
+		}
+	})
+
+	It("shows a changed component's diff and applies it once confirmed", func() {
+		component("zsh", "-old\n+new\n")
+
+		Expect(puller.PullAll()).To(Succeed())
+
+		Expect(confirm.asked).To(Equal(map[string]string{"zsh": "-old\n+new\n"}))
+		Expect(applied).To(Equal([]string{"zsh"}))
+	})
+
+	It("never asks about a component with nothing to change", func() {
+		component("vim", "")
+		component("zsh", "+new\n")
+
+		Expect(puller.PullAll()).To(Succeed())
+
+		Expect(confirm.asked).To(HaveKey("zsh"))
+		Expect(confirm.asked).NotTo(HaveKey("vim"))
+	})
+
+	It("leaves a declined component untouched and says it was skipped", func() {
+		confirm.answer = false
+		component("zsh", "+new\n")
+
+		Expect(puller.PullAll()).To(Succeed())
+
+		Expect(applied).To(BeEmpty())
+		Expect(stdout.String()).To(ContainSubstring("skipped zsh"))
+	})
+
+	It("stops the whole pull on Ctrl+C at a prompt", func() {
+		confirm.err = errors.New("user aborted")
+		component("zsh", "+new\n")
+		component("nvim", "+new\n")
+
+		Expect(puller.PullAll()).To(MatchError("user aborted"))
+
+		Expect(confirm.asked).NotTo(HaveKey("nvim"))
+		Expect(applied).To(BeEmpty())
+	})
+})
+
 var _ = Describe("SequentialPuller.PullAll", func() {
 	It("pulls each component in order, continues past failures, and returns an aggregate error naming them", func() {
 		var log []string

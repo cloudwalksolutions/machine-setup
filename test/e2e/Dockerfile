@@ -61,6 +61,15 @@ RUN tars pull \
  && test ! -e "$HOME/.local/state/tars/backups/nvim" \
  && test ! -e "$HOME/.local/state/tars/backups/claude"
 
+# --diff shows a local edit as a unified diff and writes nothing; a headless pull then restores it.
+RUN echo 'local edit' >> "$HOME/.zshrc" \
+ && tars pull --diff > /tmp/diff.txt \
+ && grep -q '^-local edit$' /tmp/diff.txt \
+ && tail -n1 "$HOME/.zshrc" | grep -q '^local edit$' \
+ && ! grep -q 'unchanged' /tmp/diff.txt \
+ && tars pull \
+ && ! grep -q '^local edit$' "$HOME/.zshrc"
+
 # Machine-local settings survive the merge; the hook entry is added exactly once.
 RUN echo '{"autoMode":{"allow":["x"]}}' > "$HOME/.claude/settings.json" \
  && tars pull \

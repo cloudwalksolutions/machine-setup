@@ -135,7 +135,10 @@ spec can drive a fake and still fail red-first:
   manual runs.
 - **Dry-run seam**: every component writes through `Options.copier()` → `fsutil.Copier`;
   with `Options.DryRun` it reports `would create / would overwrite / unchanged / would
-  remove` instead of touching disk (`tars pull --dry-run`). Specs assert on the report.
+  remove` instead of touching disk (`tars pull --dry-run`); `Options.Diff` adds a unified
+  diff per change and drops the unchanged lines (`tars pull --diff`, and the per-component
+  preview `SequentialPuller` shows when its `Confirm` param is set). Never write around the copier, or
+  dry-run leaks. Specs assert on the report.
 - **OS override constructors**: `NewFontsForOS(opts, goos)`, `NewTerminalForOS(opts, goos)`
   so darwin-only paths are exercised on any host. CI also runs a `macos-latest` matrix leg
   so darwin-only code compiles and its unit tests run for real.
@@ -173,6 +176,18 @@ same commands before handing work over; `gh pr checks <n> --watch` is the final 
 `.github/workflows/vhs.yml` records every tape (`demo`, `init`, `sessions`, `profiles`) on each
 PR and posts the GIFs as a sticky PR comment (stored on the `vhs-previews` branch); on `main`
 it re-records the README GIFs via PR when anything under `vhs/` other than the GIFs changes.
+
+**VHS tapes are part of the gate.** The `vhs` check fails the PR when a tape breaks, and tapes
+run `tars` in a real terminal. So any change to what a command prints, asks, or which flags it
+takes means: grep `vhs/*.tape` for that command, update the tapes in the same PR, and record
+them locally with `make demos` (Docker) before pushing. Don't commit the regenerated GIFs
+(`git checkout vhs/*.gif`); `main` re-records them. Known traps:
+- A new interactive prompt hangs a tape unless the tape answers it or passes the skip flag
+  (e.g. `tars pull -y`).
+- VHS strings can't escape quotes: `Type "…\"…"` is a parse error, so avoid nested double quotes.
+- `Wait+Screen /text/` only sees the visible screen; after output that can exceed it, use
+  `Wait` (the shell prompt) instead.
+
 Coverage is enforced pre-merge by the required `coverage` check; the release job only
 refreshes the badge. Both run `go test -count=1` so cached results never replay stale profiles.
 

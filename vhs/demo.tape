@@ -28,7 +28,7 @@ Sleep 1.2s
 # Preview first: every write it would make, and the backup each one gets
 Type "tars pull --dry-run"
 Enter
-Wait+Screen@60s /Dry run complete/
+Wait@60s
 Sleep 3s
 
 Hide
@@ -36,7 +36,21 @@ Type "clear"
 Enter
 Show
 
+Type "tars pull -y"
+Enter
+Wait+Screen@60s /Pull complete/
+Sleep 2s
+
+Hide
+Type "echo 'alias gs=git-status' >> ~/.zshrc && clear"
+Enter
+Show
+
+# A local edit: pull shows the diff it would undo and asks before applying
 Type "tars pull"
+Enter
+Wait+Screen@60s /Apply zsh/
+Sleep 3s
 Enter
 Wait+Screen@60s /Pull complete/
 Sleep 2s
@@ -49,7 +63,7 @@ Show
 # Idempotent: a second look finds nothing left to do
 Type "tars pull --dry-run"
 Enter
-Wait+Screen@60s /Dry run complete/
+Wait@60s
 Sleep 3s
 
 Hide

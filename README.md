@@ -73,7 +73,7 @@ The installer verifies the release checksum; override the directory with
 | Command | Alias | What it does |
 |---|---|---|
 | `tars init` | `i` | Full bootstrap: pick tools (installed ones show their version and start unchecked), install them, install oh-my-zsh + Powerlevel10k, apply all configs, then run the agent setups you pick |
-| `tars pull` | | Apply configs only: no installs, no network. `--dry-run` previews |
+| `tars pull` | | Apply configs only: no installs, no network. Shows each component's diff and applies it on Enter (`-y` skips the prompts); `--diff` / `--dry-run` preview |
 | `tars push` | | Capture local config edits back into a repo clone |
 | `tars sessions` | `s`, `by` | Manage live byobu sessions; start one per project from its template (`-i` for a full-screen manager) |
 | `tars profiles` | `p` | Switch git, GitHub and SSH identity per project dir |
@@ -237,7 +237,12 @@ API keys and per-account aliases there), `~/.zprofile_local` (seeded once from
 Machine-specific bits belong in these git-ignored files, which the shared configs source.
 
 `tars pull --dry-run` prints what would be created, overwritten (with the backup
-version it would mint) or left unchanged, and writes nothing.
+version it would mint) or left unchanged, and writes nothing. `tars pull --diff`
+prints a unified diff of every existing config and rendered md that would change
+(new and removed files are one line each, binaries are named only), also writing
+nothing. Ctrl+C at a prompt stops the pull and leaves the rest untouched. On a terminal, a plain `tars pull` shows each changed component's
+diff and applies it on Enter (or skips it on No); `-y/--yes`, `TARS_NO_FORM=1` or
+no terminal applies everything without asking.
 
 ## Claude Code
 

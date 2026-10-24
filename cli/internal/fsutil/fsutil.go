@@ -6,19 +6,81 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
+
+	"github.com/aymanbagabas/go-udiff"
 )
 
 var versionRe = regexp.MustCompile(`^v(\d+)$`)
 
 // Copier performs backup-before-overwrite copies. With DryRun set it reports
-// each intended action to Log and writes nothing.
+// each intended action to Log and writes nothing; Diff adds a unified diff per change.
 type Copier struct {
 	DryRun bool
+	Diff   bool
 	Log    io.Writer
+}
+
+func (c Copier) diff(src, dst string) error {
+	if !c.Diff || c.Log == nil {
+		return nil
+	}
+	info, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() {
+		return c.diffFile(src, dst)
+	}
+	files := map[string]bool{}
+	for _, root := range []string{src, dst} {
+		entries, err := treeEntries(root)
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		for rel, isDir := range entries {
+			if !isDir {
+				files[rel] = true
+			}
+		}
+	}
+	for _, rel := range slices.Sorted(maps.Keys(files)) {
+		if err := c.diffFile(filepath.Join(src, rel), filepath.Join(dst, rel)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// diffFile diffs a file both sides have; one missing on a side is named, not dumped.
+func (c Copier) diffFile(src, dst string) error {
+	want, err := os.ReadFile(src)
+	if os.IsNotExist(err) {
+		c.report("    would remove  %s", dst)
+		return nil
+	} else if err != nil {
+		return err
+	}
+	have, err := os.ReadFile(dst)
+	if os.IsNotExist(err) {
+		c.report("    would create  %s", dst)
+		return nil
+	} else if err != nil {
+		return err
+	}
+	if bytes.Equal(want, have) {
+		return nil
+	}
+	if bytes.IndexByte(want, 0) >= 0 || bytes.IndexByte(have, 0) >= 0 {
+		return nil
+	}
+	_, err = io.WriteString(c.Log, udiff.Unified(dst, dst, string(have), string(want)))
+	return err
 }
 
 func (c Copier) report(format string, args ...any) {
@@ -65,7 +127,9 @@ func (c Copier) SafeCopy(src, dst, component, backupRoot string) error {
 			return err
 		} else if same {
 			if c.DryRun {
-				c.report("    unchanged  %s", dst)
+				if !c.Diff {
+					c.report("    unchanged  %s", dst)
+				}
 				return nil
 			}
 			return sameMode(src, dst)
@@ -76,7 +140,7 @@ func (c Copier) SafeCopy(src, dst, component, backupRoot string) error {
 		}
 		if c.DryRun {
 			c.report("    would overwrite  %s (backup %s)", dst, filepath.Base(version))
-			return nil
+			return c.diff(src, dst)
 		}
 	} else if !os.IsNotExist(err) {
 		return err

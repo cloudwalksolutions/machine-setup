@@ -41,6 +41,26 @@ var _ = Describe("Claude.Pull", func() {
 		}
 	})
 
+	It("writes nothing on a dry run", func() {
+		opts.DryRun = true
+
+		Expect(components.NewClaude(opts).Pull()).To(Succeed())
+
+		_, err := os.Stat(home)
+		Expect(os.IsNotExist(err)).To(BeTrue(), "dry-run must not create HOME")
+	})
+
+	It("shows the diff of a changed rule on a diff run", func() {
+		Expect(components.NewClaude(opts).Pull()).To(Succeed())
+		Expect(os.WriteFile(filepath.Join(repoRoot, "claude", "rules", "10-tdd.md"), []byte("## TDD\nred first, always\n"), 0o644)).To(Succeed())
+		out := &bytes.Buffer{}
+		opts.DryRun, opts.Diff, opts.Stdout = true, true, out
+
+		Expect(components.NewClaude(opts).Pull()).To(Succeed())
+
+		Expect(out.String()).To(ContainSubstring("-red first\n+red first, always\n"))
+	})
+
 	It("copies the hook into ~/.claude/hooks keeping it executable", func() {
 		Expect(components.NewClaude(opts).Pull()).To(Succeed())
 

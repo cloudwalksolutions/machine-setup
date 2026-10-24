@@ -85,6 +85,16 @@ var _ = Describe("Pi.Pull", func() {
 		Expect(got["app.clipboard.pasteImage"]).To(Equal([]any{}))
 	})
 
+	It("writes nothing on a dry run", func() {
+		opts.DryRun = true
+		opts.Pi.OllamaModels = []string{"llama3"}
+
+		Expect(components.NewPi(opts).Pull()).To(Succeed())
+
+		_, err := os.Stat(home)
+		Expect(os.IsNotExist(err)).To(BeTrue(), "dry-run must not create HOME")
+	})
+
 	It("renders AGENTS.md from the shared rules, skipping the rules claude skips", func() {
 		opts.Claude.SkipRules = []string{"10-tdd"}
 		Expect(components.NewPi(opts).Pull()).To(Succeed())

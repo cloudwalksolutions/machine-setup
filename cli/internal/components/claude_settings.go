@@ -1,11 +1,9 @@
 package components
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 
@@ -89,23 +87,13 @@ func (s settings) setHooks(event string, groups []hookGroup) {
 	hooks[event] = raw
 }
 
-// save writes s as indented JSON with a backup first; identical bytes are a no-op.
-func (s settings) save(path, component, backupRoot string) error {
+// save writes s as indented JSON through c, so it gets the backup, idempotence and dry-run.
+func (s settings) save(c fsutil.Copier, path, component, backupRoot string) error {
 	out, err := json.MarshalIndent(s, "", "  ")
 	if err != nil {
 		return err
 	}
-	out = append(out, '\n')
-	if existing, err := os.ReadFile(path); err == nil && bytes.Equal(existing, out) {
-		return nil
-	}
-	if _, err := fsutil.Backup(path, component, backupRoot); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	return os.WriteFile(path, out, 0o644)
+	return c.SafeWrite(append(out, '\n'), 0o644, path, component, backupRoot)
 }
 
 // upsert replaces each base group sharing a key with incoming, appending new ones.
