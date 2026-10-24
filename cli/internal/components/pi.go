@@ -78,7 +78,7 @@ func (c *Pi) pullKeybindings() error {
 		return err
 	}
 	maps.Copy(local, fragment)
-	return local.save(c.p.KeybindingsLocal, c.Name(), c.opts.BackupRoot)
+	return local.save(c.opts.copier(), c.p.KeybindingsLocal, c.Name(), c.opts.BackupRoot)
 }
 
 // Push copies the local agent, prompts, extension and permissions back to the
@@ -131,7 +131,7 @@ func (c *Pi) pullSettings() error {
 		local["defaultProvider"] = "ollama"
 		local["defaultModel"] = c.cfg.DefaultModel
 	}
-	if err := local.save(c.p.SettingsLocal, c.Name(), c.opts.BackupRoot); err != nil {
+	if err := local.save(c.opts.copier(), c.p.SettingsLocal, c.Name(), c.opts.BackupRoot); err != nil {
 		return err
 	}
 	return c.pullModels()
@@ -156,7 +156,7 @@ func (c *Pi) pullModels() error {
 	}
 	providers["ollama"] = map[string]any{"baseUrl": "http://localhost:11434/v1", "api": "openai-completions", "apiKey": "ollama", "models": ids}
 	models["providers"] = providers
-	return models.save(c.p.ModelsLocal, c.Name(), c.opts.BackupRoot)
+	return models.save(c.opts.copier(), c.p.ModelsLocal, c.Name(), c.opts.BackupRoot)
 }
 
 func unionStrings(first, second []string) []any {

@@ -39,6 +39,10 @@ func init() {
 	rootCmd.AddCommand(profilesCmd)
 	pullCmd.Flags().BoolVar(&pullDryRun, "dry-run", false,
 		"report the writes a pull would make, without changing anything")
+	pullCmd.Flags().BoolVar(&pullDiff, "diff", false,
+		"show a unified diff of every file a pull would change, without changing anything")
+	pullCmd.Flags().BoolVarP(&pullYes, "yes", "y", false,
+		"apply every component without showing its diff and asking first")
 	rootCmd.AddCommand(pullCmd)
 	rootCmd.AddCommand(sessionsCmd)
 }

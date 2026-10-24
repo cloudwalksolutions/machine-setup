@@ -37,16 +37,9 @@ func (n *Nvim) Pull() error {
 		if err := n.opts.copier().RemoveAll(n.p.Local); err != nil {
 			return err
 		}
-		if err := os.MkdirAll(filepath.Dir(n.p.Local), 0o755); err != nil {
-			return err
-		}
 		if err := n.opts.copier().SafeCopy(n.p.Repo, n.p.Local, n.Name(), n.opts.BackupRoot); err != nil {
 			return err
 		}
-	}
-	// Monokai theme.
-	if err := os.MkdirAll(n.p.MonokaiLocal, 0o755); err != nil {
-		return err
 	}
 	monokaiDst := filepath.Join(n.p.MonokaiLocal, "monokai.lua")
 	return n.opts.copier().SafeCopy(n.p.MonokaiRepo, monokaiDst, n.Name(), n.opts.BackupRoot)

@@ -59,6 +59,7 @@ var _ = Describe("dry-run pull", func() {
 	It("writes nothing to HOME", func() {
 		Expect(components.NewZsh(newOpts(true)).Pull()).To(Succeed())
 		Expect(components.NewVim(newOpts(true)).Pull()).To(Succeed())
+		Expect(components.NewNvim(newOpts(true)).Pull()).To(Succeed())
 
 		_, err := os.Stat(home)
 		Expect(os.IsNotExist(err)).To(BeTrue(), "dry-run must not create HOME")

@@ -4,7 +4,6 @@ import (
 	"os"
 
 	"tars/internal/config"
-	"tars/internal/fsutil"
 	"tars/internal/paths"
 )
 
@@ -26,7 +25,7 @@ func (c *Claude) Name() string { return "claude" }
 // Pull applies the repo's Claude config to ~/.claude.
 func (c *Claude) Pull() error {
 	if enabled(c.cfg.Hook) {
-		if err := fsutil.SafeCopy(c.p.HookRepo, c.p.HookLocal, c.Name(), c.opts.BackupRoot); err != nil {
+		if err := c.opts.copier().SafeCopy(c.p.HookRepo, c.p.HookLocal, c.Name(), c.opts.BackupRoot); err != nil {
 			return err
 		}
 	}
@@ -42,7 +41,7 @@ func (c *Claude) Pull() error {
 // archiving the repo copies under "claude-repo".
 func (c *Claude) Push() error {
 	comp := c.Name() + "-repo"
-	if err := fsutil.SafeCopy(c.p.HookLocal, c.p.HookRepo, comp, c.opts.BackupRoot); err != nil {
+	if err := c.opts.copier().SafeCopy(c.p.HookLocal, c.p.HookRepo, comp, c.opts.BackupRoot); err != nil {
 		return err
 	}
 	local, err := loadSettings(c.p.SettingsLocal)
@@ -64,7 +63,7 @@ func (c *Claude) Push() error {
 	for _, event := range fragment.events() {
 		fragment.setHooks(event, refresh(fragment.hooks(event), local.hooks(event)))
 	}
-	return fragment.save(c.p.SettingsRepo, comp, c.opts.BackupRoot)
+	return fragment.save(c.opts.copier(), c.p.SettingsRepo, comp, c.opts.BackupRoot)
 }
 
 // pullSettings merges the fragment into ~/.claude/settings.json: shareable keys
@@ -86,7 +85,7 @@ func (c *Claude) pullSettings() error {
 	for _, event := range fragment.events() {
 		local.setHooks(event, upsert(local.hooks(event), fragment.hooks(event)))
 	}
-	return local.save(c.p.SettingsLocal, c.Name(), c.opts.BackupRoot)
+	return local.save(c.opts.copier(), c.p.SettingsLocal, c.Name(), c.opts.BackupRoot)
 }
 
 const claudeMDHeader = "# Global Claude Code rules\n\nManaged by `tars claude init`; edit the rule files in the machine-setup repo, not this file.\n\n"

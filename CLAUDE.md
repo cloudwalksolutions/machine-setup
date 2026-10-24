@@ -135,7 +135,10 @@ spec can drive a fake and still fail red-first:
   manual runs.
 - **Dry-run seam**: every component writes through `Options.copier()` → `fsutil.Copier`;
   with `Options.DryRun` it reports `would create / would overwrite / unchanged / would
-  remove` instead of touching disk (`tars pull --dry-run`). Specs assert on the report.
+  remove` instead of touching disk (`tars pull --dry-run`); `Options.Diff` adds a unified
+  diff per change and drops the unchanged lines (`tars pull --diff`, and the per-component
+  preview `ConfirmingPuller` shows before asking). Never write around the copier, or
+  dry-run leaks. Specs assert on the report.
 - **OS override constructors**: `NewFontsForOS(opts, goos)`, `NewTerminalForOS(opts, goos)`
   so darwin-only paths are exercised on any host. CI also runs a `macos-latest` matrix leg
   so darwin-only code compiles and its unit tests run for real.

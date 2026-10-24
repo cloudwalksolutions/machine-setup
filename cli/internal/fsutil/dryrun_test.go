@@ -86,6 +86,68 @@ var _ = Describe("Copier in dry-run mode", func() {
 		Expect(os.IsNotExist(statErr)).To(BeTrue(), "dry-run must not create backups")
 	})
 
+	Context("with Diff on", func() {
+		BeforeEach(func() {
+			copier.Diff = true
+			Expect(os.MkdirAll(filepath.Dir(dst), 0o755)).To(Succeed())
+		})
+
+		It("shows a unified diff under an overwrite", func() {
+			Expect(os.WriteFile(src, []byte("keep\nnew line\n"), 0o644)).To(Succeed())
+			Expect(os.WriteFile(dst, []byte("keep\nold line\n"), 0o644)).To(Succeed())
+
+			Expect(copier.SafeCopy(src, dst, "demo", backupRoot)).To(Succeed())
+
+			Expect(log.String()).To(ContainSubstring("would overwrite"))
+			Expect(log.String()).To(ContainSubstring("-old line\n"))
+			Expect(log.String()).To(ContainSubstring("+new line\n"))
+		})
+
+		It("shows a create as a diff from nothing", func() {
+			Expect(os.WriteFile(src, []byte("first\n"), 0o644)).To(Succeed())
+
+			Expect(copier.SafeCopy(src, dst, "demo", backupRoot)).To(Succeed())
+
+			Expect(log.String()).To(ContainSubstring("would create"))
+			Expect(log.String()).To(ContainSubstring("+first\n"))
+		})
+
+		It("reports a binary change without dumping its bytes", func() {
+			Expect(os.WriteFile(src, []byte("font\x00new"), 0o644)).To(Succeed())
+			Expect(os.WriteFile(dst, []byte("font\x00old"), 0o644)).To(Succeed())
+
+			Expect(copier.SafeCopy(src, dst, "demo", backupRoot)).To(Succeed())
+
+			Expect(log.String()).To(ContainSubstring("would overwrite"))
+			Expect(log.String()).NotTo(ContainSubstring("font"))
+		})
+
+		It("stays silent on unchanged files so an empty log means nothing changes", func() {
+			Expect(os.WriteFile(dst, []byte("NEW"), 0o644)).To(Succeed())
+
+			Expect(copier.SafeCopy(src, dst, "demo", backupRoot)).To(Succeed())
+
+			Expect(log.String()).To(BeEmpty())
+		})
+
+		It("diffs a tree file by file, showing only what changes", func() {
+			repo, local := filepath.Join(tmp, "repo"), filepath.Join(tmp, "local")
+			for _, d := range []string{repo, local} {
+				Expect(os.MkdirAll(filepath.Join(d, "lua"), 0o755)).To(Succeed())
+				Expect(os.WriteFile(filepath.Join(d, "init.lua"), []byte("same\n"), 0o644)).To(Succeed())
+			}
+			Expect(os.WriteFile(filepath.Join(repo, "lua", "keys.lua"), []byte("new map\n"), 0o644)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(local, "lua", "keys.lua"), []byte("old map\n"), 0o644)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(local, "stale.lua"), []byte("gone\n"), 0o644)).To(Succeed())
+
+			Expect(copier.SafeCopy(repo, local, "demo", backupRoot)).To(Succeed())
+
+			Expect(log.String()).To(ContainSubstring("-old map\n+new map\n"))
+			Expect(log.String()).To(ContainSubstring("-gone\n"))
+			Expect(log.String()).NotTo(ContainSubstring("init.lua"))
+		})
+	})
+
 	It("still performs real writes when DryRun is false", func() {
 		real := fsutil.Copier{DryRun: false, Log: log}
 

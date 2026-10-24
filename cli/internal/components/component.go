@@ -28,6 +28,7 @@ type Options struct {
 	Home       string    // user's HOME (destination root)
 	BackupRoot string    // ~/.local/state/tars/backups in normal use (cmd.BackupRoot)
 	DryRun     bool      // report intended writes instead of performing them
+	Diff       bool      // with DryRun, add a unified diff per change and skip unchanged lines
 	Stdout     io.Writer // progress output
 	Stderr     io.Writer // error/warning output
 
@@ -37,7 +38,7 @@ type Options struct {
 
 // copier is the writer every component routes its writes through.
 func (o Options) copier() fsutil.Copier {
-	return fsutil.Copier{DryRun: o.DryRun, Log: o.Stdout}
+	return fsutil.Copier{DryRun: o.DryRun, Diff: o.Diff, Log: o.Stdout}
 }
 
 // AllPullable returns the pullable components in canonical order.

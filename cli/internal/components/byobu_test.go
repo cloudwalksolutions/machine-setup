@@ -41,6 +41,15 @@ var _ = Describe("Byobu.Pull", func() {
 		}
 	})
 
+	It("writes nothing on a dry run", func() {
+		opts.DryRun = true
+
+		Expect(components.NewByobu(opts).Pull()).To(Succeed())
+
+		_, err := os.Stat(home)
+		Expect(os.IsNotExist(err)).To(BeTrue(), "dry-run must not create HOME")
+	})
+
 	It("copies tmux.conf and the other byobu config files to ~/.byobu/", func() {
 		Expect(components.NewByobu(opts).Pull()).To(Succeed())
 
