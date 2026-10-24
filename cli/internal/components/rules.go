@@ -8,9 +8,9 @@ import (
 	"strings"
 )
 
-// renderRules concatenates header plus the selected rule files from dir in
-// name order; an empty selection means every rule.
-func renderRules(dir, header string, selected []string) ([]byte, error) {
+// renderRules concatenates header plus every rule file in dir except the skipped
+// ones, in name order, so a new rule file renders without re-running init.
+func renderRules(dir, header string, skip []string) ([]byte, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
@@ -19,7 +19,7 @@ func renderRules(dir, header string, selected []string) ([]byte, error) {
 	buf.WriteString(header)
 	for _, e := range entries {
 		name := strings.TrimSuffix(e.Name(), ".md")
-		if len(selected) > 0 && !slices.Contains(selected, name) {
+		if slices.Contains(skip, name) {
 			continue
 		}
 		b, err := os.ReadFile(filepath.Join(dir, e.Name()))

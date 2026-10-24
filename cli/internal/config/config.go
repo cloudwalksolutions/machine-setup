@@ -28,9 +28,9 @@ type PiConfig struct {
 
 // ClaudeConfig records the `tars claude init` choices; nil/empty means "all on".
 type ClaudeConfig struct {
-	Hook     *bool    `mapstructure:"hook"     yaml:"hook"`
-	Settings *bool    `mapstructure:"settings" yaml:"settings"`
-	Rules    []string `mapstructure:"rules"    yaml:"rules"`
+	Hook      *bool    `mapstructure:"hook"       yaml:"hook"`
+	Settings  *bool    `mapstructure:"settings"   yaml:"settings"`
+	SkipRules []string `mapstructure:"skip_rules" yaml:"skip_rules"`
 }
 
 // Package represents a managed package abstracted over package managers.

@@ -243,9 +243,9 @@ version it would mint) or left unchanged, and writes nothing.
 
 `tars init claude` asks three things in a form: install the hook that denies
 `sed -i` / heredoc / interpreter writes (so every change is a reviewable Edit or
-Write), merge the shared settings fragment, and which global rules to render
-into `~/.claude/CLAUDE.md`. Choices are saved under `claude:` in the tars config
-and honored by every later `tars pull`; `tars push` carries hook edits and the
+Write), merge the shared settings fragment, and which global rules to skip
+when rendering `~/.claude/CLAUDE.md`. Choices are saved under `claude:` in the tars config
+and honored by every later `tars pull`, which also picks up newly added rules; `tars push` carries hook edits and the
 shareable settings keys back into the repo. Add a rule by dropping a short
 `NN-slug.md` into `claude/rules/` and running `make sync-assets`.
 
