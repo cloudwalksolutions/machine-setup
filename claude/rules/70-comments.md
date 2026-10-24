@@ -1,2 +1,2 @@
 ## Comments
-Names and test titles carry intent; do not add explanatory comments to code or tests. When a why is genuinely non-obvious, one concise line is the ceiling. Never leave a comment that restates the code.
+Comments are for users, not maintainers; tests are for maintainers. The only comment allowed is a short one-line doc on an exported name, telling its caller what it does. No comments in tests, config or workflows. Never explain how or why code works in a comment: intent goes in names and tests, the why in the commit or PR. Never comment out code or restate it. Before committing, delete every added comment that breaks this.
