@@ -3,7 +3,8 @@ name: release
 on:
   push:
     branches: [main]
-    paths-ignore: ["**.md", "docs/**", "vhs/**"]
+    # Only docs the binary doesn't embed: rule/prompt/agent .md files under claude/ and pi/ ship in it.
+    paths-ignore: ["README.md", "CLAUDE.md", "docs/**", "vhs/**"]
   workflow_dispatch:
 
 concurrency:

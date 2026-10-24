@@ -5,7 +5,7 @@ name: vhs
 on:
   pull_request:
     branches: [main]
-    paths-ignore: ["**.md", "docs/**", "vhs/*.gif"]
+    paths-ignore: ["README.md", "CLAUDE.md", "docs/**", "vhs/*.gif"]
   push:
     branches: [main]
     paths: ["vhs/**", "!vhs/*.gif"]
