@@ -38,12 +38,13 @@ func (p *previewPullable) Pull() error {
 
 type spyConfirmer struct {
 	answer bool
+	err    error
 	asked  map[string]string
 }
 
 func (s *spyConfirmer) ConfirmApply(name, diff string) (bool, error) {
 	s.asked[name] = diff
-	return s.answer, nil
+	return s.answer, s.err
 }
 
 var _ = Describe("SequentialPuller.PullAll with Confirm", func() {
@@ -97,6 +98,17 @@ var _ = Describe("SequentialPuller.PullAll with Confirm", func() {
 
 		Expect(applied).To(BeEmpty())
 		Expect(stdout.String()).To(ContainSubstring("skipped zsh"))
+	})
+
+	It("stops the whole pull on Ctrl+C at a prompt", func() {
+		confirm.err = errors.New("user aborted")
+		component("zsh", "+new\n")
+		component("nvim", "+new\n")
+
+		Expect(puller.PullAll()).To(MatchError("user aborted"))
+
+		Expect(confirm.asked).NotTo(HaveKey("nvim"))
+		Expect(applied).To(BeEmpty())
 	})
 })
 

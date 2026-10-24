@@ -57,13 +57,20 @@ func (c Copier) diff(src, dst string) error {
 	return nil
 }
 
+// diffFile diffs a file both sides have; one missing on a side is named, not dumped.
 func (c Copier) diffFile(src, dst string) error {
 	want, err := os.ReadFile(src)
-	if err != nil && !os.IsNotExist(err) {
+	if os.IsNotExist(err) {
+		c.report("    would remove  %s", dst)
+		return nil
+	} else if err != nil {
 		return err
 	}
 	have, err := os.ReadFile(dst)
-	if err != nil && !os.IsNotExist(err) {
+	if os.IsNotExist(err) {
+		c.report("    would create  %s", dst)
+		return nil
+	} else if err != nil {
 		return err
 	}
 	if bytes.Equal(want, have) {
@@ -139,7 +146,7 @@ func (c Copier) SafeCopy(src, dst, component, backupRoot string) error {
 		return err
 	} else if c.DryRun {
 		c.report("    would create  %s", dst)
-		return c.diff(src, dst)
+		return nil
 	}
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err

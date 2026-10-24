@@ -238,8 +238,9 @@ Machine-specific bits belong in these git-ignored files, which the shared config
 
 `tars pull --dry-run` prints what would be created, overwritten (with the backup
 version it would mint) or left unchanged, and writes nothing. `tars pull --diff`
-prints a unified diff of every config and rendered md that would change, also
-writing nothing. On a terminal, a plain `tars pull` shows each changed component's
+prints a unified diff of every existing config and rendered md that would change
+(new and removed files are one line each, binaries are named only), also writing
+nothing. Ctrl+C at a prompt stops the pull and leaves the rest untouched. On a terminal, a plain `tars pull` shows each changed component's
 diff and applies it on Enter (or skips it on No); `-y/--yes`, `TARS_NO_FORM=1` or
 no terminal applies everything without asking.
 

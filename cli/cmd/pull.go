@@ -48,7 +48,10 @@ Exits non-zero when any component fails, listing each failure.`,
 			preview.DryRun, preview.Diff, preview.Stdout = true, true, diffs
 			p.Previews, p.Diffs, p.Confirm = components.AllPullable(preview), diffs, forms.PullConfirm{Out: stdout}
 		}
-		if err := p.PullAll(); err != nil {
+		if err := p.PullAll(); err != nil && err.Error() == "user aborted" {
+			fmt.Fprintln(stdout, "\nPull cancelled; components after this one were left as they were.")
+			return nil
+		} else if err != nil {
 			return fmt.Errorf("pull completed with failures: %w", err)
 		}
 		if opts.DryRun {

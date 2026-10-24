@@ -103,13 +103,12 @@ var _ = Describe("Copier in dry-run mode", func() {
 			Expect(log.String()).To(ContainSubstring("+new line\n"))
 		})
 
-		It("shows a create as a diff from nothing", func() {
+		It("shows a create as one line, never the whole new file", func() {
 			Expect(os.WriteFile(src, []byte("first\n"), 0o644)).To(Succeed())
 
 			Expect(copier.SafeCopy(src, dst, "demo", backupRoot)).To(Succeed())
 
-			Expect(log.String()).To(ContainSubstring("would create"))
-			Expect(log.String()).To(ContainSubstring("+first\n"))
+			Expect(log.String()).To(Equal("    would create  " + dst + "\n"))
 		})
 
 		It("reports a binary change without dumping its bytes", func() {
@@ -139,11 +138,15 @@ var _ = Describe("Copier in dry-run mode", func() {
 			Expect(os.WriteFile(filepath.Join(repo, "lua", "keys.lua"), []byte("new map\n"), 0o644)).To(Succeed())
 			Expect(os.WriteFile(filepath.Join(local, "lua", "keys.lua"), []byte("old map\n"), 0o644)).To(Succeed())
 			Expect(os.WriteFile(filepath.Join(local, "stale.lua"), []byte("gone\n"), 0o644)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(repo, "fresh.lua"), []byte("brand new\n"), 0o644)).To(Succeed())
 
 			Expect(copier.SafeCopy(repo, local, "demo", backupRoot)).To(Succeed())
 
 			Expect(log.String()).To(ContainSubstring("-old map\n+new map\n"))
-			Expect(log.String()).To(ContainSubstring("-gone\n"))
+			Expect(log.String()).To(ContainSubstring("would remove  " + filepath.Join(local, "stale.lua") + "\n"))
+			Expect(log.String()).To(ContainSubstring("would create  " + filepath.Join(local, "fresh.lua") + "\n"))
+			Expect(log.String()).NotTo(ContainSubstring("gone"))
+			Expect(log.String()).NotTo(ContainSubstring("brand new"))
 			Expect(log.String()).NotTo(ContainSubstring("init.lua"))
 		})
 	})

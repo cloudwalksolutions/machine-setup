@@ -303,6 +303,9 @@ func runComponents[T any](items []T, name func(T) string, act func(T) error, r r
 	for _, c := range items {
 		r.ItemStarted(name(c))
 		err := act(c)
+		if err != nil && err.Error() == "user aborted" {
+			return err
+		}
 		r.ItemDone(name(c), err)
 		if err != nil {
 			failed = append(failed, fmt.Errorf("%s: %w", name(c), err))
