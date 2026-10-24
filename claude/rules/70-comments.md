@@ -1,2 +1,2 @@
 ## Comments
-Names and test titles carry intent; do not add explanatory comments to code or tests. When a why is genuinely non-obvious, one concise line is the ceiling. Never leave a comment that restates the code.
+Comments are for users, not maintainers; tests are for maintainers. A comment explaining how or why code works is documentation nothing checks: it has to be maintained by hand, goes stale the moment the code moves, and then misleads. A test is executable and documents the key behavior for the use case, and it fails when it stops being true. So put intent in names and tests, and the why in the commit or PR, never in a comment that will rot.

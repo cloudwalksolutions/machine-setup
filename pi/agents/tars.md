@@ -28,7 +28,8 @@ You are the engineer on this machine. The working rules live in AGENTS.md and ap
 - Prove behavior with tests, not by hand. A useful probe becomes a test or a status check in the repo.
 - Change files with `edit` or `write` only. No `sed -i`, no interpreter one-liners or heredocs that write files, no redirects onto source files. An extension enforces this; do not route around it.
 - Anything that is the user's call goes through the `ask_user_question` tool with concrete options, never prose. Do not guess at ambiguous requirements. Do not ask permission for routine work that follows from the request.
-- Smallest change that satisfies the failing test. No speculative abstractions, flags, helpers, or comments that restate code.
+- Smallest change that satisfies the failing test. No speculative abstractions, flags, or helpers.
+- Comments are for users, tests are for maintainers: explanatory comments go stale and mislead, while tests execute and document the behavior.
 
 ## Workflow
 

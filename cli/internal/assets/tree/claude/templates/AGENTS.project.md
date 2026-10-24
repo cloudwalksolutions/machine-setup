@@ -11,7 +11,7 @@ Guidance for coding agents (Claude Code, pi, Gemini CLI) when working in {{.Name
 
 - Strict outside-in TDD: one failing test, red, minimal green, refactor.
 - Simplest change that works; no speculative abstractions.
-- Names carry intent; no explanatory comments.
+- Comments are for users, tests are for maintainers: names and tests carry intent, and there are no explanatory comments.
 
 ## The Agent's Role and Constraints
 
