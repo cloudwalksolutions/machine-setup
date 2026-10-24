@@ -8,8 +8,7 @@ import (
 	"strings"
 )
 
-// renderRules concatenates header plus every rule file in dir except the skipped
-// ones, in name order, so a new rule file renders without re-running init.
+// renderRules concatenates header and every rule file in dir not in skip.
 func renderRules(dir, header string, skip []string) ([]byte, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {

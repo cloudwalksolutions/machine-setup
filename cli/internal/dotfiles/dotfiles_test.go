@@ -105,7 +105,6 @@ var _ = Describe("shipped zsh dotfiles", func() {
 		}
 		cmd := exec.Command(zsh, "-f", "-c",
 			"source "+filepath.Join(repoRoot(), "zsh", "profile"))
-		// profile runs `go env`; its telemetry writes into HOME after exit and races TempDir cleanup.
 		cmd.Env = append(os.Environ(), "HOME="+GinkgoT().TempDir(), "GOTELEMETRY=off")
 
 		out, err := cmd.CombinedOutput()
