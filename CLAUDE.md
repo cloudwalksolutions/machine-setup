@@ -204,6 +204,11 @@ refreshes the badge. Both run `go test -count=1` so cached results never replay 
 Do NOT batch-write many specs or implement ahead of a failing test. Match existing
 Ginkgo/Gomega style and the seam pattern above.
 
+To repeat a suite (e.g. chasing a flake), use `go run github.com/onsi/ginkgo/v2/ginkgo
+-repeat=N ./internal/<pkg>/`. Ginkgo refuses `go test -count=N` for N > 1 and exits non-zero
+without running anything. Run every gate as its own command, never piped into `tail`/`grep`
+(the pipe hides the exit code) or chained with `&&` into a commit or push.
+
 **Adding a new dotfile component** (Go, TDD each step):
 
 1. Add its paths to `paths.go` (`<Comp>Paths` struct + wire into `ForOS`, OS-aware if

@@ -7,7 +7,7 @@ import (
 	"charm.land/huh/v2"
 )
 
-// PullConfirm prints a component's pending diff to Out, then asks whether to apply it; Enter applies.
+// PullConfirm shows a component's diff and asks whether to apply it.
 type PullConfirm struct{ Out io.Writer }
 
 func (p PullConfirm) ConfirmApply(name, diff string) (bool, error) {

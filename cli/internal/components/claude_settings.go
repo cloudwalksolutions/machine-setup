@@ -87,7 +87,7 @@ func (s settings) setHooks(event string, groups []hookGroup) {
 	hooks[event] = raw
 }
 
-// save writes s as indented JSON through c, so it gets the backup, idempotence and dry-run.
+// save writes s as indented JSON through c.
 func (s settings) save(c fsutil.Copier, path, component, backupRoot string) error {
 	out, err := json.MarshalIndent(s, "", "  ")
 	if err != nil {

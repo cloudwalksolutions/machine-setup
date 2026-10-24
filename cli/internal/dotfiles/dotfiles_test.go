@@ -105,7 +105,7 @@ var _ = Describe("shipped zsh dotfiles", func() {
 		}
 		cmd := exec.Command(zsh, "-f", "-c",
 			"source "+filepath.Join(repoRoot(), "zsh", "profile"))
-		cmd.Env = append(os.Environ(), "HOME="+GinkgoT().TempDir())
+		cmd.Env = append(os.Environ(), "HOME="+GinkgoT().TempDir(), "GOTELEMETRY=off")
 
 		out, err := cmd.CombinedOutput()
 

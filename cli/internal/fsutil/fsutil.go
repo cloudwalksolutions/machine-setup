@@ -57,7 +57,6 @@ func (c Copier) diff(src, dst string) error {
 	return nil
 }
 
-// diffFile diffs a file both sides have; one missing on a side is named, not dumped.
 func (c Copier) diffFile(src, dst string) error {
 	want, err := os.ReadFile(src)
 	if os.IsNotExist(err) {

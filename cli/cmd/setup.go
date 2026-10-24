@@ -259,8 +259,6 @@ func stringSet(s []string) map[string]bool {
 
 // SequentialPuller is the production Puller. It iterates the configured
 // component list, printing progress and capturing per-component failures.
-// With Confirm set, each component's Preview (same order, writing to Diffs)
-// runs first and a non-empty diff is applied only once confirmed.
 type SequentialPuller struct {
 	Components []components.Component
 	Previews   []components.Component
