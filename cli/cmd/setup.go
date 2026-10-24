@@ -5,6 +5,7 @@
 package cmd
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -258,14 +259,40 @@ func stringSet(s []string) map[string]bool {
 
 // SequentialPuller is the production Puller. It iterates the configured
 // component list, printing progress and capturing per-component failures.
+// With Confirm set, each component's Preview (same order, writing to Diffs)
+// runs first and a non-empty diff is applied only once confirmed.
 type SequentialPuller struct {
 	Components []components.Component
+	Previews   []components.Component
+	Diffs      *bytes.Buffer
+	Confirm    Confirmer
 	Report     report.Reporter
 }
 
 // PullAll pulls every component, continuing past failures and returning them joined.
 func (p SequentialPuller) PullAll() error {
-	return runComponents(p.Components, components.Component.Name, components.Component.Pull, p.Report)
+	return runComponents(p.Components, components.Component.Name, p.pull, p.Report)
+}
+
+func (p SequentialPuller) pull(c components.Component) error {
+	if p.Confirm == nil {
+		return c.Pull()
+	}
+	p.Diffs.Reset()
+	if err := p.Previews[slices.Index(p.Components, c)].Pull(); err != nil {
+		return err
+	}
+	if p.Diffs.Len() > 0 {
+		ok, err := p.Confirm.ConfirmApply(c.Name(), p.Diffs.String())
+		if err != nil {
+			return err
+		}
+		if !ok {
+			p.Report.Note("    skipped " + c.Name())
+			return nil
+		}
+	}
+	return c.Pull()
 }
 
 // runComponents drives one action across a component list, reporting each item,

@@ -46,33 +46,32 @@ func (s *spyConfirmer) ConfirmApply(name, diff string) (bool, error) {
 	return s.answer, nil
 }
 
-var _ = Describe("ConfirmingPuller.PullAll", func() {
+var _ = Describe("SequentialPuller.PullAll with Confirm", func() {
 	var (
-		applied  []string
-		previews *bytes.Buffer
-		confirm  *spyConfirmer
-		step     func(name, diff string) cmd.PullStep
+		applied []string
+		stdout  *bytes.Buffer
+		puller  cmd.SequentialPuller
+		confirm *spyConfirmer
 	)
+
+	component := func(name, diff string) {
+		puller.Components = append(puller.Components, &spyPullable{name: name, log: &applied})
+		puller.Previews = append(puller.Previews, &previewPullable{name: name, out: puller.Diffs, diff: diff})
+	}
 
 	BeforeEach(func() {
 		applied = nil
-		previews = &bytes.Buffer{}
+		stdout = &bytes.Buffer{}
 		confirm = &spyConfirmer{answer: true, asked: map[string]string{}}
-		step = func(name, diff string) cmd.PullStep {
-			return cmd.PullStep{
-				Preview: &previewPullable{name: name, out: previews, diff: diff},
-				Apply:   &spyPullable{name: name, log: &applied},
-			}
+		puller = cmd.SequentialPuller{
+			Diffs:   &bytes.Buffer{},
+			Confirm: confirm,
+			Report:  report.Text{Stdout: stdout, Stderr: &bytes.Buffer{}},
 		}
 	})
 
 	It("shows a changed component's diff and applies it once confirmed", func() {
-		puller := cmd.ConfirmingPuller{
-			Steps:    []cmd.PullStep{step("zsh", "-old\n+new\n")},
-			Previews: previews,
-			Confirm:  confirm,
-			Report:   report.Text{Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}},
-		}
+		component("zsh", "-old\n+new\n")
 
 		Expect(puller.PullAll()).To(Succeed())
 
@@ -81,12 +80,8 @@ var _ = Describe("ConfirmingPuller.PullAll", func() {
 	})
 
 	It("never asks about a component with nothing to change", func() {
-		puller := cmd.ConfirmingPuller{
-			Steps:    []cmd.PullStep{step("vim", ""), step("zsh", "+new\n")},
-			Previews: previews,
-			Confirm:  confirm,
-			Report:   report.Text{Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}},
-		}
+		component("vim", "")
+		component("zsh", "+new\n")
 
 		Expect(puller.PullAll()).To(Succeed())
 
@@ -96,13 +91,7 @@ var _ = Describe("ConfirmingPuller.PullAll", func() {
 
 	It("leaves a declined component untouched and says it was skipped", func() {
 		confirm.answer = false
-		stdout := &bytes.Buffer{}
-		puller := cmd.ConfirmingPuller{
-			Steps:    []cmd.PullStep{step("zsh", "+new\n")},
-			Previews: previews,
-			Confirm:  confirm,
-			Report:   report.Text{Stdout: stdout, Stderr: &bytes.Buffer{}},
-		}
+		component("zsh", "+new\n")
 
 		Expect(puller.PullAll()).To(Succeed())
 
@@ -110,30 +99,6 @@ var _ = Describe("ConfirmingPuller.PullAll", func() {
 		Expect(stdout.String()).To(ContainSubstring("skipped zsh"))
 	})
 })
-
-var _ = Describe("NewConfirmingPuller", func() {
-	It("pairs every pullable component with a diff preview of itself", func() {
-		opts := components.Options{RepoRoot: GinkgoT().TempDir(), Home: GinkgoT().TempDir(), Stdout: &bytes.Buffer{}}
-
-		p := cmd.NewConfirmingPuller(opts, report.Text{Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}})
-
-		Expect(p.Steps).To(HaveLen(len(components.AllPullable(opts))))
-		for _, s := range p.Steps {
-			Expect(s.Preview.Name()).To(Equal(s.Apply.Name()))
-		}
-	})
-})
-
-var _ = DescribeTable("PullConfirms asks per component only on an interactive, writing pull",
-	func(yes, dryRun, headless, tty, want bool) {
-		Expect(cmd.PullConfirms(yes, dryRun, headless, tty)).To(Equal(want))
-	},
-	Entry("a plain pull on a terminal", false, false, false, true, true),
-	Entry("--yes", true, false, false, true, false),
-	Entry("--dry-run or --diff", false, true, false, true, false),
-	Entry("TARS_NO_FORM", false, false, true, true, false),
-	Entry("no terminal", false, false, false, false, false),
-)
 
 var _ = Describe("SequentialPuller.PullAll", func() {
 	It("pulls each component in order, continues past failures, and returns an aggregate error naming them", func() {
