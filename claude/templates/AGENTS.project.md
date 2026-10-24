@@ -15,8 +15,8 @@ Guidance for coding agents (Claude Code, pi, Gemini CLI) when working in {{.Name
 
 ## The Agent's Role and Constraints
 
-- Land work through branches and pull requests; CI proves validity.
-- The user owns dev servers; never start, stop, or build over them.
+- Land work as small, focused pull requests; CI proves validity.
+- The user's dev servers are theirs; start and own separate instances for testing.
 - Edit files only with the Edit/Write tools; never stream edits.
 - Verify behavior with tests, not by hand; browser MCP proves visuals only.
 

@@ -95,8 +95,8 @@ var _ = Describe("Pi.Pull", func() {
 		Expect(os.IsNotExist(err)).To(BeTrue(), "dry-run must not create HOME")
 	})
 
-	It("renders AGENTS.md from the shared rules, honoring the claude rule selection", func() {
-		opts.Claude.Rules = []string{"60-simplicity"}
+	It("renders AGENTS.md from the shared rules, skipping the rules claude skips", func() {
+		opts.Claude.SkipRules = []string{"10-tdd"}
 		Expect(components.NewPi(opts).Pull()).To(Succeed())
 
 		got := read(filepath.Join(agent, "AGENTS.md"))

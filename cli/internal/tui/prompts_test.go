@@ -33,7 +33,7 @@ var _ = Describe("Prompts", func() {
 
 		claude, err := p.AskClaude([]string{"10-tdd"})
 		Expect(err).NotTo(HaveOccurred())
-		Expect(claude.Rules).To(Equal([]string{"10-tdd"}))
+		Expect(claude.SkipRules).To(BeEmpty())
 
 		Expect(p.Welcome()).To(Succeed())
 		Expect(*shown).To(HaveLen(3))

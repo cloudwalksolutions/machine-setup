@@ -175,7 +175,7 @@ const agentsMDHeader = "# Working rules\n\nManaged by `tars pi init`; edit the r
 
 // pullRules renders the same rule selection Claude uses into ~/.pi/agent/AGENTS.md.
 func (c *Pi) pullRules() error {
-	content, err := renderRules(c.rules, agentsMDHeader, c.opts.Claude.Rules)
+	content, err := renderRules(c.rules, agentsMDHeader, c.opts.Claude.SkipRules)
 	if err != nil {
 		return err
 	}

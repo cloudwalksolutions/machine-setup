@@ -78,8 +78,8 @@ var _ = Describe("Claude.Pull", func() {
 		Expect(string(b)).To(MatchRegexp(`(?s)## TDD\nred first\n.*## Simple\nyagni\n`))
 	})
 
-	It("renders only the configured rules", func() {
-		opts.Claude = config.ClaudeConfig{Rules: []string{"60-simplicity"}}
+	It("renders every rule except the skipped ones, so new rule files show up without re-init", func() {
+		opts.Claude = config.ClaudeConfig{SkipRules: []string{"10-tdd"}}
 		Expect(components.NewClaude(opts).Pull()).To(Succeed())
 
 		b, err := os.ReadFile(filepath.Join(home, ".claude", "CLAUDE.md"))

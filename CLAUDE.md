@@ -206,8 +206,9 @@ Ginkgo/Gomega style and the seam pattern above.
 4. `gofmt`, then `go test ./... && golangci-lint run ./...` green.
 
 **Adding a global Claude rule**: drop a short `NN-slug.md` (a `##` heading plus a few
-lines) into `claude/rules/`, run `make sync-assets`. The `claude` component renders the
-selected rules into `~/.claude/CLAUDE.md`; `claude/settings.json` holds only the shareable
+lines) into `claude/rules/`, run `make sync-assets`. The `claude` component renders every
+rule not under `claude.skip_rules` into `~/.claude/CLAUDE.md`, so a new rule lands on the
+next `tars pull` with no re-init; `claude/settings.json` holds only the shareable
 keys (model, theme, enabledPlugins, the hook entry) in `json.MarshalIndent` key order so
 `push` round-trips byte-for-byte. Never sync `autoMode`, `permissions`, or `~/.claude.json`.
 
