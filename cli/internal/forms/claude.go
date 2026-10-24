@@ -1,6 +1,8 @@
 package forms
 
 import (
+	"slices"
+
 	"charm.land/huh/v2"
 
 	"tars/internal/config"
@@ -39,7 +41,13 @@ func ClaudeForm(rules []string) (*huh.Form, func() config.ClaudeConfig) {
 		),
 	)
 	return f, func() config.ClaudeConfig {
-		return config.ClaudeConfig{Hook: &hook, Settings: &settings, Rules: selected}
+		var skip []string
+		for _, r := range rules {
+			if !slices.Contains(selected, r) {
+				skip = append(skip, r)
+			}
+		}
+		return config.ClaudeConfig{Hook: &hook, Settings: &settings, SkipRules: skip}
 	}
 }
 

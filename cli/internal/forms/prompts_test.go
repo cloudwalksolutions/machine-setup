@@ -1,6 +1,7 @@
 package forms_test
 
 import (
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -23,7 +24,7 @@ var _ = Describe("Headless", func() {
 		claude, err := h.AskClaude([]string{"10-tdd"})
 		Expect(err).NotTo(HaveOccurred())
 		Expect(*claude.Hook && *claude.Settings).To(BeTrue())
-		Expect(claude.Rules).To(Equal([]string{"10-tdd"}))
+		Expect(claude.SkipRules).To(BeEmpty())
 
 		pi, err := h.AskPi(forms.PiInputs{OllamaModels: []string{"llama3"}, Packages: []string{"npm:a"}})
 		Expect(err).NotTo(HaveOccurred())
@@ -95,7 +96,27 @@ var _ = Describe("form builders", func() {
 		_, collect := forms.ClaudeForm([]string{"10-tdd", "20-prs"})
 		cfg := collect()
 		Expect(*cfg.Hook && *cfg.Settings).To(BeTrue())
-		Expect(cfg.Rules).To(Equal([]string{"10-tdd", "20-prs"}))
+		Expect(cfg.SkipRules).To(BeEmpty())
+	})
+
+	It("ClaudeForm records the unticked rules as skipped", func() {
+		form, collect := forms.ClaudeForm([]string{"10-tdd", "20-prs"})
+		press := func(msg tea.Msg) {
+			_, cmd := form.Update(msg)
+			for cmd != nil {
+				next := cmd()
+				if next == nil {
+					return
+				}
+				_, cmd = form.Update(next)
+			}
+		}
+		form.Init()
+		press(tea.KeyPressMsg{Code: tea.KeyEnter})
+		press(tea.KeyPressMsg{Code: tea.KeyEnter})
+		press(tea.KeyPressMsg{Code: 'x', Text: "x"})
+
+		Expect(collect().SkipRules).To(Equal([]string{"10-tdd"}))
 	})
 
 	It("PiForm starts with every package and the previously exposed models", func() {

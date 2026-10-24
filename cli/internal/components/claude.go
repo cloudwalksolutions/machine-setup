@@ -91,9 +91,9 @@ func (c *Claude) pullSettings() error {
 
 const claudeMDHeader = "# Global Claude Code rules\n\nManaged by `tars claude init`; edit the rule files in the machine-setup repo, not this file.\n\n"
 
-// pullRules renders the selected rule files into CLAUDE.md.
+// pullRules renders the rule files, minus the skipped ones, into CLAUDE.md.
 func (c *Claude) pullRules() error {
-	content, err := renderRules(c.p.RulesRepo, claudeMDHeader, c.cfg.Rules)
+	content, err := renderRules(c.p.RulesRepo, claudeMDHeader, c.cfg.SkipRules)
 	if err != nil {
 		return err
 	}

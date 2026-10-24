@@ -37,7 +37,7 @@ var _ = Describe("ClaudeInit.Run", func() {
 
 	BeforeEach(func() {
 		off := false
-		asker = &spyClaudeAsker{answer: config.ClaudeConfig{Hook: &off, Rules: []string{"10-tdd"}}}
+		asker = &spyClaudeAsker{answer: config.ClaudeConfig{Hook: &off, SkipRules: []string{"10-tdd"}}}
 		store = newMemConfigStore("/cfg/config.yaml")
 		pulled = nil
 		stdout = &bytes.Buffer{}
@@ -110,13 +110,13 @@ var _ = Describe("LoadClaudeConfig", func() {
 	It("returns the saved claude section from the config file", func() {
 		path := filepath.Join(GinkgoT().TempDir(), "config.yaml")
 		GinkgoT().Setenv("TARS_CONFIG_PATH", path)
-		Expect(os.WriteFile(path, []byte("claude:\n  hook: false\n  rules: [10-tdd]\n"), 0o644)).To(Succeed())
+		Expect(os.WriteFile(path, []byte("claude:\n  hook: false\n  skip_rules: [10-tdd]\n"), 0o644)).To(Succeed())
 
 		c, err := cmd.LoadClaudeConfig()
 
 		Expect(err).NotTo(HaveOccurred())
 		Expect(*c.Hook).To(BeFalse())
-		Expect(c.Rules).To(Equal([]string{"10-tdd"}))
+		Expect(c.SkipRules).To(Equal([]string{"10-tdd"}))
 	})
 
 	It("returns the all-on zero value when no config exists yet", func() {
@@ -157,7 +157,7 @@ var _ = Describe("tars claude (headless, temp HOME)", func() {
 		Expect(string(b)).To(ContainSubstring("## Pull requests and CI"))
 		cfg, err := os.ReadFile(filepath.Join(home, "config.yaml"))
 		Expect(err).NotTo(HaveOccurred())
-		Expect(string(cfg)).To(ContainSubstring("20-prs-and-ci"))
+		Expect(string(cfg)).To(ContainSubstring("skip_rules: []"))
 	})
 
 	It("init project scaffolds AGENTS.md plus the claude and gemini pointers, and refuses a second run without --force", func() {
