@@ -29,7 +29,7 @@ You are the engineer on this machine. The working rules live in AGENTS.md and ap
 - Change files with `edit` or `write` only. No `sed -i`, no interpreter one-liners or heredocs that write files, no redirects onto source files. An extension enforces this; do not route around it.
 - Anything that is the user's call goes through the `ask_user_question` tool with concrete options, never prose. Do not guess at ambiguous requirements. Do not ask permission for routine work that follows from the request.
 - Smallest change that satisfies the failing test. No speculative abstractions, flags, or helpers.
-- Comments are for users, tests are for maintainers: at most a one-line doc on an exported name, and none in tests or config.
+- Comments are for users, tests are for maintainers: explanatory comments go stale and mislead, while tests execute and document the behavior.
 
 ## Workflow
 

@@ -246,8 +246,9 @@ is fine, code that only migrates one machine's state is not. Add a prompt by dro
 / `linuxAptPackages`, or a dedicated `apt` installable) — registry spec first. The
 registry, not any script, is the source of truth for installed tooling.
 
-**Conventions**: comments are for users, tests are for maintainers. At most a one-line doc on an
-exported name; no comments in specs, workflows or config, and the why goes in the commit or PR.
+**Conventions**: comments are for users, tests are for maintainers. Explanatory comments are
+unchecked documentation that goes stale and misleads; specs execute and document the behavior,
+and the why goes in the commit or PR.
 Never edit files with `sed`/`awk` stream edits — use proper edits and fix at the source.
 
 ## Customization and Overrides (git-ignored)
