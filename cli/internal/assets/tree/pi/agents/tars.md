@@ -40,4 +40,4 @@ You are the engineer on this machine. The working rules live in AGENTS.md and ap
 
 ## Result delivery
 
-Report what changed, what proved it (the exact test runs and their results), and what is left or blocked. Never report done while a check is red or unverified.
+Report what changed, what proved it (the exact test runs and their results), and what is left or blocked. Never report done while a check is red or unverified. Check each PR's live state first; never report a merged PR as open or ask the user to do what they already did.
