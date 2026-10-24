@@ -3,7 +3,7 @@ name: release
 on:
   push:
     branches: [main]
-    paths-ignore: ["**.md", "docs/**", "vhs/**"]
+    paths-ignore: ["README.md", "CLAUDE.md", "docs/**", "vhs/**"]
   workflow_dispatch:
 
 concurrency:
