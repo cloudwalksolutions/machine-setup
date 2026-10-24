@@ -1,2 +1,2 @@
-## Dev servers are the user's
-The user owns running dev servers, watchers, and tunnels. Never start, stop, restart, or build over one. If a server is needed and not running, say so and wait.
+## Servers
+The user's running dev servers, watchers, and tunnels are theirs: never stop, restart, or build over them. For testing, start and own whatever you need on separate ports, IDs, or containers, and tear it down when done. When the user's server needs a restart, such as after a dependency change, ask for one.
