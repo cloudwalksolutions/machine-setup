@@ -8,7 +8,7 @@ A dev-machine provisioning tool for macOS (primary) and Linux (incl. shared bast
 from a fresh machine to a production-ready dev environment: dev tools, dotfiles
 (Neovim, Zsh, Byobu, Vim), fonts, and terminal settings, plus a manager for live byobu
 sessions, one per project (git repo under `projects_dir`). The user-facing CLI is **`tars`** (Go, in `cli/`) with five verbs:
-`init` (bootstrap; subcommands `init claude`, `init pi`, `init project`), `pull`, `push`,
+`init` (bootstrap; subcommands `init agents`, `init claude`, `init pi`, `init project`), `pull`, `push`,
 `sessions`, `profiles`.
 
 ## Core Philosophy
@@ -63,7 +63,8 @@ sessions, one per project (git repo under `projects_dir`). The user-facing CLI i
 │       └── config/              # persisted YAML config
 ├── nvim/  zsh/  byobu/  vim/     # the dotfiles tars manages
 ├── monokai.lua                  # nvim colorscheme shipped at root (also embedded)
-├── claude/                      # Claude Code: settings fragment, hooks/, rules/ (→ ~/.claude/CLAUDE.md), templates/
+├── agents/                      # shared by every coding agent: rules/ (→ CLAUDE.md + AGENTS.md), templates/AGENTS.project.md
+├── claude/                      # Claude Code: settings fragment, hooks/
 ├── pi/                          # pi coding agent: settings fragment, agents/, prompts/, extensions/, permissions.json
 ├── fonts/                       # Hack Nerd Font files
 ├── terminal/                    # font string + Terminal.app profile (iTerm2/Terminal.app)
@@ -222,17 +223,19 @@ without running anything. Run every gate as its own command, never piped into `t
    then `UPDATE_GOLDEN=1 go test ./internal/components/` and review the golden diff.
 4. `gofmt`, then `go test ./... && golangci-lint run ./...` green.
 
-**Adding a global Claude rule**: drop a short `NN-slug.md` (a `##` heading plus a few
-lines) into `claude/rules/`, run `make sync-assets`. The `claude` component renders every
-rule not under `claude.skip_rules` into `~/.claude/CLAUDE.md`, so a new rule lands on the
-next `tars pull` with no re-init; `claude/settings.json` holds only the shareable
+**Adding a global agent rule**: drop a short `NN-slug.md` (a `##` heading plus a few
+lines) into `agents/rules/`, run `make sync-assets`. Rules are agent-neutral: the shared
+`pullRules` in `components/agents.go` renders every rule not under `agents.skip_rules`
+(chosen by `tars init agents`), and each agent component is an adapter that calls it with
+its own header and destination (`~/.claude/CLAUDE.md`, `~/.pi/agent/AGENTS.md`), so a new
+rule lands on the next `tars pull` with no re-init. `claude/settings.json` holds only the shareable
 keys (model, theme, enabledPlugins, the hook entry) in `json.MarshalIndent` key order so
 `push` round-trips byte-for-byte. Never sync `autoMode`, `permissions`, or `~/.claude.json`.
 
 **pi**: `pi/` holds the shareable pieces (agent, prompts, the edit-guard extension that
 ports `claude/hooks/block-unreviewable-edits.sh` rule for rule, the permission baseline, a
-settings fragment with packages). `~/.pi/agent/AGENTS.md` is rendered from `claude/rules/`
-(one rule source for both agents). The only provider tars manages is local ollama: `init`
+settings fragment with packages). `~/.pi/agent/AGENTS.md` is rendered from `agents/rules/`
+like CLAUDE.md is. The only provider tars manages is local ollama: `init`
 asks which `ollama list` models to expose and the default, stores that under `pi:` in the tars
 config, and renders the `ollama` entry of `models.json`; every other provider, key and
 llama.cpp setup is pi's own business and is left untouched. Thinking is off by default. Only

@@ -118,8 +118,14 @@ var _ = Describe("ForOS Claude", func() {
 		Expect(p.Claude.SettingsLocal).To(Equal(filepath.Join(home, ".claude", "settings.json")))
 		Expect(p.Claude.HookRepo).To(Equal(filepath.Join(repoRoot, "claude", "hooks", "block-unreviewable-edits.sh")))
 		Expect(p.Claude.HookLocal).To(Equal(filepath.Join(home, ".claude", "hooks", "block-unreviewable-edits.sh")))
-		Expect(p.Claude.RulesRepo).To(Equal(filepath.Join(repoRoot, "claude", "rules")))
 		Expect(p.Claude.ClaudeMDLocal).To(Equal(filepath.Join(home, ".claude", "CLAUDE.md")))
-		Expect(p.Claude.ProjectTemplateRepo).To(Equal(filepath.Join(repoRoot, "claude", "templates", "AGENTS.project.md")))
+	})
+})
+
+var _ = Describe("ForOS Agents", func() {
+	It("locates the agent-neutral rules and project template under agents/", func() {
+		p := paths.ForOS("/repo", "/home/u", "linux")
+		Expect(p.Agents.RulesRepo).To(Equal(filepath.Join("/repo", "agents", "rules")))
+		Expect(p.Agents.ProjectTemplateRepo).To(Equal(filepath.Join("/repo", "agents", "templates", "AGENTS.project.md")))
 	})
 })

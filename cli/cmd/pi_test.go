@@ -111,7 +111,7 @@ var _ = Describe("PiInit.Run", func() {
 
 })
 
-var _ = Describe("tars pi init (headless, temp HOME, fake pi and ollama on PATH)", func() {
+var _ = Describe("tars init pi (headless, temp HOME, fake pi and ollama on PATH)", func() {
 	var (
 		home  string
 		agent string

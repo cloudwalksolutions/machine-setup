@@ -46,8 +46,8 @@ var _ = Describe("Pi.Pull", func() {
 		write("pi/extensions/block-unreviewable-edits.ts", "EXT")
 		write("pi/permissions.json", `{"permission":{"*":"allow"}}`)
 		write("pi/keybindings.json", `{"app.clipboard.pasteImage":[]}`)
-		write("claude/rules/10-tdd.md", "## TDD\nred first\n")
-		write("claude/rules/60-simplicity.md", "## Simple\nyagni\n")
+		write("agents/rules/10-tdd.md", "## TDD\nred first\n")
+		write("agents/rules/60-simplicity.md", "## Simple\nyagni\n")
 
 		opts = components.Options{
 			RepoRoot:   repoRoot,
@@ -95,8 +95,8 @@ var _ = Describe("Pi.Pull", func() {
 		Expect(os.IsNotExist(err)).To(BeTrue(), "dry-run must not create HOME")
 	})
 
-	It("renders AGENTS.md from the shared rules, skipping the rules claude skips", func() {
-		opts.Claude.SkipRules = []string{"10-tdd"}
+	It("renders AGENTS.md from the shared rules, minus the skipped ones", func() {
+		opts.Agents.SkipRules = []string{"10-tdd"}
 		Expect(components.NewPi(opts).Pull()).To(Succeed())
 
 		got := read(filepath.Join(agent, "AGENTS.md"))

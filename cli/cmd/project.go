@@ -78,7 +78,7 @@ func NewProjectInit(r report.Reporter, ask ProjectAsker, force bool) (*ProjectIn
 	}
 	return &ProjectInit{
 		Asker:      ask,
-		Template:   paths.For(opts.RepoRoot, opts.Home).Claude.ProjectTemplateRepo,
+		Template:   paths.For(opts.RepoRoot, opts.Home).Agents.ProjectTemplateRepo,
 		BackupRoot: opts.BackupRoot,
 		Force:      force,
 		Report:     r,

@@ -32,8 +32,9 @@ type Options struct {
 	Stdout     io.Writer // progress output
 	Stderr     io.Writer // error/warning output
 
-	Claude config.ClaudeConfig // `tars claude init` choices; zero value = everything on
-	Pi     config.PiConfig     // `tars pi init` choices; zero value = files only, no providers
+	Claude config.ClaudeConfig // `tars init claude` choices; zero value = everything on
+	Pi     config.PiConfig     // `tars init pi` choices; zero value = files only, no providers
+	Agents config.AgentsConfig // `tars init agents` choice; zero value = every rule rendered
 }
 
 // copier is the writer every component routes its writes through.

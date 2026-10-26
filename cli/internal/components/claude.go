@@ -15,7 +15,7 @@ type Claude struct {
 	p    paths.ClaudePaths
 }
 
-// NewClaude builds the component from opts, including the `tars claude init` choices.
+// NewClaude builds the component from opts, including the `tars init claude` choices.
 func NewClaude(opts Options) *Claude {
 	return &Claude{opts: opts, cfg: opts.Claude, p: paths.For(opts.RepoRoot, opts.Home).Claude}
 }
@@ -88,15 +88,11 @@ func (c *Claude) pullSettings() error {
 	return local.save(c.opts.copier(), c.p.SettingsLocal, c.Name(), c.opts.BackupRoot)
 }
 
-const claudeMDHeader = "# Global Claude Code rules\n\nManaged by `tars claude init`; edit the rule files in the machine-setup repo, not this file.\n\n"
+const claudeMDHeader = "# Global Claude Code rules\n\nManaged by `tars init agents`; edit the rule files under agents/rules in the machine-setup repo, not this file.\n\n"
 
-// pullRules renders the rule files, minus the skipped ones, into CLAUDE.md.
+// pullRules renders the shared rules into CLAUDE.md.
 func (c *Claude) pullRules() error {
-	content, err := renderRules(c.p.RulesRepo, claudeMDHeader, c.cfg.SkipRules)
-	if err != nil {
-		return err
-	}
-	return c.opts.copier().SafeWrite(content, 0o644, c.p.ClaudeMDLocal, c.Name(), c.opts.BackupRoot)
+	return pullRules(c.opts, c.Name(), claudeMDHeader, c.p.ClaudeMDLocal)
 }
 
 // enabled treats an unset toggle as on.

@@ -79,8 +79,11 @@ RUN echo '{"autoMode":{"allow":["x"]}}' > "$HOME/.claude/settings.json" \
 
 # The init wizards run headless and honor their choices on the next pull; the project
 # init writes one AGENTS.md plus pointer files for claude and gemini.
-RUN TARS_NO_FORM=1 tars init claude \
+RUN TARS_NO_FORM=1 tars init agents \
  && grep -q 'skip_rules: \[\]' "$HOME/.config/tars/config.yaml" \
+ && grep -q '^# Working rules' "$HOME/.pi/agent/AGENTS.md" \
+ && TARS_NO_FORM=1 tars init claude \
+ && grep -q 'hook: true' "$HOME/.config/tars/config.yaml" \
  && mkdir -p "$HOME/proj" && TARS_NO_FORM=1 tars init project "$HOME/proj" \
  && grep -q '^# AGENTS.md' "$HOME/proj/AGENTS.md" \
  && grep -q '^@AGENTS.md' "$HOME/proj/CLAUDE.md" \

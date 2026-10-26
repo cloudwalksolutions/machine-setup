@@ -21,10 +21,13 @@ var _ = Describe("Headless", func() {
 		Expect(h.PickTools([]pkg.ToolInfo{{Name: "neovim", Installed: true}, {Name: "fzf"}})).To(Equal([]string{"fzf"}))
 		Expect(h.PickWizards([]string{"claude", "pi"})).To(Equal([]string{"claude", "pi"}))
 
-		claude, err := h.AskClaude([]string{"10-tdd"})
+		agents, err := h.AskAgents([]string{"10-tdd"})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(agents.SkipRules).To(BeEmpty())
+
+		claude, err := h.AskClaude()
 		Expect(err).NotTo(HaveOccurred())
 		Expect(*claude.Hook && *claude.Settings).To(BeTrue())
-		Expect(claude.SkipRules).To(BeEmpty())
 
 		pi, err := h.AskPi(forms.PiInputs{OllamaModels: []string{"llama3"}, Packages: []string{"npm:a"}})
 		Expect(err).NotTo(HaveOccurred())
@@ -93,14 +96,18 @@ var _ = Describe("form builders", func() {
 	})
 
 	It("ClaudeForm starts with everything on", func() {
-		_, collect := forms.ClaudeForm([]string{"10-tdd", "20-prs"})
+		_, collect := forms.ClaudeForm()
 		cfg := collect()
 		Expect(*cfg.Hook && *cfg.Settings).To(BeTrue())
-		Expect(cfg.SkipRules).To(BeEmpty())
 	})
 
-	It("ClaudeForm records the unticked rules as skipped", func() {
-		form, collect := forms.ClaudeForm([]string{"10-tdd", "20-prs"})
+	It("AgentsForm starts with every rule selected", func() {
+		_, collect := forms.AgentsForm([]string{"10-tdd", "20-prs"})
+		Expect(collect().SkipRules).To(BeEmpty())
+	})
+
+	It("AgentsForm records the unticked rules as skipped", func() {
+		form, collect := forms.AgentsForm([]string{"10-tdd", "20-prs"})
 		press := func(msg tea.Msg) {
 			_, cmd := form.Update(msg)
 			for cmd != nil {
@@ -112,8 +119,6 @@ var _ = Describe("form builders", func() {
 			}
 		}
 		form.Init()
-		press(tea.KeyPressMsg{Code: tea.KeyEnter})
-		press(tea.KeyPressMsg{Code: tea.KeyEnter})
 		press(tea.KeyPressMsg{Code: 'x', Text: "x"})
 
 		Expect(collect().SkipRules).To(Equal([]string{"10-tdd"}))

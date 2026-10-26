@@ -16,13 +16,11 @@ import (
 )
 
 type spyClaudeAsker struct {
-	offered []string
-	answer  config.ClaudeConfig
-	err     error
+	answer config.ClaudeConfig
+	err    error
 }
 
-func (s *spyClaudeAsker) AskClaude(rules []string) (config.ClaudeConfig, error) {
-	s.offered = rules
+func (s *spyClaudeAsker) AskClaude() (config.ClaudeConfig, error) {
 	return s.answer, s.err
 }
 
@@ -37,23 +35,21 @@ var _ = Describe("ClaudeInit.Run", func() {
 
 	BeforeEach(func() {
 		off := false
-		asker = &spyClaudeAsker{answer: config.ClaudeConfig{Hook: &off, SkipRules: []string{"10-tdd"}}}
+		asker = &spyClaudeAsker{answer: config.ClaudeConfig{Hook: &off}}
 		store = newMemConfigStore("/cfg/config.yaml")
 		pulled = nil
 		stdout = &bytes.Buffer{}
 		init = &cmd.ClaudeInit{
 			Asker:  asker,
 			Config: store,
-			Rules:  []string{"10-tdd", "60-simplicity"},
 			Pull:   func(c config.ClaudeConfig) error { pulled = append(pulled, c); return nil },
 			Report: report.Text{Stdout: stdout, Stderr: &bytes.Buffer{}},
 		}
 	})
 
-	It("offers the available rules and saves the answers into the config", func() {
+	It("saves the answers into the config", func() {
 		Expect(init.Run()).To(Succeed())
 
-		Expect(asker.offered).To(Equal([]string{"10-tdd", "60-simplicity"}))
 		Expect(store.cfg.Claude).To(Equal(asker.answer))
 		Expect(stdout.String()).To(ContainSubstring("Choices saved to /cfg/config.yaml"))
 	})
@@ -110,13 +106,12 @@ var _ = Describe("LoadClaudeConfig", func() {
 	It("returns the saved claude section from the config file", func() {
 		path := filepath.Join(GinkgoT().TempDir(), "config.yaml")
 		GinkgoT().Setenv("TARS_CONFIG_PATH", path)
-		Expect(os.WriteFile(path, []byte("claude:\n  hook: false\n  skip_rules: [10-tdd]\n"), 0o644)).To(Succeed())
+		Expect(os.WriteFile(path, []byte("claude:\n  hook: false\n"), 0o644)).To(Succeed())
 
 		c, err := cmd.LoadClaudeConfig()
 
 		Expect(err).NotTo(HaveOccurred())
 		Expect(*c.Hook).To(BeFalse())
-		Expect(c.SkipRules).To(Equal([]string{"10-tdd"}))
 	})
 
 	It("returns the all-on zero value when no config exists yet", func() {
@@ -147,17 +142,15 @@ var _ = Describe("tars claude (headless, temp HOME)", func() {
 		return cmd.Execute()
 	}
 
-	It("init provisions ~/.claude with every rule and records the choices", func() {
+	It("init provisions ~/.claude and records the choices", func() {
 		Expect(run("init", "claude")).To(Succeed())
 
 		Expect(filepath.Join(home, ".claude", "hooks", "block-unreviewable-edits.sh")).To(BeARegularFile())
 		Expect(filepath.Join(home, ".claude", "settings.json")).To(BeARegularFile())
-		b, err := os.ReadFile(filepath.Join(home, ".claude", "CLAUDE.md"))
-		Expect(err).NotTo(HaveOccurred())
-		Expect(string(b)).To(ContainSubstring("## Pull requests and CI"))
+		Expect(filepath.Join(home, ".claude", "CLAUDE.md")).To(BeARegularFile())
 		cfg, err := os.ReadFile(filepath.Join(home, "config.yaml"))
 		Expect(err).NotTo(HaveOccurred())
-		Expect(string(cfg)).To(ContainSubstring("skip_rules: []"))
+		Expect(string(cfg)).To(ContainSubstring("claude:\n    hook: true\n    settings: true"))
 	})
 
 	It("init project scaffolds AGENTS.md plus the claude and gemini pointers, and refuses a second run without --force", func() {
@@ -183,14 +176,13 @@ var _ = Describe("claude composition roots", func() {
 		GinkgoT().Setenv("TARS_CONFIG_PATH", filepath.Join(GinkgoT().TempDir(), "config.yaml"))
 	})
 
-	It("NewClaudeInit wires the form, config store, repo rules and a puller", func() {
+	It("NewClaudeInit wires the form, config store and a puller", func() {
 		c, err := cmd.NewClaudeInit(report.Text{Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}}, forms.Headless{})
 
 		Expect(err).NotTo(HaveOccurred())
 		Expect(c.Asker).NotTo(BeNil())
 		Expect(c.Config).NotTo(BeNil())
 		Expect(c.Pull).NotTo(BeNil())
-		Expect(c.Rules).To(ContainElements("10-tdd", "90-reviewable-edits"))
 	})
 
 	It("NewProjectInit points at the repo template", func() {
@@ -199,6 +191,6 @@ var _ = Describe("claude composition roots", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(p.Asker).NotTo(BeNil())
 		Expect(p.Force).To(BeTrue())
-		Expect(p.Template).To(HaveSuffix(filepath.Join("claude", "templates", "AGENTS.project.md")))
+		Expect(p.Template).To(HaveSuffix(filepath.Join("agents", "templates", "AGENTS.project.md")))
 	})
 })

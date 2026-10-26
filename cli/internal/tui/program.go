@@ -17,7 +17,8 @@ type Asker interface {
 	Welcome() error
 	PickTools(tools []pkg.ToolInfo) ([]string, error)
 	PickWizards(offered []string) ([]string, error)
-	AskClaude(rules []string) (config.ClaudeConfig, error)
+	AskAgents(rules []string) (config.AgentsConfig, error)
+	AskClaude() (config.ClaudeConfig, error)
 	AskPi(in forms.PiInputs) (config.PiConfig, error)
 	AskProject(defaultName string) (forms.ProjectAnswers, error)
 }

@@ -16,9 +16,16 @@ type Config struct {
 	Apps         []App        `mapstructure:"apps"         yaml:"apps"`
 	Claude       ClaudeConfig `mapstructure:"claude"       yaml:"claude"`
 	Pi           PiConfig     `mapstructure:"pi"           yaml:"pi"`
+	Agents       AgentsConfig `mapstructure:"agents"       yaml:"agents"`
 }
 
-// PiConfig records the `tars pi init` choices. Only the local ollama provider is
+// AgentsConfig records the `tars init agents` choice: which shared rules every
+// agent leaves out of its rendered rules file; empty means "all on".
+type AgentsConfig struct {
+	SkipRules []string `mapstructure:"skip_rules" yaml:"skip_rules"`
+}
+
+// PiConfig records the `tars init pi` choices. Only the local ollama provider is
 // tars' business; other providers are configured in pi itself.
 type PiConfig struct {
 	Packages     []string `mapstructure:"packages"      yaml:"packages"`
@@ -26,11 +33,10 @@ type PiConfig struct {
 	DefaultModel string   `mapstructure:"default_model" yaml:"default_model"`
 }
 
-// ClaudeConfig records the `tars claude init` choices; nil/empty means "all on".
+// ClaudeConfig records the `tars init claude` choices; nil means "on".
 type ClaudeConfig struct {
-	Hook      *bool    `mapstructure:"hook"       yaml:"hook"`
-	Settings  *bool    `mapstructure:"settings"   yaml:"settings"`
-	SkipRules []string `mapstructure:"skip_rules" yaml:"skip_rules"`
+	Hook     *bool `mapstructure:"hook"     yaml:"hook"`
+	Settings *bool `mapstructure:"settings" yaml:"settings"`
 }
 
 // Package represents a managed package abstracted over package managers.
@@ -107,5 +113,6 @@ func Save(path string, cfg *Config) error {
 	v.Set("apps", cfg.Apps)
 	v.Set("claude", cfg.Claude)
 	v.Set("pi", cfg.Pi)
+	v.Set("agents", cfg.Agents)
 	return v.WriteConfigAs(path)
 }

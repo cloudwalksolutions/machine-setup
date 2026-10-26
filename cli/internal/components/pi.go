@@ -16,19 +16,17 @@ import (
 // guard extension, permissions, a settings fragment, and AGENTS.md rendered
 // from the shared rules. The only provider tars manages is local ollama.
 type Pi struct {
-	opts  Options
-	cfg   config.PiConfig
-	p     paths.PiPaths
-	rules string
+	opts Options
+	cfg  config.PiConfig
+	p    paths.PiPaths
 
 	// Run executes an external command (pi, ollama); the seam tests replace.
 	Run func(name string, args ...string) (string, error)
 }
 
-// NewPi builds the component from opts, including the `tars pi init` choices.
+// NewPi builds the component from opts, including the `tars init pi` choices.
 func NewPi(opts Options) *Pi {
-	all := paths.For(opts.RepoRoot, opts.Home)
-	return &Pi{opts: opts, cfg: opts.Pi, p: all.Pi, rules: all.Claude.RulesRepo, Run: defaultRun}
+	return &Pi{opts: opts, cfg: opts.Pi, p: paths.For(opts.RepoRoot, opts.Home).Pi, Run: defaultRun}
 }
 
 func defaultRun(name string, args ...string) (string, error) {
@@ -171,15 +169,11 @@ func unionStrings(first, second []string) []any {
 	return out
 }
 
-const agentsMDHeader = "# Working rules\n\nManaged by `tars pi init`; edit the rule files under claude/rules in the machine-setup repo, not this file.\n\n"
+const agentsMDHeader = "# Working rules\n\nManaged by `tars init agents`; edit the rule files under agents/rules in the machine-setup repo, not this file.\n\n"
 
-// pullRules renders the same rule selection Claude uses into ~/.pi/agent/AGENTS.md.
+// pullRules renders the shared rules into ~/.pi/agent/AGENTS.md.
 func (c *Pi) pullRules() error {
-	content, err := renderRules(c.rules, agentsMDHeader, c.opts.Claude.SkipRules)
-	if err != nil {
-		return err
-	}
-	return c.opts.copier().SafeWrite(content, 0o644, c.p.AgentsMDLocal, c.Name(), c.opts.BackupRoot)
+	return pullRules(c.opts, c.Name(), agentsMDHeader, c.p.AgentsMDLocal)
 }
 
 // Packages lists the packages the repo fragment installs.

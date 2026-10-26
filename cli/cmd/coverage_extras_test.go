@@ -90,7 +90,7 @@ var _ = Describe("composition roots", func() {
 			names = append(names, in.Name)
 			Expect(in.Run).NotTo(BeNil())
 		}
-		Expect(names).To(Equal([]string{"claude", "pi"}))
+		Expect(names).To(Equal([]string{"agents", "claude", "pi"}))
 	})
 
 	It("NewSessions wires a complete production Sessions", func() {

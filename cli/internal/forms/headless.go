@@ -28,9 +28,15 @@ func (Headless) PickWizards(offered []string) ([]string, error) {
 	return collect(), nil
 }
 
-// AskClaude turns everything on and selects every rule.
-func (Headless) AskClaude(rules []string) (config.ClaudeConfig, error) {
-	_, collect := ClaudeForm(rules)
+// AskAgents selects every rule.
+func (Headless) AskAgents(rules []string) (config.AgentsConfig, error) {
+	_, collect := AgentsForm(rules)
+	return collect(), nil
+}
+
+// AskClaude turns everything on.
+func (Headless) AskClaude() (config.ClaudeConfig, error) {
+	_, collect := ClaudeForm()
 	return collect(), nil
 }
 

@@ -31,12 +31,16 @@ var _ = Describe("Prompts", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(tools).To(Equal([]string{"fzf"}))
 
-		claude, err := p.AskClaude([]string{"10-tdd"})
+		agents, err := p.AskAgents([]string{"10-tdd"})
 		Expect(err).NotTo(HaveOccurred())
-		Expect(claude.SkipRules).To(BeEmpty())
+		Expect(agents.SkipRules).To(BeEmpty())
+
+		claude, err := p.AskClaude()
+		Expect(err).NotTo(HaveOccurred())
+		Expect(*claude.Hook).To(BeTrue())
 
 		Expect(p.Welcome()).To(Succeed())
-		Expect(*shown).To(HaveLen(3))
+		Expect(*shown).To(HaveLen(4))
 	})
 
 	It("asks pi's default model only when models are exposed", func() {

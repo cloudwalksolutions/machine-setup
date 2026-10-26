@@ -2,29 +2,25 @@ package cmd
 
 import (
 	"fmt"
-	"os"
-	"strings"
 
 	"github.com/spf13/cobra"
 
 	"tars/internal/components"
 	"tars/internal/config"
 	"tars/internal/forms"
-	"tars/internal/paths"
 	"tars/internal/report"
 	"tars/internal/tui"
 )
 
-// ClaudeAsker presents the `tars init claude` form over the available rule names.
+// ClaudeAsker presents the `tars init claude` form.
 type ClaudeAsker interface {
-	AskClaude(rules []string) (config.ClaudeConfig, error)
+	AskClaude() (config.ClaudeConfig, error)
 }
 
 // ClaudeInit orchestrates `tars init claude`: ask, persist the choices, pull.
 type ClaudeInit struct {
 	Asker  ClaudeAsker
 	Config ConfigStore
-	Rules  []string
 	Pull   func(config.ClaudeConfig) error
 	Report report.Reporter
 }
@@ -35,7 +31,7 @@ func (c *ClaudeInit) Run() error {
 	if err != nil {
 		return fmt.Errorf("loading config: %w", err)
 	}
-	answer, err := c.Asker.AskClaude(c.Rules)
+	answer, err := c.Asker.AskClaude()
 	if err != nil && err.Error() == "user aborted" {
 		c.Report.Note("Aborted; nothing changed.")
 		return nil
@@ -76,19 +72,6 @@ func LoadClaudeConfig() (config.ClaudeConfig, error) {
 	return cfg.Claude, nil
 }
 
-// ruleNames lists the rule files in dir without their .md suffix.
-func ruleNames(dir string) ([]string, error) {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return nil, fmt.Errorf("listing claude rules: %w", err)
-	}
-	names := make([]string, 0, len(entries))
-	for _, e := range entries {
-		names = append(names, strings.TrimSuffix(e.Name(), ".md"))
-	}
-	return names, nil
-}
-
 // NewClaudeInit wires the production `tars init claude`.
 func NewClaudeInit(r report.Reporter, ask ClaudeAsker) (*ClaudeInit, error) {
 	stdout, stderr := r.Output()
@@ -96,14 +79,9 @@ func NewClaudeInit(r report.Reporter, ask ClaudeAsker) (*ClaudeInit, error) {
 	if err != nil {
 		return nil, err
 	}
-	rules, err := ruleNames(paths.For(opts.RepoRoot, opts.Home).Claude.RulesRepo)
-	if err != nil {
-		return nil, err
-	}
 	return &ClaudeInit{
 		Asker:  ask,
 		Config: NewFileConfigStore(configPath()),
-		Rules:  rules,
 		Pull: func(c config.ClaudeConfig) error {
 			opts.Claude = c
 			return SequentialPuller{

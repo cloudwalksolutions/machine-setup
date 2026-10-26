@@ -26,11 +26,11 @@ var _ = Describe("Claude.Pull", func() {
 		repoRoot = filepath.Join(tmp, "repo")
 		home = filepath.Join(tmp, "home")
 		Expect(os.MkdirAll(filepath.Join(repoRoot, "claude", "hooks"), 0o755)).To(Succeed())
-		Expect(os.MkdirAll(filepath.Join(repoRoot, "claude", "rules"), 0o755)).To(Succeed())
+		Expect(os.MkdirAll(filepath.Join(repoRoot, "agents", "rules"), 0o755)).To(Succeed())
 		Expect(os.WriteFile(filepath.Join(repoRoot, "claude", "hooks", "block-unreviewable-edits.sh"), []byte("#!/bin/sh\nexit 0\n"), 0o755)).To(Succeed())
 		Expect(os.WriteFile(filepath.Join(repoRoot, "claude", "settings.json"), []byte(`{"model":"m","hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"$HOME/.claude/hooks/block-unreviewable-edits.sh"}]}]}}`), 0o644)).To(Succeed())
-		Expect(os.WriteFile(filepath.Join(repoRoot, "claude", "rules", "10-tdd.md"), []byte("## TDD\nred first\n"), 0o644)).To(Succeed())
-		Expect(os.WriteFile(filepath.Join(repoRoot, "claude", "rules", "60-simplicity.md"), []byte("## Simple\nyagni\n"), 0o644)).To(Succeed())
+		Expect(os.WriteFile(filepath.Join(repoRoot, "agents", "rules", "10-tdd.md"), []byte("## TDD\nred first\n"), 0o644)).To(Succeed())
+		Expect(os.WriteFile(filepath.Join(repoRoot, "agents", "rules", "60-simplicity.md"), []byte("## Simple\nyagni\n"), 0o644)).To(Succeed())
 
 		opts = components.Options{
 			RepoRoot:   repoRoot,
@@ -52,7 +52,7 @@ var _ = Describe("Claude.Pull", func() {
 
 	It("shows the diff of a changed rule on a diff run", func() {
 		Expect(components.NewClaude(opts).Pull()).To(Succeed())
-		Expect(os.WriteFile(filepath.Join(repoRoot, "claude", "rules", "10-tdd.md"), []byte("## TDD\nred first, always\n"), 0o644)).To(Succeed())
+		Expect(os.WriteFile(filepath.Join(repoRoot, "agents", "rules", "10-tdd.md"), []byte("## TDD\nred first, always\n"), 0o644)).To(Succeed())
 		out := &bytes.Buffer{}
 		opts.DryRun, opts.Diff, opts.Stdout = true, true, out
 
@@ -79,7 +79,7 @@ var _ = Describe("Claude.Pull", func() {
 	})
 
 	It("renders every rule except the skipped ones, so new rule files show up without re-init", func() {
-		opts.Claude = config.ClaudeConfig{SkipRules: []string{"10-tdd"}}
+		opts.Agents = config.AgentsConfig{SkipRules: []string{"10-tdd"}}
 		Expect(components.NewClaude(opts).Pull()).To(Succeed())
 
 		b, err := os.ReadFile(filepath.Join(home, ".claude", "CLAUDE.md"))
@@ -146,7 +146,7 @@ var _ = Describe("Claude.Pull", func() {
 	})
 
 	It("fails when the repo has no rules dir", func() {
-		Expect(os.RemoveAll(filepath.Join(repoRoot, "claude", "rules"))).To(Succeed())
+		Expect(os.RemoveAll(filepath.Join(repoRoot, "agents", "rules"))).To(Succeed())
 
 		Expect(components.NewClaude(opts).Pull()).NotTo(Succeed())
 	})

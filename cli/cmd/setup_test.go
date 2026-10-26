@@ -257,7 +257,7 @@ func (f *fixture) assemble() {
 	f.Wizards = &spyPicker{}
 	f.InitLog = []string{}
 	var inits []cmd.NamedInit
-	for _, name := range []string{"claude", "pi"} {
+	for _, name := range []string{"agents", "claude", "pi"} {
 		inits = append(inits, cmd.NamedInit{Name: name, Run: func() error {
 			f.InitLog = append(f.InitLog, fmt.Sprintf("%s(pulled=%d)", name, len(f.PullLog)))
 			return f.InitErrs[name]
@@ -400,7 +400,7 @@ var _ = Describe("Setup.Run", func() {
 
 			Expect(f.Setup.Run()).To(Succeed())
 
-			Expect(f.Wizards.offered).To(Equal([]string{"claude", "pi"}))
+			Expect(f.Wizards.offered).To(Equal([]string{"agents", "claude", "pi"}))
 			Expect(f.InitLog).To(Equal([]string{"pi(pulled=5)"}))
 		})
 

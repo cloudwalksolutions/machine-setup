@@ -51,9 +51,18 @@ func (p Prompts) PickWizards(offered []string) ([]string, error) {
 	return collect(), nil
 }
 
+// AskAgents runs the shared rule picker.
+func (p Prompts) AskAgents(rules []string) (config.AgentsConfig, error) {
+	f, collect := forms.AgentsForm(rules)
+	if err := p.ask(f); err != nil {
+		return config.AgentsConfig{}, err
+	}
+	return collect(), nil
+}
+
 // AskClaude runs the claude questions.
-func (p Prompts) AskClaude(rules []string) (config.ClaudeConfig, error) {
-	f, collect := forms.ClaudeForm(rules)
+func (p Prompts) AskClaude() (config.ClaudeConfig, error) {
+	f, collect := forms.ClaudeForm()
 	if err := p.ask(f); err != nil {
 		return config.ClaudeConfig{}, err
 	}

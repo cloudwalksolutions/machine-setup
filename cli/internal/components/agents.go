@@ -6,7 +6,21 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+
+	"tars/internal/paths"
 )
+
+// pullRules renders the shared agent rules, minus the skipped ones, under header
+// into dest on behalf of component; every agent adapter calls it with its own
+// header and destination.
+func pullRules(opts Options, component, header, dest string) error {
+	dir := paths.For(opts.RepoRoot, opts.Home).Agents.RulesRepo
+	content, err := renderRules(dir, header, opts.Agents.SkipRules)
+	if err != nil {
+		return err
+	}
+	return opts.copier().SafeWrite(content, 0o644, dest, component, opts.BackupRoot)
+}
 
 // renderRules concatenates header and every rule file in dir not in skip.
 func renderRules(dir, header string, skip []string) ([]byte, error) {

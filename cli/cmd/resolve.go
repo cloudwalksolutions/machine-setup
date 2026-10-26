@@ -39,6 +39,7 @@ func buildOptions(stdout, stderr io.Writer) (components.Options, error) {
 		Stderr:     stderr,
 		Claude:     cfg.Claude,
 		Pi:         cfg.Pi,
+		Agents:     cfg.Agents,
 	}, nil
 }
 

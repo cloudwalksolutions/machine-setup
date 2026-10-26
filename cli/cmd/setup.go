@@ -77,7 +77,7 @@ type Puller interface {
 	PullAll() error
 }
 
-// NamedInit is one agent wizard (`tars init claude`, `tars init pi`) the bootstrap can run.
+// NamedInit is one agent wizard (`tars init agents`, `init claude`, `init pi`) the bootstrap can run.
 type NamedInit struct {
 	Name string
 	Run  func() error
@@ -364,6 +364,13 @@ func NewSetup(r report.Reporter, ask tui.Asker, cfgPath string) (*Setup, error) 
 		},
 		Wizards: ask,
 		Inits: []NamedInit{
+			{Name: "agents", Run: func() error {
+				a, err := NewAgentsInit(r, ask)
+				if err != nil {
+					return err
+				}
+				return a.Run()
+			}},
 			{Name: "claude", Run: func() error {
 				c, err := NewClaudeInit(r, ask)
 				if err != nil {
