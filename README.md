@@ -99,10 +99,10 @@ Every file below is archived to `~/.local/state/tars/backups/<component>/vN`
 - Hack Nerd Font into `~/Library/Fonts` (macOS) or `~/.local/share/fonts` (Linux)
 - macOS only: the iTerm2 and Terminal.app font and profile
 - With profiles configured: the managed block in `~/.gitconfig` and `~/.config/tars/profiles/<alias>.gitconfig`
-- `~/.claude/`: the `block-unreviewable-edits.sh` hook, a `CLAUDE.md` rendered from
-  `agents/rules/`, and a merge of `claude/settings.json` into `settings.json`.
-  Machine-local keys such as `autoMode` and `permissions` are left alone; `~/.claude.json`
-  is never touched
+- `~/.claude/`: the `block-unreviewable-edits.sh` hook with its `edit-guard.json` rule
+  table, a `CLAUDE.md` rendered from `agents/rules/`, and a merge of `claude/settings.json`
+  into `settings.json`. Machine-local keys such as `autoMode` and `permissions` are left
+  alone; `~/.claude.json` is never touched
 
 Never overwritten, seeded once when absent: `~/.zshrc_secret`, `~/.zprofile_local`,
 `~/.config/tars/profiles/<alias>.env`. `~/.zshrc_funcs` is yours entirely.
@@ -221,13 +221,13 @@ For each account (example: name `cloudwalk`, alias `cws`):
 - macOS only: sets the iTerm2 + Terminal.app font/profile
 - With a profiles config: the managed block in `~/.gitconfig` and
   `~/.config/tars/profiles/<alias>.gitconfig`
-- `~/.claude/`: the `block-unreviewable-edits.sh` hook, a `CLAUDE.md` rendered
-  from `agents/rules/`, and a merge of `claude/settings.json` (model, theme,
-  plugins, the hook entry) into `settings.json`. Machine-local keys such as
+- `~/.claude/`: the `block-unreviewable-edits.sh` hook with its `edit-guard.json` rule
+  table, a `CLAUDE.md` rendered from `agents/rules/`, and a merge of `claude/settings.json`
+  (model, theme, plugins, the hook entry) into `settings.json`. Machine-local keys such as
   `autoMode` and `permissions` are left alone; `~/.claude.json` is never touched.
 - `~/.pi/agent/`: the `tars` agent, `/tdd` `/plan` `/pr` prompts, the edit-guard
-  extension, a permission baseline, `AGENTS.md` rendered from the same rules as
-  Claude, and a merge of `pi/settings.json` (packages, thinking off). The only
+  extension over the same `edit-guard.json` table, a permission baseline, `AGENTS.md`
+  rendered from the same rules as Claude, and a merge of `pi/settings.json` (packages, thinking off). The only
   provider tars touches is local ollama (models chosen in `tars init pi`); other
   providers and keys stay pi's own. See [docs/pi.md](docs/pi.md).
 
@@ -253,11 +253,15 @@ config, and every later `tars pull` renders the selection into `~/.claude/CLAUDE
 and `~/.pi/agent/AGENTS.md`, picking up newly added rules as it goes. Add a rule by
 dropping a short `NN-slug.md` into `agents/rules/` and running `make sync-assets`.
 
-`tars init claude` asks two things in a form: install the hook that denies
-`sed -i` / heredoc / interpreter writes (so every change is a reviewable Edit or
-Write) and merge the shared settings fragment. Choices are saved under `claude:`
-and honored by every later `tars pull`; `tars push` carries hook edits and the
-shareable settings keys back into the repo.
+The edit guard is shared the same way: `agents/edit-guard.json` lists the command
+patterns that are denied (`sed -i`, heredoc and interpreter writes, redirects onto
+source files, so every change is a reviewable edit), and both Claude Code's hook and
+pi's extension evaluate that one table.
+
+`tars init claude` asks two things in a form: install the hook and merge the shared
+settings fragment. Choices are saved under `claude:` and honored by every later
+`tars pull`; `tars push` carries hook edits and the shareable settings keys back
+into the repo.
 
 `tars init project [dir]` writes one starter `AGENTS.md` (overview, philosophy,
 constraints, commands, architecture, testing, secrets, gotchas) from

@@ -103,6 +103,7 @@ var _ = Describe("ForOS Pi", func() {
 		Expect(p.Pi.AgentsMDLocal).To(Equal(filepath.Join(agent, "AGENTS.md")))
 		Expect(p.Pi.KeybindingsRepo).To(Equal(filepath.Join(repoRoot, "pi", "keybindings.json")))
 		Expect(p.Pi.KeybindingsLocal).To(Equal(filepath.Join(agent, "keybindings.json")))
+		Expect(p.Pi.EditGuardLocal).To(Equal(filepath.Join(agent, "edit-guard.json")))
 	})
 })
 
@@ -119,13 +120,15 @@ var _ = Describe("ForOS Claude", func() {
 		Expect(p.Claude.HookRepo).To(Equal(filepath.Join(repoRoot, "claude", "hooks", "block-unreviewable-edits.sh")))
 		Expect(p.Claude.HookLocal).To(Equal(filepath.Join(home, ".claude", "hooks", "block-unreviewable-edits.sh")))
 		Expect(p.Claude.ClaudeMDLocal).To(Equal(filepath.Join(home, ".claude", "CLAUDE.md")))
+		Expect(p.Claude.EditGuardLocal).To(Equal(filepath.Join(home, ".claude", "edit-guard.json")))
 	})
 })
 
 var _ = Describe("ForOS Agents", func() {
-	It("locates the agent-neutral rules and project template under agents/", func() {
+	It("locates the agent-neutral rules, project template and edit-guard table under agents/", func() {
 		p := paths.ForOS("/repo", "/home/u", "linux")
 		Expect(p.Agents.RulesRepo).To(Equal(filepath.Join("/repo", "agents", "rules")))
 		Expect(p.Agents.ProjectTemplateRepo).To(Equal(filepath.Join("/repo", "agents", "templates", "AGENTS.project.md")))
+		Expect(p.Agents.EditGuardRepo).To(Equal(filepath.Join("/repo", "agents", "edit-guard.json")))
 	})
 })

@@ -28,6 +28,9 @@ func (c *Claude) Pull() error {
 		if err := c.opts.copier().SafeCopy(c.p.HookRepo, c.p.HookLocal, c.Name(), c.opts.BackupRoot); err != nil {
 			return err
 		}
+		if err := pullEditGuard(c.opts, c.Name(), c.p.EditGuardLocal); err != nil {
+			return err
+		}
 	}
 	if enabled(c.cfg.Settings) {
 		if err := c.pullSettings(); err != nil {

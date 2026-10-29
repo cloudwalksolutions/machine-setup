@@ -1,0 +1,24 @@
+[
+  {
+    "reason": "sed in-place edit",
+    "match": "(^|[;&|(`]|[ \t])g?sed[ \t]+(-[a-zA-Z]*i|--in-place)"
+  },
+  {
+    "reason": "perl/ruby in-place edit",
+    "match": "(^|[;&|(`]|[ \t])(perl|ruby)[ \t]+-[pnlaw]*i"
+  },
+  {
+    "reason": "awk in-place edit",
+    "match": "(^|[;&|(`]|[ \t])g?awk[ \t].*-i[ \t]*inplace"
+  },
+  {
+    "reason": "script that writes files",
+    "match": "(^|[;&|(`]|[ \t])(python3?|node|ruby|perl|deno|bun)([ \t]|$)",
+    "and": "(write_text|write_bytes|writeFileSync|appendFileSync|writeFile|fs\\.write|File\\.write|IO\\.write|\\.writelines\\(|open\\([^)]*,[ \t]*['\"][wa])"
+  },
+  {
+    "reason": "shell redirect over a source file",
+    "match": "(>>?[ \t]*|tee[ \t]+(-a[ \t]+)?)[\"']?[^ \t\"'|;&]*\\.(go|ts|tsx|js|jsx|mjs|cjs|py|rb|java|kt|swift|rs|c|h|cc|cpp|hpp|cs|php|sql|json|ya?ml|toml|md|mdx|feature|gql|graphql|proto|scss|sass|css|html|sh|bash|zsh)([ \t]|\"|'|$|;|&|\\|)",
+    "unless": "(/tmp/|/scratchpad/|/dev/null)"
+  }
+]

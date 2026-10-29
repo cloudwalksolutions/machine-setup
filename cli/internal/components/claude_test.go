@@ -31,6 +31,7 @@ var _ = Describe("Claude.Pull", func() {
 		Expect(os.WriteFile(filepath.Join(repoRoot, "claude", "settings.json"), []byte(`{"model":"m","hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"$HOME/.claude/hooks/block-unreviewable-edits.sh"}]}]}}`), 0o644)).To(Succeed())
 		Expect(os.WriteFile(filepath.Join(repoRoot, "agents", "rules", "10-tdd.md"), []byte("## TDD\nred first\n"), 0o644)).To(Succeed())
 		Expect(os.WriteFile(filepath.Join(repoRoot, "agents", "rules", "60-simplicity.md"), []byte("## Simple\nyagni\n"), 0o644)).To(Succeed())
+		Expect(os.WriteFile(filepath.Join(repoRoot, "agents", "edit-guard.json"), []byte(`[{"reason":"r","match":"m"}]`), 0o644)).To(Succeed())
 
 		opts = components.Options{
 			RepoRoot:   repoRoot,
@@ -61,12 +62,15 @@ var _ = Describe("Claude.Pull", func() {
 		Expect(out.String()).To(ContainSubstring("-red first\n+red first, always\n"))
 	})
 
-	It("copies the hook into ~/.claude/hooks keeping it executable", func() {
+	It("copies the hook into ~/.claude/hooks keeping it executable, with the shared rule table beside ~/.claude", func() {
 		Expect(components.NewClaude(opts).Pull()).To(Succeed())
 
 		info, err := os.Stat(filepath.Join(home, ".claude", "hooks", "block-unreviewable-edits.sh"))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(info.Mode().Perm() & 0o111).NotTo(BeZero())
+		b, err := os.ReadFile(filepath.Join(home, ".claude", "edit-guard.json"))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(string(b)).To(Equal(`[{"reason":"r","match":"m"}]`))
 	})
 
 	It("renders every rule file, in name order, into ~/.claude/CLAUDE.md by default", func() {

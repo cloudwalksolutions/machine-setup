@@ -48,6 +48,7 @@ var _ = Describe("Pi.Pull", func() {
 		write("pi/keybindings.json", `{"app.clipboard.pasteImage":[]}`)
 		write("agents/rules/10-tdd.md", "## TDD\nred first\n")
 		write("agents/rules/60-simplicity.md", "## Simple\nyagni\n")
+		write("agents/edit-guard.json", `[{"reason":"r","match":"m"}]`)
 
 		opts = components.Options{
 			RepoRoot:   repoRoot,
@@ -64,12 +65,13 @@ var _ = Describe("Pi.Pull", func() {
 		Expect(read(filepath.Join(agent, "agents", "tars.md"))).To(Equal("---\nname: tars\n---\nAGENT"))
 	})
 
-	It("copies the prompts, the edit-guard extension and the permission baseline", func() {
+	It("copies the prompts, the edit-guard extension with its shared rule table, and the permission baseline", func() {
 		Expect(components.NewPi(opts).Pull()).To(Succeed())
 
 		Expect(read(filepath.Join(agent, "prompts", "tdd.md"))).To(Equal("TDD"))
 		Expect(read(filepath.Join(agent, "prompts", "pr.md"))).To(Equal("PR"))
 		Expect(read(filepath.Join(agent, "extensions", "block-unreviewable-edits.ts"))).To(Equal("EXT"))
+		Expect(read(filepath.Join(agent, "edit-guard.json"))).To(Equal(`[{"reason":"r","match":"m"}]`))
 		Expect(read(filepath.Join(agent, "extensions", "pi-permission-system", "config.json"))).To(Equal(`{"permission":{"*":"allow"}}`))
 	})
 

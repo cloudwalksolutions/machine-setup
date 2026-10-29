@@ -21,10 +21,12 @@ type Paths struct {
 }
 
 // AgentsPaths locates the agent-neutral content under agents/: the rule files every
-// agent renders and the per-project AGENTS.md template.
+// agent renders, the per-project AGENTS.md template, and the edit-guard rule table
+// both agents' guards read.
 type AgentsPaths struct {
 	RulesRepo           string
 	ProjectTemplateRepo string
+	EditGuardRepo       string
 }
 
 // PiPaths maps the repo pi/ dir onto ~/.pi/agent; models.json and AGENTS.md are
@@ -44,16 +46,19 @@ type PiPaths struct {
 	KeybindingsRepo  string
 	KeybindingsLocal string
 	AgentsMDLocal    string
+	EditGuardLocal   string
 }
 
 // ClaudePaths maps the repo claude/ dir onto ~/.claude: the shareable settings
-// fragment, the edit-blocking hook, and the CLAUDE.md the shared rules render into.
+// fragment, the edit-blocking hook, and the files the shared agents/ content
+// renders into (CLAUDE.md, the hook's rule table).
 type ClaudePaths struct {
-	SettingsRepo  string
-	SettingsLocal string
-	HookRepo      string
-	HookLocal     string
-	ClaudeMDLocal string
+	SettingsRepo   string
+	SettingsLocal  string
+	HookRepo       string
+	HookLocal      string
+	ClaudeMDLocal  string
+	EditGuardLocal string
 }
 
 // ProfilesPaths locates the rendered per-profile files and the gitconfig they hook into.
@@ -143,6 +148,7 @@ func piPaths(repoRoot, agent string) PiPaths {
 		KeybindingsRepo:  filepath.Join(repoRoot, "pi", "keybindings.json"),
 		KeybindingsLocal: filepath.Join(agent, "keybindings.json"),
 		AgentsMDLocal:    filepath.Join(agent, "AGENTS.md"),
+		EditGuardLocal:   filepath.Join(agent, "edit-guard.json"),
 	}
 }
 
@@ -222,16 +228,18 @@ func ForOS(repoRoot, home, goos string) Paths {
 			Gitconfig: filepath.Join(home, ".gitconfig"),
 		},
 		Claude: ClaudePaths{
-			SettingsRepo:  filepath.Join(repoRoot, "claude", "settings.json"),
-			SettingsLocal: filepath.Join(home, ".claude", "settings.json"),
-			HookRepo:      filepath.Join(repoRoot, "claude", "hooks", "block-unreviewable-edits.sh"),
-			HookLocal:     filepath.Join(home, ".claude", "hooks", "block-unreviewable-edits.sh"),
-			ClaudeMDLocal: filepath.Join(home, ".claude", "CLAUDE.md"),
+			SettingsRepo:   filepath.Join(repoRoot, "claude", "settings.json"),
+			SettingsLocal:  filepath.Join(home, ".claude", "settings.json"),
+			HookRepo:       filepath.Join(repoRoot, "claude", "hooks", "block-unreviewable-edits.sh"),
+			HookLocal:      filepath.Join(home, ".claude", "hooks", "block-unreviewable-edits.sh"),
+			ClaudeMDLocal:  filepath.Join(home, ".claude", "CLAUDE.md"),
+			EditGuardLocal: filepath.Join(home, ".claude", "edit-guard.json"),
 		},
 		Pi: piPaths(repoRoot, filepath.Join(home, ".pi", "agent")),
 		Agents: AgentsPaths{
 			RulesRepo:           filepath.Join(repoRoot, "agents", "rules"),
 			ProjectTemplateRepo: filepath.Join(repoRoot, "agents", "templates", "AGENTS.project.md"),
+			EditGuardRepo:       filepath.Join(repoRoot, "agents", "edit-guard.json"),
 		},
 	}
 }

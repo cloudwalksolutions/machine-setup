@@ -22,6 +22,13 @@ func pullRules(opts Options, component, header, dest string) error {
 	return opts.copier().SafeWrite(content, 0o644, dest, component, opts.BackupRoot)
 }
 
+// pullEditGuard copies the shared edit-guard rule table to dest, where the
+// agent's guard reads it, on behalf of component.
+func pullEditGuard(opts Options, component, dest string) error {
+	src := paths.For(opts.RepoRoot, opts.Home).Agents.EditGuardRepo
+	return opts.copier().SafeCopy(src, dest, component, opts.BackupRoot)
+}
+
 // renderRules concatenates header and every rule file in dir not in skip.
 func renderRules(dir, header string, skip []string) ([]byte, error) {
 	entries, err := os.ReadDir(dir)

@@ -55,6 +55,9 @@ func (c *Pi) Pull() error {
 	if err := c.copyDir(c.p.PromptsRepo, c.p.PromptsLocal, c.Name()); err != nil {
 		return err
 	}
+	if err := pullEditGuard(c.opts, c.Name(), c.p.EditGuardLocal); err != nil {
+		return err
+	}
 	if err := c.pullSettings(); err != nil {
 		return err
 	}

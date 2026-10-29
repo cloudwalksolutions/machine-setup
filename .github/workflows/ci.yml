@@ -28,6 +28,10 @@ jobs:
         with:
           go-version-file: cli/go.mod
           cache-dependency-path: cli/go.sum
+      # The edit-guard spec runs pi's TypeScript extension through node's type stripping.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
       - run: go vet ./...
       - run: go build ./...
       - run: go test -race ./...

@@ -63,9 +63,9 @@ sessions, one per project (git repo under `projects_dir`). The user-facing CLI i
 │       └── config/              # persisted YAML config
 ├── nvim/  zsh/  byobu/  vim/     # the dotfiles tars manages
 ├── monokai.lua                  # nvim colorscheme shipped at root (also embedded)
-├── agents/                      # shared by every coding agent: rules/ (→ CLAUDE.md + AGENTS.md), templates/AGENTS.project.md
-├── claude/                      # Claude Code: settings fragment, hooks/
-├── pi/                          # pi coding agent: settings fragment, agents/, prompts/, extensions/, permissions.json
+├── agents/                      # shared by every coding agent: rules/ (→ CLAUDE.md + AGENTS.md), edit-guard.json, templates/AGENTS.project.md
+├── claude/                      # Claude Code: settings fragment, hooks/ (the edit guard that evaluates agents/edit-guard.json)
+├── pi/                          # pi coding agent: settings fragment, agents/, prompts/, extensions/ (same guard, pi API), permissions.json
 ├── fonts/                       # Hack Nerd Font files
 ├── terminal/                    # font string + Terminal.app profile (iTerm2/Terminal.app)
 ├── vhs/                         # README demo tapes + gh stand-in (`make demos`)
@@ -228,14 +228,22 @@ lines) into `agents/rules/`, run `make sync-assets`. Rules are agent-neutral: th
 `pullRules` in `components/agents.go` renders every rule not under `agents.skip_rules`
 (chosen by `tars init agents`), and each agent component is an adapter that calls it with
 its own header and destination (`~/.claude/CLAUDE.md`, `~/.pi/agent/AGENTS.md`), so a new
-rule lands on the next `tars pull` with no re-init. `claude/settings.json` holds only the shareable
+rule lands on the next `tars pull` with no re-init. The edit guard works the same way:
+`agents/edit-guard.json` is the one table of denied-command patterns (`match`, optional `and`
+and `unless`, each a regex in the subset POSIX ERE and JavaScript share, so no `\s` or
+`[[:space:]]`), `pullEditGuard` copies it next to each agent's guard
+(`~/.claude/edit-guard.json`, `~/.pi/agent/edit-guard.json`), and the bash hook and the pi
+extension only evaluate it. `internal/dotfiles/editguard_test.go` drives both through the same
+command table (needs `jq` and `node`), so a pattern that behaves differently in one dialect
+fails CI. `claude/settings.json` holds only the shareable
 keys (model, theme, enabledPlugins, the hook entry) in `json.MarshalIndent` key order so
 `push` round-trips byte-for-byte. Never sync `autoMode`, `permissions`, or `~/.claude.json`.
 
-**pi**: `pi/` holds the shareable pieces (agent, prompts, the edit-guard extension that
-ports `claude/hooks/block-unreviewable-edits.sh` rule for rule, the permission baseline, a
-settings fragment with packages). `~/.pi/agent/AGENTS.md` is rendered from `agents/rules/`
-like CLAUDE.md is. The only provider tars manages is local ollama: `init`
+**pi**: `pi/` holds the shareable pieces (agent, prompts, the edit-guard extension over
+`agents/edit-guard.json`, the permission baseline, a settings fragment with packages).
+`~/.pi/agent/AGENTS.md` is rendered from `agents/rules/` like CLAUDE.md is, and it is the
+only statement of the rules: the agent file and prompts describe how to run a task and never
+restate a rule. The only provider tars manages is local ollama: `init`
 asks which `ollama list` models to expose and the default, stores that under `pi:` in the tars
 config, and renders the `ollama` entry of `models.json`; every other provider, key and
 llama.cpp setup is pi's own business and is left untouched. Thinking is off by default. Only
