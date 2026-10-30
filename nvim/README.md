@@ -24,6 +24,5 @@ secondary ones — documented in detail in [CLAUDE.md](CLAUDE.md).
 
 ### Development
 
-After editing anything under `nvim/`, run `make test-nvim` (headless smoke tests)
-and `make sync-assets` (refreshes the copy embedded in the tars binary — a CI
-drift guard fails otherwise).
+After editing anything under `nvim/`, run `make test-nvim` (headless smoke tests).
+The tars binary embeds `nvim/` directly, so there is no copy to refresh.

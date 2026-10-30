@@ -10,4 +10,4 @@ Implement this behavior with strict TDD: $@
 4. Refactor only on green, then run the package once more.
 5. Repeat from step 2 for the next slice until the behavior is complete, then run the full suite and lint.
 
-Do not write source before its failing test. Do not batch tests. Stop and ask if the expected behavior is ambiguous.
+Stop and ask if the expected behavior is ambiguous.

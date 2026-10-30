@@ -58,15 +58,15 @@ zsh/zshrc_secret
 .zshrc_secret
 
 # Go CLI build artifacts
-cli/tars
-cli/cover.out
+/tars
+/cover.out
 vhs/tars-linux
 
 # Local Pi runtime state
 .atl/
 
 # go-mutesting artifacts
-cli/report.json
+/report.json
 
 # copilot state written while make test-nvim runs with the repo as XDG_CONFIG_HOME
 /github-copilot/

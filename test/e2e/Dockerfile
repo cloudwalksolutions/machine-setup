@@ -10,13 +10,13 @@
 # Run:  docker build -f test/e2e/Dockerfile -t tars-e2e .
 FROM golang:1.26-bookworm
 
-# zsh for the shell smoke test (build-time network is fine; runtime is not).
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y zsh && rm -rf /var/lib/apt/lists/*
+# zsh for the shell smoke test, jq for the pulled Claude hook (build-time network is fine; runtime is not).
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y zsh jq && rm -rf /var/lib/apt/lists/*
 
 # Root-owned repo — users can read it but never write into it.
 WORKDIR /repo
 COPY . /repo
-RUN cd /repo/cli && go build -o /usr/local/bin/tars .
+RUN cd /repo && go build -o /usr/local/bin/tars ./cmd/tars
 
 RUN useradd -m usera && useradd -m userb && useradd -m userc
 
@@ -41,6 +41,9 @@ RUN test -f "$HOME/.vimrc" \
  && test -x "$HOME/.claude/hooks/block-unreviewable-edits.sh" \
  && test -f "$HOME/.claude/CLAUDE.md" \
  && grep -q 'block-unreviewable-edits.sh' "$HOME/.claude/settings.json"
+
+RUN echo '{"tool_input":{"command":"sed -i s/a/b/ main.go"}}' | "$HOME/.claude/hooks/block-unreviewable-edits.sh" | grep -q '"deny"' \
+ && test -z "$(echo '{"tool_input":{"command":"sed -n 1p main.go"}}' | "$HOME/.claude/hooks/block-unreviewable-edits.sh")"
 
 # The pulled shell configs must actually parse on Linux.
 RUN zsh -ic 'exit'
@@ -79,8 +82,11 @@ RUN echo '{"autoMode":{"allow":["x"]}}' > "$HOME/.claude/settings.json" \
 
 # The init wizards run headless and honor their choices on the next pull; the project
 # init writes one AGENTS.md plus pointer files for claude and gemini.
-RUN TARS_NO_FORM=1 tars init claude \
+RUN TARS_NO_FORM=1 tars init agents \
  && grep -q 'skip_rules: \[\]' "$HOME/.config/tars/config.yaml" \
+ && grep -q '^# Working rules' "$HOME/.pi/agent/AGENTS.md" \
+ && TARS_NO_FORM=1 tars init claude \
+ && grep -q 'hook: true' "$HOME/.config/tars/config.yaml" \
  && mkdir -p "$HOME/proj" && TARS_NO_FORM=1 tars init project "$HOME/proj" \
  && grep -q '^# AGENTS.md' "$HOME/proj/AGENTS.md" \
  && grep -q '^@AGENTS.md' "$HOME/proj/CLAUDE.md" \
@@ -93,6 +99,7 @@ RUN TARS_NO_FORM=1 tars init claude \
 RUN test -f "$HOME/.pi/agent/agents/tars.md" \
  && test -f "$HOME/.pi/agent/prompts/tdd.md" \
  && test -f "$HOME/.pi/agent/extensions/block-unreviewable-edits.ts" \
+ && cmp -s "$HOME/.pi/agent/edit-guard.json" "$HOME/.claude/edit-guard.json" \
  && test -f "$HOME/.pi/agent/extensions/pi-permission-system/config.json" \
  && grep -q '^# Working rules' "$HOME/.pi/agent/AGENTS.md" \
  && grep -q 'npm:pi-subagents' "$HOME/.pi/agent/settings.json" \

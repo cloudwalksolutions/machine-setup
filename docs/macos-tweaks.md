@@ -14,7 +14,7 @@ Linux it is always a no-op.
 
 ## Shape
 
-- Ninth component (`cli/internal/components/macos.go`, `NewMacOSForOS(opts, goos)`),
+- Ninth component (`internal/components/macos.go`, `NewMacOSForOS(opts, goos)`),
   registered last in `AllPullable`; not `Pushable`. Pull applies only the tweaks
   listed under `macos.tweaks` in the tars config.
 - `tars macos` (alias `m`) is the wizard: a huh multi-select over the registry
@@ -26,7 +26,7 @@ Linux it is always a no-op.
 - `tars macos revert [id…]` restores the snapshotted previous values for the
   given tweaks (all selected when no ids) and removes them from the config.
 
-## Registry (`cli/internal/macos/registry.go`, mirrors `pkg/registry.go`)
+## Registry (`internal/macos/registry.go`, mirrors `pkg/registry.go`)
 
 ```go
 type Tweak struct {

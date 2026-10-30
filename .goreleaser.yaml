@@ -1,5 +1,4 @@
 # GoReleaser config (schema v2). Docs: https://goreleaser.com
-# The Go module lives in cli/, so builds set `dir: cli`.
 # Test locally without a tag:  HOMEBREW_TAP_TOKEN=x goreleaser release --snapshot --clean
 version: 2
 
@@ -7,12 +6,11 @@ project_name: tars
 
 before:
   hooks:
-    - go -C cli mod tidy
+    - go mod tidy
 
 builds:
   - id: tars
-    dir: cli          # go.mod + main.go live here
-    main: .           # relative to dir -> cli/main.go
+    main: ./cmd/tars
     binary: tars
     env:
       - CGO_ENABLED=0

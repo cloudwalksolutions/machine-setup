@@ -13,8 +13,6 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
-CLI := cli
-
 .PHONY: help
 help:            ## Show this help
 	@echo 'Provisioning: `tars init | pull | push | sessions | profiles` (see README). Dev targets:'
@@ -23,27 +21,20 @@ help:            ## Show this help
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
 
 .PHONY: build
-build:           ## Build the tars CLI binary (cli/tars)
-	cd $(CLI) && go build -o tars .
-
-.PHONY: sync-assets
-sync-assets:     ## Refresh the embedded dotfiles (required after editing them — a drift guard fails CI otherwise)
-	rm -rf $(CLI)/internal/assets/tree
-	mkdir -p $(CLI)/internal/assets/tree
-	cp -R nvim zsh byobu vim fonts terminal claude pi $(CLI)/internal/assets/tree/
-	cp monokai.lua $(CLI)/internal/assets/tree/
+build:           ## Build the tars CLI binary (./tars)
+	go build -o tars ./cmd/tars
 
 .PHONY: lint
 lint:            ## Lint the CLI (golangci-lint)
-	cd $(CLI) && golangci-lint run ./...
+	golangci-lint run ./...
 
 .PHONY: unit
 unit:            ## Fast, airgapped unit tests
-	cd $(CLI) && go test ./...
+	go test ./...
 
 .PHONY: integration
 integration: test-nvim  ## External-dep tests: brew installers, real byobu sessions, Neovim
-	cd $(CLI) && INTEGRATION=1 go test ./internal/pkg/brew/... ./internal/sessions/
+	INTEGRATION=1 go test ./internal/pkg/brew/... ./internal/sessions/
 
 .PHONY: test
 test: unit integration  ## All tests (unit + integration)
@@ -57,7 +48,7 @@ check: lint build test  ## Local gate: lint, build, then all tests
 
 .PHONY: run
 run: build       ## Build and run `tars init`
-	$(CLI)/tars init
+	./tars init
 
 # Recording is staged under /tmp (symlink-resolved: Docker Desktop shares
 # /private but not home dirs like ~/Desktop, which macOS privacy blocks).
@@ -69,7 +60,7 @@ VHS_LDFLAGS := -s -w -X main.version=$(VHS_VERSION) -X main.commit=$(shell git r
 
 .PHONY: demos
 demos:           ## Re-record the README demo GIFs (Docker + VHS)
-	cd $(CLI) && GOOS=linux go build -ldflags '$(VHS_LDFLAGS)' -o ../vhs/tars-linux .
+	GOOS=linux go build -ldflags '$(VHS_LDFLAGS)' -o vhs/tars-linux ./cmd/tars
 	docker build -t tars-vhs vhs
 	rm -rf $(VHS_STAGE) && mkdir -p $(VHS_STAGE)/vhs
 	cp vhs/*.tape $(VHS_STAGE)/ && cp vhs/tars-linux $(VHS_STAGE)/tars

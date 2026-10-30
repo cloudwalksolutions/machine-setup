@@ -29,8 +29,8 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-go@v5
         with:
-          go-version-file: cli/go.mod
-          cache-dependency-path: cli/go.sum
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
       - name: Install byobu for the sessions tape and zsh for init's oh-my-zsh step; put the gh stand-in ahead of the runner's gh
         run: |
           sudo apt-get update && sudo apt-get install -y byobu tmux zsh
@@ -39,7 +39,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/bin"
           version=$(git describe --tags --abbrev=0 2>/dev/null || echo dev)
-          (cd cli && go build -ldflags "-s -w -X main.version=$version -X main.commit=${GITHUB_SHA::7} -X main.date=$(date -u +%Y-%m-%d)" -o "$RUNNER_TEMP/bin/tars" .)
+          go build -ldflags "-s -w -X main.version=$version -X main.commit=${GITHUB_SHA::7} -X main.date=$(date -u +%Y-%m-%d)" -o "$RUNNER_TEMP/bin/tars" ./cmd/tars
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
       # Pinned to match vhs/Dockerfile: v0.12.0 reports success but writes no GIF.
       - uses: charmbracelet/vhs-action@v2

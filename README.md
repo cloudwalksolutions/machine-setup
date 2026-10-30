@@ -3,7 +3,7 @@ TS# tars
 [![release](https://github.com/cloudwalksolutions/machine-setup/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/cloudwalksolutions/machine-setup/actions/workflows/release.yml)
 [![release](https://img.shields.io/github/v/release/cloudwalksolutions/machine-setup)](https://github.com/cloudwalksolutions/machine-setup/releases/latest)
 ![coverage](https://raw.githubusercontent.com/cloudwalksolutions/machine-setup/badges/.badges/main/coverage.svg)
-[![go](https://img.shields.io/github/go-mod/go-version/cloudwalksolutions/machine-setup?filename=cli%2Fgo.mod)](cli/go.mod)
+[![go](https://img.shields.io/github/go-mod/go-version/cloudwalksolutions/machine-setup)](go.mod)
 [![license](https://img.shields.io/github/license/cloudwalksolutions/machine-setup)](LICENSE)
 
 Provision a development machine — dotfiles, dev tools, fonts, terminal, byobu
@@ -77,7 +77,8 @@ The installer verifies the release checksum; override the directory with
 | `tars push` | | Capture local config edits back into a repo clone |
 | `tars sessions` | `s`, `by` | Manage live byobu sessions; start one per project from its template (`-i` for a full-screen manager) |
 | `tars profiles` | `p` | Switch git, GitHub and SSH identity per project dir |
-| `tars init claude` | `i c` | Pick and apply Claude Code pieces: edit-blocking hook, settings, global rules |
+| `tars init agents` | `i a` | Pick which shared rules every coding agent renders (`CLAUDE.md`, `AGENTS.md`) |
+| `tars init claude` | `i c` | Pick and apply Claude Code pieces: edit-blocking hook, settings |
 | `tars init pi` | `i pi` | Set up the pi coding agent: packages, local ollama models, baseline agent |
 | `tars init project [dir]` | `i p` | Scaffold a project `AGENTS.md` plus `CLAUDE.md`/`GEMINI.md` pointers for the agents you pick (`--force` to replace) |
 
@@ -98,10 +99,10 @@ Every file below is archived to `~/.local/state/tars/backups/<component>/vN`
 - Hack Nerd Font into `~/Library/Fonts` (macOS) or `~/.local/share/fonts` (Linux)
 - macOS only: the iTerm2 and Terminal.app font and profile
 - With profiles configured: the managed block in `~/.gitconfig` and `~/.config/tars/profiles/<alias>.gitconfig`
-- `~/.claude/`: the `block-unreviewable-edits.sh` hook, a `CLAUDE.md` rendered from
-  `claude/rules/`, and a merge of `claude/settings.json` into `settings.json`.
-  Machine-local keys such as `autoMode` and `permissions` are left alone; `~/.claude.json`
-  is never touched
+- `~/.claude/`: the `block-unreviewable-edits.sh` hook with its `edit-guard.json` rule
+  table, a `CLAUDE.md` rendered from `agents/rules/`, and a merge of `claude/settings.json`
+  into `settings.json`. Machine-local keys such as `autoMode` and `permissions` are left
+  alone; `~/.claude.json` is never touched
 
 Never overwritten, seeded once when absent: `~/.zshrc_secret`, `~/.zprofile_local`,
 `~/.config/tars/profiles/<alias>.env`. `~/.zshrc_funcs` is yours entirely.
@@ -220,13 +221,13 @@ For each account (example: name `cloudwalk`, alias `cws`):
 - macOS only: sets the iTerm2 + Terminal.app font/profile
 - With a profiles config: the managed block in `~/.gitconfig` and
   `~/.config/tars/profiles/<alias>.gitconfig`
-- `~/.claude/`: the `block-unreviewable-edits.sh` hook, a `CLAUDE.md` rendered
-  from `claude/rules/`, and a merge of `claude/settings.json` (model, theme,
-  plugins, the hook entry) into `settings.json`. Machine-local keys such as
+- `~/.claude/`: the `block-unreviewable-edits.sh` hook with its `edit-guard.json` rule
+  table, a `CLAUDE.md` rendered from `agents/rules/`, and a merge of `claude/settings.json`
+  (model, theme, plugins, the hook entry) into `settings.json`. Machine-local keys such as
   `autoMode` and `permissions` are left alone; `~/.claude.json` is never touched.
 - `~/.pi/agent/`: the `tars` agent, `/tdd` `/plan` `/pr` prompts, the edit-guard
-  extension, a permission baseline, `AGENTS.md` rendered from the same rules as
-  Claude, and a merge of `pi/settings.json` (packages, thinking off). The only
+  extension over the same `edit-guard.json` table, a permission baseline, `AGENTS.md`
+  rendered from the same rules as Claude, and a merge of `pi/settings.json` (packages, thinking off). The only
   provider tars touches is local ollama (models chosen in `tars init pi`); other
   providers and keys stay pi's own. See [docs/pi.md](docs/pi.md).
 
@@ -244,19 +245,27 @@ nothing. Ctrl+C at a prompt stops the pull and leaves the rest untouched. On a t
 diff and applies it on Enter (or skips it on No); `-y/--yes`, `TARS_NO_FORM=1` or
 no terminal applies everything without asking.
 
-## Claude Code
+## Coding agents
 
-`tars init claude` asks three things in a form: install the hook that denies
-`sed -i` / heredoc / interpreter writes (so every change is a reviewable Edit or
-Write), merge the shared settings fragment, and which global rules to skip
-when rendering `~/.claude/CLAUDE.md`. Choices are saved under `claude:` in the tars config
-and honored by every later `tars pull`, which also picks up newly added rules; `tars push` carries hook edits and the
-shareable settings keys back into the repo. Add a rule by dropping a short
-`NN-slug.md` into `claude/rules/` and running `make sync-assets`.
+The rules every agent works by live once, in `agents/rules/`. `tars init agents`
+asks which of them to render; the choice is saved under `agents:` in the tars
+config, and every later `tars pull` renders the selection into `~/.claude/CLAUDE.md`
+and `~/.pi/agent/AGENTS.md`, picking up newly added rules as it goes. Add a rule by
+dropping a short `NN-slug.md` into `agents/rules/`.
+
+The edit guard is shared the same way: `agents/edit-guard.json` lists the command
+patterns that are denied (`sed -i`, heredoc and interpreter writes, redirects onto
+source files, so every change is a reviewable edit), and both Claude Code's hook and
+pi's extension evaluate that one table.
+
+`tars init claude` asks two things in a form: install the hook and merge the shared
+settings fragment. Choices are saved under `claude:` and honored by every later
+`tars pull`; `tars push` carries hook edits and the shareable settings keys back
+into the repo.
 
 `tars init project [dir]` writes one starter `AGENTS.md` (overview, philosophy,
 constraints, commands, architecture, testing, secrets, gotchas) from
-`claude/templates/AGENTS.project.md`, asking which agents the project uses plus
+`agents/templates/AGENTS.project.md`, asking which agents the project uses plus
 the name, a one-line description and the canonical test command. Claude Code
 gets a `CLAUDE.md` that imports it (`@AGENTS.md`), Gemini CLI a `GEMINI.md`
 (`@./AGENTS.md`), and pi reads `AGENTS.md` directly, so there is one file to edit.
@@ -277,12 +286,13 @@ The active profile's env file additionally exports `TARS_PROFILE` and `GITHUB_US
 
 ## Development
 
-The CLI is Go (module in `cli/`), tested with Ginkgo/Gomega and strict TDD; see
-[CLAUDE.md](CLAUDE.md). Targets: `make check` (lint + build + tests), `make unit`,
-`make e2e` (Docker: three users, a root-owned read-only clone, a no-clone install),
-`make demos` (re-record the GIFs; `vhs/bin/gh` stands in for gh). After editing any
-dotfile under `nvim/ zsh/ byobu/ vim/ fonts/ terminal/ claude/`, run `make sync-assets`
-or the drift guard fails CI. Every PR runs the race-enabled unit suite on Ubuntu and
+The CLI is Go (`cmd/` and `internal/`, module at the repo root), tested with
+Ginkgo/Gomega and strict TDD; see [CLAUDE.md](CLAUDE.md). Targets: `make check` (lint +
+build + tests), `make unit`, `make e2e` (Docker: three users, a root-owned read-only
+clone, a no-clone install), `make demos` (re-record the GIFs; `vhs/bin/gh` stands in for
+gh). The binary embeds the dotfile dirs (`nvim/ zsh/ byobu/ vim/ fonts/ terminal/ claude/
+pi/ agents/`) straight from the repo, so an edit ships on the next build with no sync
+step. Every PR runs the race-enabled unit suite on Ubuntu and
 macOS, golangci-lint with gofmt, a `go mod tidy` check, the coverage gate, the Docker
 e2e on amd64 and arm64, the Neovim smoke tests, and `goreleaser check`. Every merge to
 `main` then releases a new patch version: [docs/releasing.md](docs/releasing.md).
