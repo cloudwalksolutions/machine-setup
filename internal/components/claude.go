@@ -93,7 +93,6 @@ func (c *Claude) pullSettings() error {
 
 const claudeMDHeader = "# Global Claude Code rules\n\nManaged by `tars init agents`; edit the rule files under agents/rules in the machine-setup repo, not this file.\n\n"
 
-// pullRules renders the shared rules into CLAUDE.md.
 func (c *Claude) pullRules() error {
 	return pullRules(c.opts, c.Name(), claudeMDHeader, c.p.ClaudeMDLocal)
 }

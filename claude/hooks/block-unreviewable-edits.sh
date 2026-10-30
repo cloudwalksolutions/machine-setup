@@ -1,9 +1,4 @@
 #!/usr/bin/env bash
-# Deny Bash commands that edit files in ways a human cannot read as a diff.
-# The rules live in ~/.claude/edit-guard.json (pulled from agents/edit-guard.json,
-# shared with pi's extension); this script only evaluates them.
-#
-# Reads the PreToolUse payload on stdin, prints a deny decision, exits 0.
 set -uo pipefail
 
 rules="$HOME/.claude/edit-guard.json"

@@ -3,10 +3,6 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
-// Deny bash commands that edit files in ways a human cannot read as a diff.
-// The rules live in ~/.pi/agent/edit-guard.json (pulled from agents/edit-guard.json,
-// shared with Claude Code's hook); this extension only evaluates them.
-
 export type Rule = { reason: string; match: string; and?: string; unless?: string };
 
 const USE_TOOLS =

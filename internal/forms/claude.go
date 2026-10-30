@@ -6,8 +6,7 @@ import (
 	"tars/internal/config"
 )
 
-// ClaudeForm builds the `tars init claude` questions: the edit-blocking hook and
-// the settings fragment. Both start on.
+// ClaudeForm asks about the hook and the settings fragment; both start on.
 func ClaudeForm() (*huh.Form, func() config.ClaudeConfig) {
 	hook, settings := true, true
 	f := huh.NewForm(

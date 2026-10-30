@@ -19,8 +19,7 @@ type Config struct {
 	Agents       AgentsConfig `mapstructure:"agents"       yaml:"agents"`
 }
 
-// AgentsConfig records the `tars init agents` choice: which shared rules every
-// agent leaves out of its rendered rules file; empty means "all on".
+// AgentsConfig lists the shared rules every agent leaves out; empty renders them all.
 type AgentsConfig struct {
 	SkipRules []string `mapstructure:"skip_rules" yaml:"skip_rules"`
 }

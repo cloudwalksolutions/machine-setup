@@ -8,8 +8,7 @@ import (
 	"tars/internal/config"
 )
 
-// AgentsForm builds the `tars init agents` question: which shared rules every
-// agent renders (CLAUDE.md, AGENTS.md). Every rule starts selected.
+// AgentsForm asks which shared rules to render; every rule starts selected.
 func AgentsForm(rules []string) (*huh.Form, func() config.AgentsConfig) {
 	selected := append([]string{}, rules...)
 	options := make([]huh.Option[string], len(rules))

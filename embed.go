@@ -1,6 +1,4 @@
-// Package tars embeds the repo's dotfiles into the binary so a brew-installed
-// tars can provision a machine with no clone. The embed directive can only reach
-// files under the module root, which is why the module lives at the repo root.
+// The embed directive cannot reach above the module root, which is why the module lives at the repo root.
 package tars
 
 import "embed"

@@ -20,9 +20,7 @@ type Paths struct {
 	Agents   AgentsPaths
 }
 
-// AgentsPaths locates the agent-neutral content under agents/: the rule files every
-// agent renders, the per-project AGENTS.md template, and the edit-guard rule table
-// both agents' guards read.
+// AgentsPaths locates the agent-neutral content under agents/.
 type AgentsPaths struct {
 	RulesRepo           string
 	ProjectTemplateRepo string
@@ -49,9 +47,7 @@ type PiPaths struct {
 	EditGuardLocal   string
 }
 
-// ClaudePaths maps the repo claude/ dir onto ~/.claude: the shareable settings
-// fragment, the edit-blocking hook, and the files the shared agents/ content
-// renders into (CLAUDE.md, the hook's rule table).
+// ClaudePaths maps the repo claude/ dir onto ~/.claude.
 type ClaudePaths struct {
 	SettingsRepo   string
 	SettingsLocal  string

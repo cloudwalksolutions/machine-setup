@@ -1,6 +1,4 @@
-// Package assets serves the dotfiles embedded in the binary (embed.go at the
-// repo root) so a brew-installed tars can provision a machine with no clone:
-// the tree is materialized on demand and then serves as the repo root.
+// Package assets materializes the embedded dotfiles as the repo root when there is no clone.
 package assets
 
 import (

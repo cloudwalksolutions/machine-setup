@@ -14,13 +14,10 @@ import (
 	"tars/internal/tui"
 )
 
-// AgentsAsker presents the `tars init agents` form over the available rule names.
 type AgentsAsker interface {
 	AskAgents(rules []string) (config.AgentsConfig, error)
 }
 
-// AgentsInit orchestrates `tars init agents`: ask which shared rules every agent
-// renders, persist the choice, re-render every agent's rules file.
 type AgentsInit struct {
 	Asker  AgentsAsker
 	Config ConfigStore
@@ -29,7 +26,6 @@ type AgentsInit struct {
 	Report report.Reporter
 }
 
-// Run asks the user which rules to render, saves the answer, and applies it.
 func (a *AgentsInit) Run() error {
 	cfg, err := a.Config.Load()
 	if err != nil {
@@ -51,7 +47,6 @@ func (a *AgentsInit) Run() error {
 	return a.Pull(cfg.Agents)
 }
 
-// ruleNames lists the rule files in dir without their .md suffix.
 func ruleNames(dir string) ([]string, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -64,7 +59,6 @@ func ruleNames(dir string) ([]string, error) {
 	return names, nil
 }
 
-// NewAgentsInit wires the production `tars init agents`.
 func NewAgentsInit(r report.Reporter, ask AgentsAsker) (*AgentsInit, error) {
 	stdout, stderr := r.Output()
 	opts, err := buildOptions(stdout, stderr)

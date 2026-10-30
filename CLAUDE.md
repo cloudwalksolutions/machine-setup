@@ -261,7 +261,9 @@ registry, not any script, is the source of truth for installed tooling.
 
 **Conventions**: comments are for users, tests are for maintainers. Explanatory comments are
 unchecked documentation that goes stale and misleads; specs execute and document the behavior,
-and the why goes in the commit or PR.
+and the why goes in the commit or PR. An ugly comment compensates for a missing test or
+unreadable code (a file header, a line restating the name, a note in a test or config file);
+rename the thing or add a spec instead.
 Never edit files with `sed`/`awk` stream edits — use proper edits and fix at the source.
 
 ## Customization and Overrides (git-ignored)

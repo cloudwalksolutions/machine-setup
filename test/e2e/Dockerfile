@@ -42,7 +42,6 @@ RUN test -f "$HOME/.vimrc" \
  && test -f "$HOME/.claude/CLAUDE.md" \
  && grep -q 'block-unreviewable-edits.sh' "$HOME/.claude/settings.json"
 
-# The pulled hook evaluates the pulled rule table: it denies an in-place sed and allows a read.
 RUN echo '{"tool_input":{"command":"sed -i s/a/b/ main.go"}}' | "$HOME/.claude/hooks/block-unreviewable-edits.sh" | grep -q '"deny"' \
  && test -z "$(echo '{"tool_input":{"command":"sed -n 1p main.go"}}' | "$HOME/.claude/hooks/block-unreviewable-edits.sh")"
 

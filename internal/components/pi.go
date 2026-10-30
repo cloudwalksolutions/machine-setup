@@ -174,7 +174,6 @@ func unionStrings(first, second []string) []any {
 
 const agentsMDHeader = "# Working rules\n\nManaged by `tars init agents`; edit the rule files under agents/rules in the machine-setup repo, not this file.\n\n"
 
-// pullRules renders the shared rules into ~/.pi/agent/AGENTS.md.
 func (c *Pi) pullRules() error {
 	return pullRules(c.opts, c.Name(), agentsMDHeader, c.p.AgentsMDLocal)
 }
