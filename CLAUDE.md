@@ -7,7 +7,7 @@ Guidance for Claude Code (claude.ai/code) when working in this repository.
 A dev-machine provisioning tool for macOS (primary) and Linux (incl. shared bastions). It goes
 from a fresh machine to a production-ready dev environment: dev tools, dotfiles
 (Neovim, Zsh, Byobu, Vim), fonts, and terminal settings, plus a manager for live byobu
-sessions, one per project (git repo under `projects_dir`). The user-facing CLI is **`tars`** (Go, in `cli/`) with five verbs:
+sessions, one per project (git repo under `projects_dir`). The user-facing CLI is **`tars`** (Go, `cmd/` + `internal/`) with five verbs:
 `init` (bootstrap; subcommands `init agents`, `init claude`, `init pi`, `init project`), `pull`, `push`,
 `sessions`, `profiles`.
 
@@ -26,8 +26,8 @@ sessions, one per project (git repo under `projects_dir`). The user-facing CLI i
   auto-deleted. Identical files are skipped (no backup, no copy) so re-runs are no-ops.
   `pull`/`push` exit non-zero when any component fails; `setup` tolerates pull failures.
 - **Self-contained Go**: the CLI reimplements all logic natively. It NEVER shells out to
-  repo scripts. (The old `scripts/` bash tooling has been removed; `cli/` is the source
-  of truth.)
+  repo scripts. (The old `scripts/` bash tooling has been removed; the Go code is the
+  source of truth.)
 - **Personalization**: Zsh sources optional `~/.zshrc_secret`, the active profile's
   `~/.config/tars/profiles/<alias>.env`, and `~/.zshrc_funcs`; the login shell sources
   `~/.zprofile_local`. All are git-ignored, seeded once, never overwritten. Keep shared
@@ -36,31 +36,32 @@ sessions, one per project (git repo under `projects_dir`). The user-facing CLI i
 ## Architecture
 
 ```
-├── cli/                         # the `tars` Go CLI (module lives here)
-│   ├── main.go                  # entrypoint; version/commit/date injected via ldflags
-│   ├── cmd/                     # cobra commands: setup, pull, push, sessions, profiles (+ root)
-│   │   ├── setup.go             # Setup orchestrator + SequentialPuller (DI, testable)
-│   │   ├── pull.go / push.go    # apply / capture configs; SequentialPusher
-│   │   ├── sessions.go          # sessions command group (aliases s/by): live sessions × projects, -i manager
-│   │   ├── profiles.go          # account identities command group (alias p)
-│   │   ├── backup.go            # BackupRoot: ~/.local/state/tars/backups (+ env override)
-│   │   ├── resolve.go           # ResolveRepo: clone discovery → embedded-assets fallback
-│   └── internal/
-│       ├── components/          # per-tool Pull/Push: vim, zsh, byobu, nvim, fonts, terminal, profiles, claude, pi
-│       ├── sessions/            # byobu driver: list/create-from-windows/attach/kill/rename live sessions
-│       ├── projects/            # git repos under projects_dir + their session templates (projects.yaml)
-│       ├── profiles/            # account identities: yaml config, gitconfig/env rendering, active marker
-│       ├── dotfiles/            # specs only: lint the shipped zsh files + terminal font string
-│       ├── assets/              # dotfiles embedded in the binary (tree/ mirror; `make sync-assets`)
-│       ├── fsutil/              # Backup + SafeCopy (versioned, idempotent)
-│       ├── paths/               # repo→local file mappings (ForOS: OS-aware)
-│       ├── repo/                # repo-root discovery (markers: cli/go.mod + nvim/)
-│       ├── pkg/                 # installable dev tools (brew/apt/rvm) + registry
-│       ├── forms/               # huh v2 form builders, shared theme, Headless defaults (TARS_NO_FORM=1)
-│       ├── report/              # Reporter seam: orchestrators report steps/items; Text prints plain lines
-│       ├── tui/                 # Bubble Tea v2: `tars init` live pane + embedded forms; `tars sessions -i` list manager
-│       ├── shell/               # oh-my-zsh / powerlevel10k installers
-│       └── config/              # persisted YAML config
+├── go.mod                       # the `tars` Go module lives at the repo root so embed.go can reach the dotfiles
+├── embed.go                     # package tars: go:embed of every dotfile dir + monokai.lua (no mirror, no sync step)
+├── cmd/                         # cobra commands: setup, pull, push, sessions, profiles (+ root)
+│   ├── tars/main.go             # entrypoint; version/commit/date injected via ldflags
+│   ├── setup.go                 # Setup orchestrator + SequentialPuller (DI, testable)
+│   ├── pull.go / push.go        # apply / capture configs; SequentialPusher
+│   ├── sessions.go              # sessions command group (aliases s/by): live sessions × projects, -i manager
+│   ├── profiles.go              # account identities command group (alias p)
+│   ├── backup.go                # BackupRoot: ~/.local/state/tars/backups (+ env override)
+│   └── resolve.go               # ResolveRepo: clone discovery → embedded-assets fallback
+├── internal/
+│   ├── components/              # per-tool Pull/Push: vim, zsh, byobu, nvim, fonts, terminal, profiles, claude, pi
+│   ├── sessions/                # byobu driver: list/create-from-windows/attach/kill/rename live sessions
+│   ├── projects/                # git repos under projects_dir + their session templates (projects.yaml)
+│   ├── profiles/                # account identities: yaml config, gitconfig/env rendering, active marker
+│   ├── dotfiles/                # specs only: lint the shipped zsh files, terminal font string, edit guards
+│   ├── assets/                  # Files/Materialize over the root embed (the no-clone fallback)
+│   ├── fsutil/                  # Backup + SafeCopy (versioned, idempotent)
+│   ├── paths/                   # repo→local file mappings (ForOS: OS-aware)
+│   ├── repo/                    # repo-root discovery (markers: go.mod + nvim/)
+│   ├── pkg/                     # installable dev tools (brew/apt/rvm) + registry
+│   ├── forms/                   # huh v2 form builders, shared theme, Headless defaults (TARS_NO_FORM=1)
+│   ├── report/                  # Reporter seam: orchestrators report steps/items; Text prints plain lines
+│   ├── tui/                     # Bubble Tea v2: `tars init` live pane + embedded forms; `tars sessions -i` list manager
+│   ├── shell/                   # oh-my-zsh / powerlevel10k installers
+│   └── config/                  # persisted YAML config
 ├── nvim/  zsh/  byobu/  vim/     # the dotfiles tars manages
 ├── monokai.lua                  # nvim colorscheme shipped at root (also embedded)
 ├── agents/                      # shared by every coding agent: rules/ (→ CLAUDE.md + AGENTS.md), edit-guard.json, templates/AGENTS.project.md
@@ -72,16 +73,17 @@ sessions, one per project (git repo under `projects_dir`). The user-facing CLI i
 ├── test/e2e/Dockerfile          # Docker E2E (see Testing Strategy)
 ├── docs/releasing.md            # maintainer release notes
 ├── install.sh                   # curl|sh installer (release binary → ~/.local/bin)
-├── Makefile                     # dev targets: build/lint/test layers, sync-assets, e2e, demos
+├── Makefile                     # dev targets: build/lint/test layers, e2e, demos
 └── .goreleaser.yaml, .github/   # release (tag v*) + CI + vhs re-recording
 ```
 
-The CLI locates the repo root by walking up for `cli/go.mod` + `nvim/`, or via the
-`TARS_REPO` env var (`cli/internal/repo`). With no clone at all, `cmd.ResolveRepo`
-falls back to the dotfiles embedded in the binary (`cli/internal/assets`), materialized
-under `~/.local/share/tars/repo` — so a brew-installed `tars` needs no clone. The
-embedded mirror is refreshed with `make sync-assets`; a drift-guard spec fails when a
-dotfile changes without re-syncing. `push` still requires a real clone.
+The CLI locates the repo root by walking up for `go.mod` + `nvim/`, or via the
+`TARS_REPO` env var (`internal/repo`). With no clone at all, `cmd.ResolveRepo`
+falls back to the dotfiles embedded in the binary (`embed.go` at the root, served by
+`internal/assets`), materialized under `~/.local/share/tars/repo` — so a brew-installed
+`tars` needs no clone. The embed reads the real `nvim/`, `zsh/`, `agents/`… directories, so
+every dotfile exists exactly once in the repo and a change ships on the next build with no
+sync step. `push` still requires a real clone.
 
 ## Testing Strategy
 
@@ -155,9 +157,9 @@ it before removing — a backup failure must abort before any data is lost. `Saf
 enforces backup-before-overwrite and short-circuits on byte-identical content.
 
 **Coverage & mutation testing.** CI enforces the total-coverage threshold in
-`cli/.testcoverage.yml` (ratchet it up when coverage grows, never down). Test
+`.testcoverage.yml` (ratchet it up when coverage grows, never down). Test
 *quality* is spot-checked with `go-mutesting` (avito-tech): run
-`go-mutesting ./internal/<pkg>/` from `cli/` — it mutates files IN PLACE while
+`go-mutesting ./internal/<pkg>/` from the repo root — it mutates files IN PLACE while
 running, so never edit or test concurrently; surviving mutants point at missing
 assertions. Production seams (`Default*` runners, `forms/`, plist helpers) stay
 untested by design — don't chase 100%.
@@ -170,10 +172,10 @@ is also run as part of `make integration`.
 its steps are explicit commands, not Makefile recipes. Eight checks:
 `test (ubuntu-latest)` / `test (macos-latest)` (`go vet`, `go build`, `go test -race`),
 `lint` (golangci-lint incl. the gofmt formatter, then `go mod tidy -diff`), `coverage`
-(gate from `cli/.testcoverage.yml`), `e2e-linux (ubuntu-latest)` / `e2e-linux (ubuntu-24.04-arm)`
+(gate from `.testcoverage.yml`), `e2e-linux (ubuntu-latest)` / `e2e-linux (ubuntu-24.04-arm)`
 (the Docker build), `nvim` (headless Lua smoke tests against the repo's `nvim/` via
-`XDG_CONFIG_HOME`), and `goreleaser` (`goreleaser check`). Reproduce locally from `cli/` with the
-same commands before handing work over; `gh pr checks <n> --watch` is the final gate.
+`XDG_CONFIG_HOME`), and `goreleaser` (`goreleaser check`). Reproduce locally from the repo root
+with the same commands before handing work over; `gh pr checks <n> --watch` is the final gate.
 `.github/workflows/vhs.yml` records every tape (`demo`, `init`, `sessions`, `profiles`) on each
 PR and posts the GIFs as a sticky PR comment (stored on the `vhs-previews` branch); on `main`
 it re-records the README GIFs via PR when anything under `vhs/` other than the GIFs changes.
@@ -194,7 +196,7 @@ refreshes the badge. Both run `go test -count=1` so cached results never replay 
 
 ## Development Patterns (TDD)
 
-**Strict red → green, one spec at a time.** This is non-negotiable for `cli/` code:
+**Strict red → green, one spec at a time.** This is non-negotiable for the Go code:
 
 1. Write ONE failing `It(...)` for the next small behavior.
 2. Run just that package (`go test ./internal/<pkg>/`), and SEE it fail (compile error or
@@ -214,7 +216,7 @@ without running anything. Run every gate as its own command, never piped into `t
 
 1. Add its paths to `paths.go` (`<Comp>Paths` struct + wire into `ForOS`, OS-aware if
    needed) — spec first in `paths_test.go`.
-2. Implement `cli/internal/components/<comp>.go` with `Name()` + `Pull()` (and `Push()`
+2. Implement `internal/components/<comp>.go` with `Name()` + `Pull()` (and `Push()`
    if it's pushable). Use `opts.copier().SafeCopy(src, dst, "<comp>", opts.BackupRoot)`
    (or `.SafeWrite` for rendered content) so backup-before-overwrite, idempotent skip,
    and `--dry-run` all come for free; for push, use component name `"<comp>-repo"`.
@@ -224,7 +226,7 @@ without running anything. Run every gate as its own command, never piped into `t
 4. `gofmt`, then `go test ./... && golangci-lint run ./...` green.
 
 **Adding a global agent rule**: drop a short `NN-slug.md` (a `##` heading plus a few
-lines) into `agents/rules/`, run `make sync-assets`. Rules are agent-neutral: the shared
+lines) into `agents/rules/`; the embed picks it up on the next build. Rules are agent-neutral: the shared
 `pullRules` in `components/agents.go` renders every rule not under `agents.skip_rules`
 (chosen by `tars init agents`), and each agent component is an adapter that calls it with
 its own header and destination (`~/.claude/CLAUDE.md`, `~/.pi/agent/AGENTS.md`), so a new
@@ -250,10 +252,10 @@ llama.cpp setup is pi's own business and is left untouched. Thinking is off by d
 `init` shells out to `pi`/`ollama` (behind `Pi.Run`); `pull` writes files only; nothing is ever
 uninstalled. Design for an empty machine: detecting what the machine has to pre-fill the form
 is fine, code that only migrates one machine's state is not. Add a prompt by dropping
-`pi/prompts/<name>.md` and running `make sync-assets`.
+`pi/prompts/<name>.md`.
 
 **Adding an installable tool**: edit the curated lists in
-`cli/internal/pkg/registry.go` (`darwinFormulas` / `darwinCasks` / `darwinTappedFormulas`
+`internal/pkg/registry.go` (`darwinFormulas` / `darwinCasks` / `darwinTappedFormulas`
 / `linuxAptPackages`, or a dedicated `apt` installable) — registry spec first. The
 registry, not any script, is the source of truth for installed tooling.
 

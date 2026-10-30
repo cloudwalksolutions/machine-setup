@@ -3,7 +3,7 @@ TS# tars
 [![release](https://github.com/cloudwalksolutions/machine-setup/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/cloudwalksolutions/machine-setup/actions/workflows/release.yml)
 [![release](https://img.shields.io/github/v/release/cloudwalksolutions/machine-setup)](https://github.com/cloudwalksolutions/machine-setup/releases/latest)
 ![coverage](https://raw.githubusercontent.com/cloudwalksolutions/machine-setup/badges/.badges/main/coverage.svg)
-[![go](https://img.shields.io/github/go-mod/go-version/cloudwalksolutions/machine-setup?filename=cli%2Fgo.mod)](cli/go.mod)
+[![go](https://img.shields.io/github/go-mod/go-version/cloudwalksolutions/machine-setup)](go.mod)
 [![license](https://img.shields.io/github/license/cloudwalksolutions/machine-setup)](LICENSE)
 
 Provision a development machine — dotfiles, dev tools, fonts, terminal, byobu
@@ -251,7 +251,7 @@ The rules every agent works by live once, in `agents/rules/`. `tars init agents`
 asks which of them to render; the choice is saved under `agents:` in the tars
 config, and every later `tars pull` renders the selection into `~/.claude/CLAUDE.md`
 and `~/.pi/agent/AGENTS.md`, picking up newly added rules as it goes. Add a rule by
-dropping a short `NN-slug.md` into `agents/rules/` and running `make sync-assets`.
+dropping a short `NN-slug.md` into `agents/rules/`.
 
 The edit guard is shared the same way: `agents/edit-guard.json` lists the command
 patterns that are denied (`sed -i`, heredoc and interpreter writes, redirects onto
@@ -286,12 +286,13 @@ The active profile's env file additionally exports `TARS_PROFILE` and `GITHUB_US
 
 ## Development
 
-The CLI is Go (module in `cli/`), tested with Ginkgo/Gomega and strict TDD; see
-[CLAUDE.md](CLAUDE.md). Targets: `make check` (lint + build + tests), `make unit`,
-`make e2e` (Docker: three users, a root-owned read-only clone, a no-clone install),
-`make demos` (re-record the GIFs; `vhs/bin/gh` stands in for gh). After editing any
-dotfile under `nvim/ zsh/ byobu/ vim/ fonts/ terminal/ claude/ pi/ agents/`, run `make sync-assets`
-or the drift guard fails CI. Every PR runs the race-enabled unit suite on Ubuntu and
+The CLI is Go (`cmd/` and `internal/`, module at the repo root), tested with
+Ginkgo/Gomega and strict TDD; see [CLAUDE.md](CLAUDE.md). Targets: `make check` (lint +
+build + tests), `make unit`, `make e2e` (Docker: three users, a root-owned read-only
+clone, a no-clone install), `make demos` (re-record the GIFs; `vhs/bin/gh` stands in for
+gh). The binary embeds the dotfile dirs (`nvim/ zsh/ byobu/ vim/ fonts/ terminal/ claude/
+pi/ agents/`) straight from the repo, so an edit ships on the next build with no sync
+step. Every PR runs the race-enabled unit suite on Ubuntu and
 macOS, golangci-lint with gofmt, a `go mod tidy` check, the coverage gate, the Docker
 e2e on amd64 and arm64, the Neovim smoke tests, and `goreleaser check`. Every merge to
 `main` then releases a new patch version: [docs/releasing.md](docs/releasing.md).

@@ -1,0 +1,11 @@
+# Config for vladopajic/go-test-coverage (CI coverage gate + badge).
+profile: cover.out
+
+threshold:
+  # Ratchet up as coverage grows, never down.
+  total: 80
+
+exclude:
+  paths:
+    - internal/assets # thin wrapper over the root embed; Materialize is spec'd, the walk is not
+    - internal/tui/run.go  # needs a real terminal; Start is proven under a teatest program

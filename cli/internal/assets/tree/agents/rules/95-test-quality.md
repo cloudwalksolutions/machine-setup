@@ -1,2 +1,0 @@
-## Test quality
-Test code must be cleaner than the code it covers. Do not add low-value tests; extend an existing one when it already covers the seam. E2E suites are sacred: reuse shared steps, assert on test ids not text, never touch the database directly, and never make the suite slower or flaky. A test that asserts nothing, silently no-ops, or fails without saying why is a bug; fix it first. Never dismiss a failure as flaky or pre-existing without investigating.

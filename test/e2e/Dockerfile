@@ -16,7 +16,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y zsh jq &
 # Root-owned repo — users can read it but never write into it.
 WORKDIR /repo
 COPY . /repo
-RUN cd /repo/cli && go build -o /usr/local/bin/tars .
+RUN cd /repo && go build -o /usr/local/bin/tars ./cmd/tars
 
 RUN useradd -m usera && useradd -m userb && useradd -m userc
 

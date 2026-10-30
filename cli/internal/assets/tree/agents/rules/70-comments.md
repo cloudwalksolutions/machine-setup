@@ -1,2 +1,0 @@
-## Comments
-Comments are for users, not maintainers; tests are for maintainers. A comment explaining how or why code works is documentation nothing checks: it has to be maintained by hand, goes stale the moment the code moves, and then misleads. A test is executable and documents the key behavior for the use case, and it fails when it stops being true. So put intent in names and tests, and the why in the commit or PR, never in a comment that will rot.

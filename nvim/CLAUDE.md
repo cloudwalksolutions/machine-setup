@@ -261,9 +261,8 @@ Both are registered in which-key for discoverability. Press the prefix key to se
 5. Always test fixes with smoke tests
 
 ### tars Integration
-- This nvim config lives in the tars repository AND is embedded in the `tars`
-  binary (`cli/internal/assets/tree/nvim/`) — after ANY edit under `nvim/`, run
-  `make sync-assets` or the drift-guard spec fails CI
+- This nvim config lives in the tars repository and is embedded straight from `nvim/`
+  into the `tars` binary (`embed.go` at the repo root), so an edit ships on the next build
 - `tars pull` applies it to `~/.config/nvim/` (archived first, sequentially versioned
   under `~/.local/state/tars/backups/nvim/`); `tars push` captures local edits back.
   Full command reference: the root README.md

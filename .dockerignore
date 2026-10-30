@@ -2,5 +2,6 @@
 .git
 backups/
 **/dist/
-cli/tars
+/tars
+/cover.out
 .github
