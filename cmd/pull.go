@@ -1,15 +1,11 @@
 package cmd
 
 import (
-	"bytes"
 	"fmt"
-	"os"
 
-	"github.com/charmbracelet/x/term"
 	"github.com/spf13/cobra"
 
 	"tars/internal/components"
-	"tars/internal/forms"
 	"tars/internal/report"
 )
 
@@ -42,14 +38,11 @@ Exits non-zero when any component fails, listing each failure.`,
 		} else {
 			fmt.Fprintln(stdout, "Applying configuration files...")
 		}
-		p := SequentialPuller{Components: components.AllPullable(opts), Report: report.Text{Stdout: stdout, Stderr: stderr}}
-		if !pullYes && !opts.DryRun && os.Getenv("TARS_NO_FORM") == "" && term.IsTerminal(os.Stdin.Fd()) && term.IsTerminal(os.Stdout.Fd()) {
-			diffs, preview := &bytes.Buffer{}, opts
-			preview.DryRun, preview.Diff, preview.Stdout = true, true, diffs
-			p.Previews, p.Diffs, p.Confirm = components.AllPullable(preview), diffs, forms.PullConfirm{Out: stdout}
-		}
+		p := &SequentialPuller{Report: report.Text{Stdout: stdout, Stderr: stderr}}
+		opts.Record = p.Record
+		p.Components = components.AllPullable(opts)
 		if err := p.PullAll(); err != nil && err.Error() == "user aborted" {
-			fmt.Fprintln(stdout, "\nPull cancelled; components after this one were left as they were.")
+			fmt.Fprintln(stdout, "\nPull cancelled; nothing was written.")
 			return nil
 		} else if err != nil {
 			return fmt.Errorf("pull completed with failures: %w", err)
@@ -57,14 +50,9 @@ Exits non-zero when any component fails, listing each failure.`,
 		if opts.DryRun {
 			fmt.Fprintln(stdout, "\nDry run complete — nothing was written.")
 		} else {
-			fmt.Fprintln(stdout, "\nPull complete.")
+			fmt.Fprintln(stdout, "\n"+components.Recap(p.Applied, len(p.Components)-len(p.Applied)-len(p.Skipped)))
 		}
 		return nil
 	},
 	SilenceUsage: true,
-}
-
-// Confirmer shows a component's pending diff and asks whether to apply it.
-type Confirmer interface {
-	ConfirmApply(name, diff string) (bool, error)
 }

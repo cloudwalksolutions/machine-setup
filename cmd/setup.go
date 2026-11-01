@@ -5,7 +5,6 @@
 package cmd
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -17,6 +16,7 @@ import (
 
 	"tars/internal/components"
 	"tars/internal/config"
+	"tars/internal/fsutil"
 	"tars/internal/pkg"
 	"tars/internal/pkg/apt"
 	"tars/internal/pkg/brew"
@@ -257,40 +257,66 @@ func stringSet(s []string) map[string]bool {
 	return set
 }
 
+// Reviewer decides which of the planned components get applied.
+type Reviewer interface {
+	Review(plans []components.Plan) (accepted []string, err error)
+}
+
 // SequentialPuller is the production Puller. It iterates the configured
 // component list, printing progress and capturing per-component failures.
+// With Review set, every Preview (same order, dry-run) runs first and only
+// the accepted components are pulled. Components record through Record.
 type SequentialPuller struct {
 	Components []components.Component
 	Previews   []components.Component
-	Diffs      *bytes.Buffer
-	Confirm    Confirmer
+	Review     Reviewer
 	Report     report.Reporter
+
+	Applied []components.Plan
+	Skipped []string
+	changes []fsutil.Change
 }
+
+// Record collects a change made by the component being pulled or previewed.
+func (p *SequentialPuller) Record(ch fsutil.Change) { p.changes = append(p.changes, ch) }
 
 // PullAll pulls every component, continuing past failures and returning them joined.
-func (p SequentialPuller) PullAll() error {
-	return runComponents(p.Components, components.Component.Name, p.pull, p.Report)
-}
-
-func (p SequentialPuller) pull(c components.Component) error {
-	if p.Confirm == nil {
-		return c.Pull()
-	}
-	p.Diffs.Reset()
-	if err := p.Previews[slices.Index(p.Components, c)].Pull(); err != nil {
-		return err
-	}
-	if p.Diffs.Len() > 0 {
-		ok, err := p.Confirm.ConfirmApply(c.Name(), p.Diffs.String())
+func (p *SequentialPuller) PullAll() error {
+	accepted := map[string]bool{}
+	if p.Review != nil {
+		var plans []components.Plan
+		for _, preview := range p.Previews {
+			p.changes = nil
+			if err := preview.Pull(); err != nil {
+				return err
+			}
+			if len(p.changes) > 0 {
+				plans = append(plans, components.Plan{Component: preview.Name(), Changes: p.changes})
+			}
+		}
+		names, err := p.Review.Review(plans)
 		if err != nil {
 			return err
 		}
-		if !ok {
+		for _, plan := range plans {
+			accepted[plan.Component] = slices.Contains(names, plan.Component)
+		}
+	}
+	return runComponents(p.Components, components.Component.Name, func(c components.Component) error {
+		if ok, planned := accepted[c.Name()]; planned && !ok {
+			p.Skipped = append(p.Skipped, c.Name())
 			p.Report.Note("    skipped " + c.Name())
 			return nil
 		}
-	}
-	return c.Pull()
+		p.changes = nil
+		if err := c.Pull(); err != nil {
+			return err
+		}
+		if len(p.changes) > 0 {
+			p.Applied = append(p.Applied, components.Plan{Component: c.Name(), Changes: p.changes})
+		}
+		return nil
+	}, p.Report)
 }
 
 // runComponents drives one action across a component list, reporting each item,
@@ -358,7 +384,7 @@ func NewSetup(r report.Reporter, ask tui.Asker, cfgPath string) (*Setup, error) 
 			Stdout: stdout,
 			Stderr: stderr,
 		},
-		Pull: SequentialPuller{
+		Pull: &SequentialPuller{
 			Components: components.AllPullable(compOpts),
 			Report:     r,
 		},

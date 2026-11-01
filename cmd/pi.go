@@ -79,7 +79,7 @@ func (o componentPiOps) with(cfg config.PiConfig) *components.Pi {
 }
 
 func (o componentPiOps) Pull(cfg config.PiConfig) error {
-	return SequentialPuller{Components: []components.Component{o.with(cfg)}, Report: o.report}.PullAll()
+	return (&SequentialPuller{Components: []components.Component{o.with(cfg)}, Report: o.report}).PullAll()
 }
 func (o componentPiOps) InstallPackages(p []string) error {
 	return o.with(o.opts.Pi).InstallPackages(p)
