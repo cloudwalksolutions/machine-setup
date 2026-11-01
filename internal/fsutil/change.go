@@ -26,18 +26,24 @@ type Change struct {
 	Diff   udiff.UnifiedDiff
 }
 
+// String describes the change as a pending write; Done describes it as made.
 func (c Change) String() string {
-	switch c.Kind {
-	case Overwrite:
-		if c.Binary {
-			return fmt.Sprintf("    would overwrite  %s (backup %s, binary)", c.Path, c.Backup)
-		}
-		return fmt.Sprintf("    would overwrite  %s (backup %s)", c.Path, c.Backup)
-	case Remove:
-		return "    would remove  " + c.Path
-	default:
-		return "    would create  " + c.Path
+	return c.describe([...]string{"would create", "would overwrite", "would remove"})
+}
+
+func (c Change) Done() string {
+	return c.describe([...]string{"created", "overwrote", "removed"})
+}
+
+func (c Change) describe(verbs [3]string) string {
+	line := fmt.Sprintf("    %s  %s", verbs[c.Kind], c.Path)
+	if c.Kind != Overwrite {
+		return line
 	}
+	if c.Binary {
+		return fmt.Sprintf("%s (backup %s, binary)", line, c.Backup)
+	}
+	return fmt.Sprintf("%s (backup %s)", line, c.Backup)
 }
 
 // classify compares src against dst and returns the Change that would make

@@ -1,6 +1,7 @@
 package fsutil_test
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 
@@ -296,6 +297,25 @@ var _ = Describe("SafeCopy", func() {
 		b, err := os.ReadFile(dst)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(string(b)).To(Equal("payload"))
+	})
+
+	It("records what it wrote, in the past tense, and nothing for an unchanged file", func() {
+		var got []fsutil.Change
+		log := &bytes.Buffer{}
+		copier := fsutil.Copier{Log: log, Record: func(ch fsutil.Change) { got = append(got, ch) }}
+		src, dst, fresh := filepath.Join(tmp, "src.txt"), filepath.Join(tmp, "dst.txt"), filepath.Join(tmp, "fresh.txt")
+		Expect(os.WriteFile(src, []byte("NEW"), 0o644)).To(Succeed())
+		Expect(os.WriteFile(dst, []byte("OLD"), 0o644)).To(Succeed())
+
+		Expect(copier.SafeCopy(src, dst, "zsh", backupRoot)).To(Succeed())
+		Expect(copier.SafeCopy(src, fresh, "zsh", backupRoot)).To(Succeed())
+		Expect(copier.SafeCopy(src, fresh, "zsh", backupRoot)).To(Succeed())
+
+		Expect(got).To(Equal([]fsutil.Change{
+			{Path: dst, Kind: fsutil.Overwrite, Backup: "v1"},
+			{Path: fresh, Kind: fsutil.Create},
+		}))
+		Expect(log.String()).To(Equal("    overwrote  " + dst + " (backup v1)\n    created  " + fresh + "\n"))
 	})
 
 	It("backs up the existing dst before overwriting", func() {

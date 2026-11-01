@@ -31,19 +31,23 @@ func (c Copier) announce(ch Change) {
 	if c.Record != nil {
 		c.Record(ch)
 	}
+	if !c.DryRun {
+		c.report("%s", ch.Done())
+		return
+	}
 	c.report("%s", ch)
 	if len(ch.Diff.Hunks) > 0 && c.Log != nil {
 		_, _ = io.WriteString(c.Log, ch.Diff.String())
 	}
 }
 
-// announceTree announces each file src would create, overwrite or remove under dst.
-func (c Copier) announceTree(src, dst string, exclude []string, backup string) error {
+// treeChanges lists each file src would create, overwrite or remove under dst.
+func (c Copier) treeChanges(src, dst string, exclude []string, backup string) ([]Change, error) {
 	files := map[string]bool{}
 	for _, root := range []string{src, dst} {
 		entries, err := treeEntries(root, exclude)
 		if err != nil && !os.IsNotExist(err) {
-			return err
+			return nil, err
 		}
 		for rel, isDir := range entries {
 			if !isDir {
@@ -51,20 +55,21 @@ func (c Copier) announceTree(src, dst string, exclude []string, backup string) e
 			}
 		}
 	}
+	var changes []Change
 	for _, rel := range slices.Sorted(maps.Keys(files)) {
 		ch, changed, err := classify(filepath.Join(src, rel), filepath.Join(dst, rel))
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if changed {
 			ch.Backup = backup
 			if !c.Diff {
 				ch.Diff = udiff.UnifiedDiff{}
 			}
-			c.announce(ch)
+			changes = append(changes, ch)
 		}
 	}
-	return nil
+	return changes, nil
 }
 
 func (c Copier) report(format string, args ...any) {
@@ -104,6 +109,7 @@ func (c Copier) SafeCopy(src, dst, component, backupRoot string) error {
 	if _, err := os.Stat(src); err != nil {
 		return err
 	}
+	ch := Change{Path: dst, Kind: Create}
 	if _, err := os.Stat(dst); err == nil {
 		// Idempotent: if dst already matches src, only repair a drifted mode —
 		// no backup, no copy.
@@ -125,16 +131,21 @@ func (c Copier) SafeCopy(src, dst, component, backupRoot string) error {
 		if c.DryRun {
 			return c.announceOverwrite(src, dst, filepath.Base(version))
 		}
+		ch = Change{Path: dst, Kind: Overwrite, Backup: filepath.Base(version)}
 	} else if !os.IsNotExist(err) {
 		return err
 	} else if c.DryRun {
-		c.announce(Change{Path: dst, Kind: Create})
+		c.announce(ch)
 		return nil
 	}
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
 	}
-	return copyPath(src, dst)
+	if err := copyPath(src, dst); err != nil {
+		return err
+	}
+	c.announce(ch)
+	return nil
 }
 
 // announceOverwrite reports dst being replaced by src: a tree per file, a file
@@ -145,7 +156,11 @@ func (c Copier) announceOverwrite(src, dst, backup string) error {
 		return err
 	}
 	if info.IsDir() {
-		return c.announceTree(src, dst, nil, backup)
+		changes, err := c.treeChanges(src, dst, nil, backup)
+		for _, ch := range changes {
+			c.announce(ch)
+		}
+		return err
 	}
 	ch := Change{Path: dst, Kind: Overwrite, Backup: backup}
 	if c.Diff {
@@ -183,13 +198,22 @@ func (c Copier) Replace(src, dst string, exclude []string, component, backupRoot
 	if err != nil {
 		return err
 	}
-	if c.DryRun {
-		return c.announceTree(src, dst, exclude, filepath.Base(version))
-	}
-	if err := removeTree(dst, exclude); err != nil {
+	changes, err := c.treeChanges(src, dst, exclude, filepath.Base(version))
+	if err != nil {
 		return err
 	}
-	return copyTree(src, dst, exclude)
+	if !c.DryRun {
+		if err := removeTree(dst, exclude); err != nil {
+			return err
+		}
+		if err := copyTree(src, dst, exclude); err != nil {
+			return err
+		}
+	}
+	for _, ch := range changes {
+		c.announce(ch)
+	}
+	return nil
 }
 
 func removeTree(root string, exclude []string) error {
@@ -250,13 +274,16 @@ func copyTree(src, dst string, exclude []string) error {
 
 // RemoveAll deletes path, or reports the intent when in dry-run mode.
 func (c Copier) RemoveAll(path string) error {
-	if c.DryRun {
-		if _, err := os.Stat(path); err == nil {
-			c.announce(Change{Path: path, Kind: Remove})
-		}
+	if _, err := os.Stat(path); err != nil {
 		return nil
 	}
-	return os.RemoveAll(path)
+	if !c.DryRun {
+		if err := os.RemoveAll(path); err != nil {
+			return err
+		}
+	}
+	c.announce(Change{Path: path, Kind: Remove})
+	return nil
 }
 
 // Backup is the non-dry-run form of Copier.Backup.
