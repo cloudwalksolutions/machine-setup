@@ -195,16 +195,16 @@ var _ = Describe("pull", func() {
 			}))
 		})
 
-		It("copies repo-side .undo and .netrwhist scratch state into the live config", func() {
+		It("leaves repo-side .undo and .netrwhist scratch state out of the live config", func() {
 			write("nvim/.netrwhist", "HISTORY")
 			write("nvim/.undo/%Users%someone%.zshrc_secret", "UNDOBLOB")
 
 			Expect(components.NewNvim(opts).Pull()).To(Succeed())
 
-			Expect(relPaths(filepath.Join(home, ".config", "nvim"))).To(ContainElements(
-				".netrwhist",
-				".undo/%Users%someone%.zshrc_secret",
-			))
+			Expect(relPaths(filepath.Join(home, ".config", "nvim"))).To(Equal([]string{
+				"init.lua",
+				"lua/core/settings.lua",
+			}))
 		})
 	})
 

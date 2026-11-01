@@ -9,6 +9,7 @@ import (
 
 	"tars/cmd"
 	"tars/internal/components"
+	"tars/internal/fsutil"
 	"tars/internal/report"
 )
 
@@ -25,92 +26,116 @@ func (s *spyPullable) Pull() error {
 }
 
 type previewPullable struct {
-	name string
-	out  *bytes.Buffer
-	diff string
+	name    string
+	changes []fsutil.Change
+	record  func(fsutil.Change)
 }
 
 func (p *previewPullable) Name() string { return p.name }
 func (p *previewPullable) Pull() error {
-	p.out.WriteString(p.diff)
+	for _, ch := range p.changes {
+		p.record(ch)
+	}
 	return nil
 }
 
-type spyConfirmer struct {
-	answer bool
+type spyReviewer struct {
+	got    []components.Plan
+	accept []string
 	err    error
-	asked  map[string]string
 }
 
-func (s *spyConfirmer) ConfirmApply(name, diff string) (bool, error) {
-	s.asked[name] = diff
-	return s.answer, s.err
+func (s *spyReviewer) Review(plans []components.Plan) ([]string, error) {
+	s.got = plans
+	return s.accept, s.err
 }
 
-var _ = Describe("SequentialPuller.PullAll with Confirm", func() {
+var _ = Describe("SequentialPuller.PullAll with a Reviewer", func() {
 	var (
-		applied []string
-		stdout  *bytes.Buffer
-		puller  cmd.SequentialPuller
-		confirm *spyConfirmer
+		applied  []string
+		stdout   *bytes.Buffer
+		puller   *cmd.SequentialPuller
+		reviewer *spyReviewer
 	)
 
-	component := func(name, diff string) {
+	component := func(name string, changes ...fsutil.Change) {
 		puller.Components = append(puller.Components, &spyPullable{name: name, log: &applied})
-		puller.Previews = append(puller.Previews, &previewPullable{name: name, out: puller.Diffs, diff: diff})
+		puller.Previews = append(puller.Previews, &previewPullable{name: name, changes: changes, record: puller.Record})
+	}
+	names := func(plans []components.Plan) []string {
+		var out []string
+		for _, p := range plans {
+			out = append(out, p.Component)
+		}
+		return out
 	}
 
 	BeforeEach(func() {
 		applied = nil
 		stdout = &bytes.Buffer{}
-		confirm = &spyConfirmer{answer: true, asked: map[string]string{}}
-		puller = cmd.SequentialPuller{
-			Diffs:   &bytes.Buffer{},
-			Confirm: confirm,
-			Report:  report.Text{Stdout: stdout, Stderr: &bytes.Buffer{}},
+		reviewer = &spyReviewer{}
+		puller = &cmd.SequentialPuller{
+			Review: reviewer,
+			Report: report.Text{Stdout: stdout, Stderr: &bytes.Buffer{}},
 		}
 	})
 
-	It("shows a changed component's diff and applies it once confirmed", func() {
-		component("zsh", "-old\n+new\n")
+	It("reviews every changed component's plan at once, applies the accepted and reports the skipped", func() {
+		component("zsh", fsutil.Change{Path: "/h/.zshrc", Kind: fsutil.Overwrite})
+		component("nvim", fsutil.Change{Path: "/h/.config/nvim/init.lua", Kind: fsutil.Overwrite})
+		reviewer.accept = []string{"zsh"}
 
 		Expect(puller.PullAll()).To(Succeed())
 
-		Expect(confirm.asked).To(Equal(map[string]string{"zsh": "-old\n+new\n"}))
+		Expect(names(reviewer.got)).To(Equal([]string{"zsh", "nvim"}))
+		Expect(reviewer.got[0].Changes).To(HaveLen(1))
 		Expect(applied).To(Equal([]string{"zsh"}))
+		Expect(stdout.String()).To(ContainSubstring("skipped nvim"))
 	})
 
-	It("never asks about a component with nothing to change", func() {
-		component("vim", "")
-		component("zsh", "+new\n")
+	It("never offers an unchanged component, and still pulls it", func() {
+		component("vim")
+		component("zsh", fsutil.Change{Path: "/h/.zshrc", Kind: fsutil.Create})
+		reviewer.accept = []string{"zsh"}
 
 		Expect(puller.PullAll()).To(Succeed())
 
-		Expect(confirm.asked).To(HaveKey("zsh"))
-		Expect(confirm.asked).NotTo(HaveKey("vim"))
+		Expect(names(reviewer.got)).To(Equal([]string{"zsh"}))
+		Expect(applied).To(Equal([]string{"vim", "zsh"}))
 	})
 
-	It("leaves a declined component untouched and says it was skipped", func() {
-		confirm.answer = false
-		component("zsh", "+new\n")
+	It("exposes the plans on their own, for --diff, without pulling anything", func() {
+		component("vim")
+		component("zsh", fsutil.Change{Path: "/h/.zshrc", Kind: fsutil.Create})
 
-		Expect(puller.PullAll()).To(Succeed())
+		plans, err := puller.Plans()
 
+		Expect(err).NotTo(HaveOccurred())
+		Expect(names(plans)).To(Equal([]string{"zsh"}))
 		Expect(applied).To(BeEmpty())
-		Expect(stdout.String()).To(ContainSubstring("skipped zsh"))
 	})
 
-	It("stops the whole pull on Ctrl+C at a prompt", func() {
-		confirm.err = errors.New("user aborted")
-		component("zsh", "+new\n")
-		component("nvim", "+new\n")
+	It("applies nothing when the review is aborted", func() {
+		reviewer.err = errors.New("user aborted")
+		component("zsh", fsutil.Change{Path: "/h/.zshrc", Kind: fsutil.Create})
 
 		Expect(puller.PullAll()).To(MatchError("user aborted"))
 
-		Expect(confirm.asked).NotTo(HaveKey("nvim"))
 		Expect(applied).To(BeEmpty())
 	})
 })
+
+var _ = DescribeTable("Interactive reviews only a writing pull on a terminal",
+	func(yes, dryRun, headless, ttyIn, ttyOut, want bool) {
+		Expect(cmd.Interactive(yes, dryRun, headless, ttyIn, ttyOut)).To(Equal(want))
+	},
+	Entry("a plain pull on a terminal", false, false, false, true, true, true),
+	Entry("--yes", true, false, false, true, true, false),
+	Entry("--dry-run", false, true, false, true, true, false),
+	Entry("TARS_NO_FORM", false, false, true, true, true, false),
+	Entry("stdin is not a terminal", false, false, false, false, true, false),
+	Entry("stdout is redirected", false, false, false, true, false, false),
+)
 
 var _ = Describe("SequentialPuller.PullAll", func() {
 	It("pulls each component in order, continues past failures, and returns an aggregate error naming them", func() {

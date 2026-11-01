@@ -3,6 +3,7 @@ package forms
 import (
 	"os"
 
+	"tars/internal/components"
 	"tars/internal/config"
 	"tars/internal/pkg"
 )
@@ -45,6 +46,15 @@ func (Headless) AskPi(in PiInputs) (config.PiConfig, error) {
 	in.Previous = config.PiConfig{}
 	_, collect := PiForm(in)
 	return collect(), nil
+}
+
+// Review accepts every planned component.
+func (Headless) Review(plans []components.Plan) ([]string, error) {
+	accepted := make([]string, len(plans))
+	for i, p := range plans {
+		accepted[i] = p.Component
+	}
+	return accepted, nil
 }
 
 // AskProject targets every agent with placeholder answers.

@@ -84,10 +84,10 @@ func NewClaudeInit(r report.Reporter, ask ClaudeAsker) (*ClaudeInit, error) {
 		Config: NewFileConfigStore(configPath()),
 		Pull: func(c config.ClaudeConfig) error {
 			opts.Claude = c
-			return SequentialPuller{
+			return (&SequentialPuller{
 				Components: []components.Component{components.NewClaude(opts)},
 				Report:     r,
-			}.PullAll()
+			}).PullAll()
 		},
 		Report: r,
 	}, nil

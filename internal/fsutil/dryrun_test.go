@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/aymanbagabas/go-udiff"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -29,6 +30,24 @@ var _ = Describe("Copier in dry-run mode", func() {
 		log = &bytes.Buffer{}
 		copier = fsutil.Copier{DryRun: true, Log: log}
 		Expect(os.WriteFile(src, []byte("NEW"), 0o644)).To(Succeed())
+	})
+
+	It("hands each intended write to Record as a Change that renders to the same line", func() {
+		var got []fsutil.Change
+		copier.Record = func(ch fsutil.Change) { got = append(got, ch) }
+		Expect(os.MkdirAll(filepath.Dir(dst), 0o755)).To(Succeed())
+		Expect(os.WriteFile(dst, []byte("OLD"), 0o644)).To(Succeed())
+		created := filepath.Join(tmp, "out", "new.txt")
+
+		Expect(copier.SafeCopy(src, dst, "demo", backupRoot)).To(Succeed())
+		Expect(copier.SafeCopy(src, created, "demo", backupRoot)).To(Succeed())
+
+		Expect(got).To(Equal([]fsutil.Change{
+			{Path: dst, Kind: fsutil.Overwrite, Backup: "v1"},
+			{Path: created, Kind: fsutil.Create},
+		}))
+		Expect(log.String()).To(Equal(got[0].String() + "\n" + got[1].String() + "\n"))
+		Expect(got[0].String()).To(Equal("    would overwrite  " + dst + " (backup v1)"))
 	})
 
 	It("reports a create without writing the destination", func() {
@@ -101,6 +120,29 @@ var _ = Describe("Copier in dry-run mode", func() {
 			Expect(log.String()).To(ContainSubstring("would overwrite"))
 			Expect(log.String()).To(ContainSubstring("-old line\n"))
 			Expect(log.String()).To(ContainSubstring("+new line\n"))
+		})
+
+		It("records the overwrite once, carrying its hunks and a binary flag", func() {
+			var got []fsutil.Change
+			copier.Record = func(ch fsutil.Change) { got = append(got, ch) }
+			Expect(os.WriteFile(src, []byte("keep\nnew line\n"), 0o644)).To(Succeed())
+			Expect(os.WriteFile(dst, []byte("keep\nold line\n"), 0o644)).To(Succeed())
+			font := filepath.Join(tmp, "out", "font.ttf")
+			Expect(os.WriteFile(font, []byte("font\x00old"), 0o644)).To(Succeed())
+			fontSrc := filepath.Join(tmp, "font.ttf")
+			Expect(os.WriteFile(fontSrc, []byte("font\x00new"), 0o644)).To(Succeed())
+
+			Expect(copier.SafeCopy(src, dst, "demo", backupRoot)).To(Succeed())
+			Expect(copier.SafeCopy(fontSrc, font, "demo", backupRoot)).To(Succeed())
+
+			Expect(got).To(HaveLen(2))
+			Expect(got[0].Diff.Hunks).To(HaveLen(1))
+			Expect(got[0].Diff.Hunks[0].Lines).To(ContainElements(
+				udiff.Line{Kind: udiff.Delete, Content: "old line\n"},
+				udiff.Line{Kind: udiff.Insert, Content: "new line\n"},
+			))
+			Expect(got[1].Binary).To(BeTrue())
+			Expect(got[1].String()).To(ContainSubstring("binary"))
 		})
 
 		It("shows a create as one line, never the whole new file", func() {

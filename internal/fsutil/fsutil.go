@@ -19,29 +19,36 @@ import (
 var versionRe = regexp.MustCompile(`^v(\d+)$`)
 
 // Copier performs backup-before-overwrite copies. With DryRun set it reports
-// each intended action to Log and writes nothing; Diff adds a unified diff per change.
+// each intended action to Log and Record and writes nothing; Diff adds a unified diff per change.
 type Copier struct {
 	DryRun bool
 	Diff   bool
 	Log    io.Writer
+	Record func(Change)
 }
 
-func (c Copier) diff(src, dst string) error {
-	if !c.Diff || c.Log == nil {
-		return nil
+// Announce reports ch to Record and Log the way the copier reports its own writes.
+func (c Copier) Announce(ch Change) {
+	if c.Record != nil {
+		c.Record(ch)
 	}
-	info, err := os.Stat(src)
-	if err != nil {
-		return err
+	if !c.DryRun {
+		c.report("%s", ch.Done())
+		return
 	}
-	if !info.IsDir() {
-		return c.diffFile(src, dst)
+	c.report("%s", ch)
+	if len(ch.Diff.Hunks) > 0 && c.Log != nil {
+		_, _ = io.WriteString(c.Log, ch.Diff.String())
 	}
+}
+
+// treeChanges lists each file src would create, overwrite or remove under dst.
+func (c Copier) treeChanges(src, dst string, exclude []string, backup string) ([]Change, error) {
 	files := map[string]bool{}
 	for _, root := range []string{src, dst} {
-		entries, err := treeEntries(root)
+		entries, err := treeEntries(root, exclude)
 		if err != nil && !os.IsNotExist(err) {
-			return err
+			return nil, err
 		}
 		for rel, isDir := range entries {
 			if !isDir {
@@ -49,37 +56,21 @@ func (c Copier) diff(src, dst string) error {
 			}
 		}
 	}
+	var changes []Change
 	for _, rel := range slices.Sorted(maps.Keys(files)) {
-		if err := c.diffFile(filepath.Join(src, rel), filepath.Join(dst, rel)); err != nil {
-			return err
+		ch, changed, err := classify(filepath.Join(src, rel), filepath.Join(dst, rel))
+		if err != nil {
+			return nil, err
+		}
+		if changed {
+			ch.Backup = backup
+			if !c.Diff {
+				ch.Diff = udiff.UnifiedDiff{}
+			}
+			changes = append(changes, ch)
 		}
 	}
-	return nil
-}
-
-func (c Copier) diffFile(src, dst string) error {
-	want, err := os.ReadFile(src)
-	if os.IsNotExist(err) {
-		c.report("    would remove  %s", dst)
-		return nil
-	} else if err != nil {
-		return err
-	}
-	have, err := os.ReadFile(dst)
-	if os.IsNotExist(err) {
-		c.report("    would create  %s", dst)
-		return nil
-	} else if err != nil {
-		return err
-	}
-	if bytes.Equal(want, have) {
-		return nil
-	}
-	if bytes.IndexByte(want, 0) >= 0 || bytes.IndexByte(have, 0) >= 0 {
-		return nil
-	}
-	_, err = io.WriteString(c.Log, udiff.Unified(dst, dst, string(have), string(want)))
-	return err
+	return changes, nil
 }
 
 func (c Copier) report(format string, args ...any) {
@@ -119,6 +110,7 @@ func (c Copier) SafeCopy(src, dst, component, backupRoot string) error {
 	if _, err := os.Stat(src); err != nil {
 		return err
 	}
+	ch := Change{Path: dst, Kind: Create}
 	if _, err := os.Stat(dst); err == nil {
 		// Idempotent: if dst already matches src, only repair a drifted mode —
 		// no backup, no copy.
@@ -138,19 +130,48 @@ func (c Copier) SafeCopy(src, dst, component, backupRoot string) error {
 			return err
 		}
 		if c.DryRun {
-			c.report("    would overwrite  %s (backup %s)", dst, filepath.Base(version))
-			return c.diff(src, dst)
+			return c.announceOverwrite(src, dst, filepath.Base(version))
 		}
+		ch = Change{Path: dst, Kind: Overwrite, Backup: filepath.Base(version)}
 	} else if !os.IsNotExist(err) {
 		return err
 	} else if c.DryRun {
-		c.report("    would create  %s", dst)
+		c.Announce(ch)
 		return nil
 	}
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
 	}
-	return copyPath(src, dst)
+	if err := copyPath(src, dst); err != nil {
+		return err
+	}
+	c.Announce(ch)
+	return nil
+}
+
+// announceOverwrite reports dst being replaced by src: a tree per file, a file
+// with its diff when Diff is on.
+func (c Copier) announceOverwrite(src, dst, backup string) error {
+	info, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+	if info.IsDir() {
+		changes, err := c.treeChanges(src, dst, nil, backup)
+		for _, ch := range changes {
+			c.Announce(ch)
+		}
+		return err
+	}
+	ch := Change{Path: dst, Kind: Overwrite, Backup: backup}
+	if c.Diff {
+		if ch, _, err = classify(src, dst); err != nil {
+			return err
+		}
+		ch.Backup = backup
+	}
+	c.Announce(ch)
+	return nil
 }
 
 // SafeWrite stages content in a temp file with mode, then SafeCopies it to dst so
@@ -171,15 +192,99 @@ func (c Copier) SafeWrite(content []byte, mode os.FileMode, dst, component, back
 	return c.SafeCopy(src, dst, component, backupRoot)
 }
 
+// Replace makes dst mirror src after backing dst up; excluded entries are
+// neither copied from src nor removed from dst.
+func (c Copier) Replace(src, dst string, exclude []string, component, backupRoot string) error {
+	version, err := c.Backup(dst, component, backupRoot)
+	if err != nil {
+		return err
+	}
+	changes, err := c.treeChanges(src, dst, exclude, filepath.Base(version))
+	if err != nil {
+		return err
+	}
+	if !c.DryRun {
+		if err := removeTree(dst, exclude); err != nil {
+			return err
+		}
+		if err := copyTree(src, dst, exclude); err != nil {
+			return err
+		}
+	}
+	for _, ch := range changes {
+		c.Announce(ch)
+	}
+	return nil
+}
+
+func removeTree(root string, exclude []string) error {
+	entries, err := treeEntries(root, exclude)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	for _, rel := range slices.Sorted(maps.Keys(entries)) {
+		if !entries[rel] {
+			if err := os.Remove(filepath.Join(root, rel)); err != nil {
+				return err
+			}
+		}
+	}
+	dirs := slices.Sorted(maps.Keys(entries))
+	slices.Reverse(dirs)
+	for _, rel := range dirs {
+		if !entries[rel] {
+			continue
+		}
+		left, err := os.ReadDir(filepath.Join(root, rel))
+		if err != nil {
+			return err
+		}
+		if len(left) == 0 {
+			if err := os.Remove(filepath.Join(root, rel)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func copyTree(src, dst string, exclude []string) error {
+	entries, err := treeEntries(src, exclude)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(dst, 0o755); err != nil {
+		return err
+	}
+	for _, rel := range slices.Sorted(maps.Keys(entries)) {
+		if entries[rel] {
+			if err := os.MkdirAll(filepath.Join(dst, rel), 0o755); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := copyFile(filepath.Join(src, rel), filepath.Join(dst, rel)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // RemoveAll deletes path, or reports the intent when in dry-run mode.
 func (c Copier) RemoveAll(path string) error {
-	if c.DryRun {
-		if _, err := os.Stat(path); err == nil {
-			c.report("    would remove  %s", path)
-		}
+	if _, err := os.Stat(path); err != nil {
 		return nil
 	}
-	return os.RemoveAll(path)
+	if !c.DryRun {
+		if err := os.RemoveAll(path); err != nil {
+			return err
+		}
+	}
+	c.Announce(Change{Path: path, Kind: Remove})
+	return nil
 }
 
 // Backup is the non-dry-run form of Copier.Backup.
@@ -220,7 +325,7 @@ func SameContent(src, dst string) (bool, error) {
 // SameTree reports whether src and dst are directories containing identical
 // trees: the same relative entries, the same file bytes, the same exec bits.
 // A missing or non-directory dst reports false without error.
-func SameTree(src, dst string) (bool, error) {
+func SameTree(src, dst string, exclude ...string) (bool, error) {
 	di, err := os.Stat(dst)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -232,11 +337,11 @@ func SameTree(src, dst string) (bool, error) {
 		return false, nil
 	}
 
-	srcEntries, err := treeEntries(src)
+	srcEntries, err := treeEntries(src, exclude)
 	if err != nil {
 		return false, err
 	}
-	dstEntries, err := treeEntries(dst)
+	dstEntries, err := treeEntries(dst, exclude)
 	if err != nil {
 		return false, err
 	}
@@ -265,8 +370,9 @@ func SameTree(src, dst string) (bool, error) {
 	return true, nil
 }
 
-// treeEntries maps each relative path under root to whether it is a directory.
-func treeEntries(root string) (map[string]bool, error) {
+// treeEntries maps each relative path under root to whether it is a directory,
+// skipping entries whose relative path or base name matches an exclude glob.
+func treeEntries(root string, exclude []string) (map[string]bool, error) {
 	entries := map[string]bool{}
 	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -279,10 +385,28 @@ func treeEntries(root string) (map[string]bool, error) {
 		if err != nil {
 			return err
 		}
+		if excluded(rel, exclude) {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
 		entries[rel] = d.IsDir()
 		return nil
 	})
 	return entries, err
+}
+
+func excluded(rel string, patterns []string) bool {
+	for _, p := range patterns {
+		if ok, _ := filepath.Match(p, rel); ok {
+			return true
+		}
+		if ok, _ := filepath.Match(p, filepath.Base(rel)); ok {
+			return true
+		}
+	}
+	return false
 }
 
 func execBit(path string) bool {
