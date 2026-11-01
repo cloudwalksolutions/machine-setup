@@ -1,0 +1,127 @@
+package tui_test
+
+import (
+	tea "charm.land/bubbletea/v2"
+	"github.com/aymanbagabas/go-udiff"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+
+	"tars/internal/components"
+	"tars/internal/fsutil"
+	"tars/internal/tui"
+)
+
+var _ = Describe("Review", func() {
+	var h *harness[tui.Review]
+
+	diffOf := func(path, old, new string) udiff.UnifiedDiff {
+		d, err := udiff.ToUnifiedDiff(path, path, old, udiff.Lines(old, new), 3)
+		Expect(err).NotTo(HaveOccurred())
+		return d
+	}
+	plans := func() []components.Plan {
+		return []components.Plan{
+			{Component: "zsh", Changes: []fsutil.Change{
+				{Path: "/h/.zshrc", Kind: fsutil.Overwrite, Backup: "v2", Diff: diffOf("/h/.zshrc", "keep\nold\n", "keep\nnew\n")},
+				{Path: "/h/.zshrc_aliases", Kind: fsutil.Create},
+			}},
+			{Component: "fonts", Changes: []fsutil.Change{
+				{Path: "/h/Hack.ttf", Kind: fsutil.Overwrite, Backup: "v1", Binary: true},
+			}},
+		}
+	}
+
+	BeforeEach(func() {
+		h = &harness[tui.Review]{model: tui.NewReview(plans())}
+		h.send(tea.WindowSizeMsg{Width: 120, Height: 40})
+	})
+
+	It("lists every component with its files and marks, shows the first file's diff, and totals the plan", func() {
+		view := h.view()
+
+		Expect(view).To(SatisfyAll(
+			ContainSubstring("✓ zsh  1 create, 1 modify"),
+			ContainSubstring("~ /h/.zshrc  +1 −1"),
+			ContainSubstring("+ /h/.zshrc_aliases"),
+			ContainSubstring("✓ fonts  1 modify"),
+			ContainSubstring("~ /h/Hack.ttf  binary"),
+			ContainSubstring("-old"),
+			ContainSubstring("+new"),
+			ContainSubstring("Plan: 1 to create, 2 to modify · 2 components"),
+			ContainSubstring("2 of 2 accepted"),
+		))
+	})
+
+	It("moves the selection down and up and shows the selected change on the right", func() {
+		h.send(tea.KeyPressMsg{Code: tea.KeyDown}, tea.KeyPressMsg{Code: 'j', Text: "j"})
+
+		Expect(h.view()).To(SatisfyAll(ContainSubstring("/h/.zshrc_aliases · create"), ContainSubstring("new file")))
+		Expect(h.view()).NotTo(ContainSubstring("-old"))
+
+		h.send(tea.KeyPressMsg{Code: 'k', Text: "k"})
+
+		Expect(h.view()).To(ContainSubstring("/h/.zshrc · modify · +1 −1"))
+	})
+
+	It("toggles the selected row's component with space, from a file row too, and recounts", func() {
+		h.send(tea.KeyPressMsg{Code: tea.KeyDown}, tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
+
+		Expect(h.view()).To(SatisfyAll(ContainSubstring("✗ zsh"), ContainSubstring("1 of 2 accepted")))
+		Expect(h.model.Accepted()).To(Equal([]string{"fonts"}))
+
+		h.send(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
+
+		Expect(h.model.Accepted()).To(Equal([]string{"zsh", "fonts"}))
+	})
+
+	It("skips everything with d and accepts everything with a", func() {
+		h.send(tea.KeyPressMsg{Code: 'd', Text: "d"})
+
+		Expect(h.view()).To(ContainSubstring("0 of 2 accepted"))
+		Expect(h.model.Accepted()).To(BeEmpty())
+
+		h.send(tea.KeyPressMsg{Code: 'a', Text: "a"})
+
+		Expect(h.model.Accepted()).To(Equal([]string{"zsh", "fonts"}))
+	})
+
+	It("jumps between hunks with n/N and between files with ]/[", func() {
+		old := "a1\na2\na3\na4\na5\na6\na7\na8\na9\na10\na11\na12\n"
+		new := "b1\na2\na3\na4\na5\na6\na7\na8\na9\na10\na11\nb12\n"
+		h = &harness[tui.Review]{model: tui.NewReview([]components.Plan{
+			{Component: "zsh", Changes: []fsutil.Change{
+				{Path: "/h/.zshrc", Kind: fsutil.Overwrite, Diff: diffOf("/h/.zshrc", old, new)},
+				{Path: "/h/.zshrc_aliases", Kind: fsutil.Create},
+			}},
+		})}
+		h.send(tea.WindowSizeMsg{Width: 120, Height: 12})
+		Expect(h.view()).To(SatisfyAll(ContainSubstring("2 hunks"), ContainSubstring("-a1"), Not(ContainSubstring("-a12"))))
+
+		h.send(tea.KeyPressMsg{Code: 'n', Text: "n"})
+		Expect(h.view()).To(SatisfyAll(ContainSubstring("-a12"), Not(ContainSubstring("-a1\n"))))
+
+		h.send(tea.KeyPressMsg{Code: 'N', Text: "N"})
+		Expect(h.view()).To(ContainSubstring("-a1"))
+
+		h.send(tea.KeyPressMsg{Code: ']', Text: "]"})
+		Expect(h.view()).To(ContainSubstring("/h/.zshrc_aliases · create"))
+
+		h.send(tea.KeyPressMsg{Code: '[', Text: "["})
+		Expect(h.view()).To(ContainSubstring("/h/.zshrc · modify"))
+	})
+
+	It("applies on enter and aborts on q or ctrl+c, quitting either way", func() {
+		h.send(tea.KeyPressMsg{Code: 'd', Text: "d"}, tea.KeyPressMsg{Code: tea.KeyEnter})
+
+		Expect(h.quit).To(BeTrue())
+		Expect(h.model.Aborted()).To(BeFalse())
+
+		for _, quit := range []tea.KeyPressMsg{{Code: 'q', Text: "q"}, {Code: 'c', Mod: tea.ModCtrl}} {
+			h = &harness[tui.Review]{model: tui.NewReview(plans())}
+			h.send(tea.WindowSizeMsg{Width: 120, Height: 40}, quit)
+
+			Expect(h.quit).To(BeTrue())
+			Expect(h.model.Aborted()).To(BeTrue())
+		}
+	})
+})
