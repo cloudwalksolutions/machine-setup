@@ -125,6 +125,18 @@ var _ = Describe("SequentialPuller.PullAll with a Reviewer", func() {
 	})
 })
 
+var _ = DescribeTable("Interactive reviews only a writing pull on a terminal",
+	func(yes, dryRun, headless, ttyIn, ttyOut, want bool) {
+		Expect(cmd.Interactive(yes, dryRun, headless, ttyIn, ttyOut)).To(Equal(want))
+	},
+	Entry("a plain pull on a terminal", false, false, false, true, true, true),
+	Entry("--yes", true, false, false, true, true, false),
+	Entry("--dry-run", false, true, false, true, true, false),
+	Entry("TARS_NO_FORM", false, false, true, true, true, false),
+	Entry("stdin is not a terminal", false, false, false, false, true, false),
+	Entry("stdout is redirected", false, false, false, true, false, false),
+)
+
 var _ = Describe("SequentialPuller.PullAll", func() {
 	It("pulls each component in order, continues past failures, and returns an aggregate error naming them", func() {
 		var log []string

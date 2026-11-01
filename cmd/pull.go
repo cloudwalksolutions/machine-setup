@@ -3,11 +3,14 @@ package cmd
 import (
 	"fmt"
 	"io"
+	"os"
 
+	"github.com/charmbracelet/x/term"
 	"github.com/spf13/cobra"
 
 	"tars/internal/components"
 	"tars/internal/report"
+	"tars/internal/tui"
 )
 
 var pullDryRun, pullDiff, pullYes bool
@@ -51,6 +54,11 @@ fails, listing each failure.`,
 			fmt.Fprintln(stdout, "Applying configuration files...")
 		}
 		p.Components = components.AllPullable(opts)
+		if Interactive(pullYes, opts.DryRun, os.Getenv("TARS_NO_FORM") != "", term.IsTerminal(os.Stdin.Fd()), term.IsTerminal(os.Stdout.Fd())) {
+			preview := opts
+			preview.DryRun, preview.Diff, preview.Stdout = true, true, io.Discard
+			p.Previews, p.Review = components.AllPullable(preview), tui.Reviewer{}
+		}
 		if err := p.PullAll(); err != nil && err.Error() == "user aborted" {
 			fmt.Fprintln(stdout, "\nPull cancelled; nothing was written.")
 			return nil
@@ -65,4 +73,10 @@ fails, listing each failure.`,
 		return nil
 	},
 	SilenceUsage: true,
+}
+
+// Interactive reports whether pull should open the review: only a writing pull
+// on a terminal, without -y or TARS_NO_FORM.
+func Interactive(yes, dryRun, headless, ttyIn, ttyOut bool) bool {
+	return !yes && !dryRun && !headless && ttyIn && ttyOut
 }
