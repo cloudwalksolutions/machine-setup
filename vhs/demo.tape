@@ -46,11 +46,16 @@ Type "echo 'alias gs=git-status' >> ~/.zshrc && clear"
 Enter
 Show
 
-# A local edit: pull shows the diff it would undo and asks before applying
+# A local edit: pull opens the review with the diff it would undo; space skips
+# a component, enter applies what is accepted
 Type "tars pull"
 Enter
-Wait+Screen@60s /Apply zsh/
+Wait+Screen@60s /Review pull/
 Sleep 3s
+Space
+Sleep 1.5s
+Space
+Sleep 1s
 Enter
 Wait+Screen@60s /Pull complete/
 Sleep 2s

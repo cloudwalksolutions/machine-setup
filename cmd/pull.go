@@ -25,10 +25,13 @@ your git profiles, backing up anything that already exists under
 
 Unlike 'setup', pull does NOT install packages, oh-my-zsh, or anything from the
 network — it only lays down configuration, so it's safe to run repeatedly.
-Every write is listed as it happens and the run ends with a recap. --diff prints
-a header per changed component, its unified diffs and a Plan line, and --dry-run
-lists the writes; neither changes anything. Exits non-zero when any component
-fails, listing each failure.`,
+On a terminal it opens a review first: components and files on the left, the
+selected file's diff on the right; space toggles a component, enter applies the
+accepted ones, q quits with nothing written. -y/--yes, TARS_NO_FORM or no
+terminal skips the review. Every write is listed as it happens and the run ends
+with a recap. --diff prints a header per changed component, its unified diffs
+and a Plan line, and --dry-run lists the writes; neither changes anything.
+Exits non-zero when any component fails, listing each failure.`,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		stdout, stderr := cmd.OutOrStdout(), cmd.ErrOrStderr()
 		opts, err := buildOptions(stdout, stderr)

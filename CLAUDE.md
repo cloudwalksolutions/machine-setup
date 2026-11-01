@@ -136,12 +136,15 @@ spec can drive a fake and still fail red-first:
   `open` / `defaults`). Tests assign
   fakes; the real impl is left untested by unit tests and validated via the E2E and
   manual runs.
-- **Dry-run seam**: every component writes through `Options.copier()` → `fsutil.Copier`;
-  with `Options.DryRun` it reports `would create / would overwrite / unchanged / would
-  remove` instead of touching disk (`tars pull --dry-run`); `Options.Diff` adds a unified
-  diff per change and drops the unchanged lines (`tars pull --diff`, and the per-component
-  preview `SequentialPuller` shows when its `Confirm` param is set). Never write around the copier, or
-  dry-run leaks. Specs assert on the report.
+- **Dry-run seam**: every component writes through `Options.copier()` → `fsutil.Copier`.
+  Each write it makes or would make is a `fsutil.Change` (path, kind, backup version,
+  binary flag, udiff hunks) handed to `Options.Record` and rendered to `Stdout` from the
+  same value: `would create / would overwrite (backup vN) / would remove` under
+  `Options.DryRun`, `created / overwrote / removed` for real; `Options.Diff` attaches the
+  hunks. A tree replace reports each file. `SequentialPuller.Record` collects the
+  changes into `components.Plan`s for the review (`tui.Review`), `tars pull --diff`
+  (`components.WritePlans`) and the recap (`components.Recap`). Never write around the
+  copier, or dry-run leaks. Specs assert on the report and on the recorded changes.
 - **OS override constructors**: `NewFontsForOS(opts, goos)`, `NewTerminalForOS(opts, goos)`
   so darwin-only paths are exercised on any host. CI also runs a `macos-latest` matrix leg
   so darwin-only code compiles and its unit tests run for real.
