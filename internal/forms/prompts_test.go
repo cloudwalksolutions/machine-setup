@@ -6,6 +6,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	"tars/internal/components"
 	"tars/internal/config"
 	"tars/internal/forms"
 	"tars/internal/pkg"
@@ -15,6 +16,13 @@ import (
 
 var _ = Describe("Headless", func() {
 	var h forms.Headless
+
+	It("Review accepts every planned component", func() {
+		accepted, err := h.Review([]components.Plan{{Component: "zsh"}, {Component: "nvim"}})
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(accepted).To(Equal([]string{"zsh", "nvim"}))
+	})
 
 	It("answers every prompt with the defaults", func() {
 		Expect(h.Welcome()).To(Succeed())
