@@ -32,6 +32,8 @@ type Options struct {
 	Stdout     io.Writer // progress output
 	Stderr     io.Writer // error/warning output
 
+	Record func(fsutil.Change) // receives every change a component makes or would make
+
 	Claude config.ClaudeConfig // `tars init claude` choices; zero value = everything on
 	Pi     config.PiConfig     // `tars init pi` choices; zero value = files only, no providers
 	Agents config.AgentsConfig // `tars init agents` choice; zero value = every rule rendered
@@ -39,7 +41,7 @@ type Options struct {
 
 // copier is the writer every component routes its writes through.
 func (o Options) copier() fsutil.Copier {
-	return fsutil.Copier{DryRun: o.DryRun, Diff: o.Diff, Log: o.Stdout}
+	return fsutil.Copier{DryRun: o.DryRun, Diff: o.Diff, Log: o.Stdout, Record: o.Record}
 }
 
 // AllPullable returns the pullable components in canonical order.

@@ -27,7 +27,8 @@ type Copier struct {
 	Record func(Change)
 }
 
-func (c Copier) announce(ch Change) {
+// Announce reports ch to Record and Log the way the copier reports its own writes.
+func (c Copier) Announce(ch Change) {
 	if c.Record != nil {
 		c.Record(ch)
 	}
@@ -135,7 +136,7 @@ func (c Copier) SafeCopy(src, dst, component, backupRoot string) error {
 	} else if !os.IsNotExist(err) {
 		return err
 	} else if c.DryRun {
-		c.announce(ch)
+		c.Announce(ch)
 		return nil
 	}
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
@@ -144,7 +145,7 @@ func (c Copier) SafeCopy(src, dst, component, backupRoot string) error {
 	if err := copyPath(src, dst); err != nil {
 		return err
 	}
-	c.announce(ch)
+	c.Announce(ch)
 	return nil
 }
 
@@ -158,7 +159,7 @@ func (c Copier) announceOverwrite(src, dst, backup string) error {
 	if info.IsDir() {
 		changes, err := c.treeChanges(src, dst, nil, backup)
 		for _, ch := range changes {
-			c.announce(ch)
+			c.Announce(ch)
 		}
 		return err
 	}
@@ -169,7 +170,7 @@ func (c Copier) announceOverwrite(src, dst, backup string) error {
 		}
 		ch.Backup = backup
 	}
-	c.announce(ch)
+	c.Announce(ch)
 	return nil
 }
 
@@ -211,7 +212,7 @@ func (c Copier) Replace(src, dst string, exclude []string, component, backupRoot
 		}
 	}
 	for _, ch := range changes {
-		c.announce(ch)
+		c.Announce(ch)
 	}
 	return nil
 }
@@ -282,7 +283,7 @@ func (c Copier) RemoveAll(path string) error {
 			return err
 		}
 	}
-	c.announce(Change{Path: path, Kind: Remove})
+	c.Announce(Change{Path: path, Kind: Remove})
 	return nil
 }
 

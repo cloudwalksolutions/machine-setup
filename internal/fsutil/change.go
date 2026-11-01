@@ -15,28 +15,34 @@ const (
 	Create Kind = iota
 	Overwrite
 	Remove
+	Set
 )
 
-// Change is one write a pull would make, or made.
+// Change is one write a pull would make, or made; a Set changes a setting
+// named by Path to Detail rather than a file.
 type Change struct {
 	Path   string
 	Kind   Kind
 	Backup string
 	Binary bool
+	Detail string
 	Diff   udiff.UnifiedDiff
 }
 
 // String describes the change as a pending write; Done describes it as made.
 func (c Change) String() string {
-	return c.describe([...]string{"would create", "would overwrite", "would remove"})
+	return c.describe([...]string{"would create", "would overwrite", "would remove", "would set"})
 }
 
 func (c Change) Done() string {
-	return c.describe([...]string{"created", "overwrote", "removed"})
+	return c.describe([...]string{"created", "overwrote", "removed", "set"})
 }
 
-func (c Change) describe(verbs [3]string) string {
+func (c Change) describe(verbs [4]string) string {
 	line := fmt.Sprintf("    %s  %s", verbs[c.Kind], c.Path)
+	if c.Kind == Set {
+		return line + "  " + c.Detail
+	}
 	if c.Kind != Overwrite {
 		return line
 	}
