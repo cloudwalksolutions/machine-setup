@@ -2,6 +2,7 @@ package tui_test
 
 import (
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/aymanbagabas/go-udiff"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -108,6 +109,44 @@ var _ = Describe("Review", func() {
 
 		h.send(tea.KeyPressMsg{Code: '[', Text: "["})
 		Expect(h.view()).To(ContainSubstring("/h/.zshrc · modify"))
+	})
+
+	It("scrolls the diff instead of moving the selection once tab focuses the right pane", func() {
+		old := "a1\na2\na3\na4\na5\na6\na7\na8\na9\na10\na11\na12\n"
+		new := "b1\na2\na3\na4\na5\na6\na7\na8\na9\na10\na11\nb12\n"
+		h = &harness[tui.Review]{model: tui.NewReview([]components.Plan{
+			{Component: "zsh", Changes: []fsutil.Change{
+				{Path: "/h/.zshrc", Kind: fsutil.Overwrite, Diff: diffOf("/h/.zshrc", old, new)},
+				{Path: "/h/.zshrc_aliases", Kind: fsutil.Create},
+			}},
+		})}
+		h.send(tea.WindowSizeMsg{Width: 120, Height: 12}, tea.KeyPressMsg{Code: tea.KeyTab})
+		for range 3 {
+			h.send(tea.KeyPressMsg{Code: 'j', Text: "j"})
+		}
+
+		Expect(h.view()).To(SatisfyAll(
+			ContainSubstring("@@ -9,4 +9,4 @@"),
+			Not(ContainSubstring("--- /h/.zshrc")),
+			ContainSubstring("/h/.zshrc · modify"),
+		))
+
+		h.send(tea.KeyPressMsg{Code: tea.KeyTab}, tea.KeyPressMsg{Code: 'j', Text: "j"}, tea.KeyPressMsg{Code: 'j', Text: "j"})
+
+		Expect(h.view()).To(ContainSubstring("/h/.zshrc_aliases · create"))
+	})
+
+	It("fits the terminal, and says so when it is too small to split", func() {
+		for _, size := range []tea.WindowSizeMsg{{Width: 80, Height: 20}, {Width: 60, Height: 12}} {
+			h.send(size)
+			Expect(lipgloss.Height(h.view())).To(BeNumerically("<=", size.Height), "%dx%d", size.Width, size.Height)
+			Expect(lipgloss.Width(h.view())).To(BeNumerically("<=", size.Width), "%dx%d", size.Width, size.Height)
+		}
+
+		h.send(tea.WindowSizeMsg{Width: 40, Height: 8})
+
+		Expect(h.view()).To(ContainSubstring("terminal too small"))
+		Expect(lipgloss.Height(h.view())).To(BeNumerically("<=", 8))
 	})
 
 	It("applies on enter and aborts on q or ctrl+c, quitting either way", func() {

@@ -43,6 +43,7 @@ type Review struct {
 	diff     viewport.Model
 	hunks    []int
 	hunk     int
+	diffHas  bool // the right pane has the keyboard
 	help     help.Model
 	done     bool
 	aborted  bool
@@ -97,12 +98,22 @@ func (r Review) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			r.done = true
 			return r, tea.Quit
 		}
+		if key.Matches(msg, paneKey) {
+			r.diffHas = !r.diffHas
+		}
 		if key.Matches(msg, moveKeys) {
 			step := 1
 			if k := msg.String(); k == "up" || k == "k" {
 				step = -1
 			}
-			r.move(step)
+			switch {
+			case r.diffHas && step > 0:
+				r.diff.ScrollDown(1)
+			case r.diffHas:
+				r.diff.ScrollUp(1)
+			default:
+				r.move(step)
+			}
 		}
 		if key.Matches(msg, toggleKey) {
 			plan := r.rows[r.cursor].plan
@@ -225,21 +236,27 @@ func (r Review) View() tea.View {
 	if r.size == nil {
 		return tea.NewView("")
 	}
+	v := tea.NewView(r.screen())
+	v.AltScreen = true
+	return v
+}
+
+func (r Review) screen() string {
+	if r.size.Width < 60 || r.size.Height < 10 {
+		return failedTxt.Render("terminal too small for the review; resize or run tars pull -y")
+	}
 	leftW, rightW := r.paneWidths()
 	body := r.bodyHeight()
 	left := lipgloss.NewStyle().Width(leftW).Height(body).MaxHeight(body).Render(r.leftPane(leftW))
 	right := lipgloss.NewStyle().Width(rightW).Height(body).MaxHeight(body).Render(r.rightPane(rightW))
-	panes := lipgloss.JoinHorizontal(lipgloss.Top, left, " ", right)
-	accepted := len(r.Accepted())
-	plan := fmt.Sprintf("%s · %d of %d accepted", components.PlanLine(r.plans), accepted, len(r.plans))
-	v := tea.NewView(strings.Join([]string{
+	line := lipgloss.NewStyle().MaxWidth(r.size.Width)
+	plan := fmt.Sprintf("%s · %d of %d accepted", components.PlanLine(r.plans), len(r.Accepted()), len(r.plans))
+	return strings.Join([]string{
 		titleTxt.Render("Review pull"),
-		panes,
-		dimTxt.Render(plan),
-		r.help.ShortHelpView(reviewKeys),
-	}, "\n"))
-	v.AltScreen = true
-	return v
+		lipgloss.JoinHorizontal(lipgloss.Top, left, " ", right),
+		line.Render(dimTxt.Render(plan)),
+		line.Render(r.help.ShortHelpView(reviewKeys)),
+	}, "\n")
 }
 
 func (r Review) leftPane(width int) string {
