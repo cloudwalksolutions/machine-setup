@@ -1,9 +1,14 @@
 package tui_test
 
 import (
+	"strings"
+	"time"
+
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/aymanbagabas/go-udiff"
+	"github.com/charmbracelet/x/ansi"
+	"github.com/charmbracelet/x/exp/teatest/v2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -184,6 +189,20 @@ var _ = Describe("Review", func() {
 
 		Expect(h.view()).To(ContainSubstring("terminal too small"))
 		Expect(lipgloss.Height(h.view())).To(BeNumerically("<=", 8))
+	})
+
+	It("runs under a real program: toggle a component, apply, and hand back the accepted set", func() {
+		tm := teatest.NewTestModel(GinkgoTB(), tui.NewReview(plans()), teatest.WithInitialTermSize(120, 40))
+		teatest.WaitFor(GinkgoTB(), tm.Output(), func(b []byte) bool {
+			return strings.Contains(ansi.Strip(string(b)), "2 of 2 accepted")
+		}, teatest.WithDuration(5*time.Second))
+
+		tm.Send(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
+		tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
+
+		final := tm.FinalModel(GinkgoTB(), teatest.WithFinalTimeout(5*time.Second)).(tui.Review)
+		Expect(final.Aborted()).To(BeFalse())
+		Expect(final.Accepted()).To(Equal([]string{"fonts"}))
 	})
 
 	It("applies on enter and aborts on q or ctrl+c, quitting either way", func() {
