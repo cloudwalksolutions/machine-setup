@@ -2,6 +2,7 @@ package components
 
 import (
 	"fmt"
+	"io"
 	"strings"
 
 	"tars/internal/fsutil"
@@ -38,6 +39,20 @@ func Recap(plans []Plan, unchanged int) string {
 		done = describe(count(all), [...]string{"created", "overwritten", "removed", "set"})
 	}
 	return fmt.Sprintf("Pull complete: %s, %d components unchanged.", done, unchanged)
+}
+
+// WritePlans prints the plans as a pipeable report ending in the Plan line.
+func WritePlans(w io.Writer, plans []Plan) {
+	for _, p := range plans {
+		fmt.Fprintf(w, "== %s (%s)\n", p.Component, p.Summary())
+		for _, ch := range p.Changes {
+			fmt.Fprintln(w, ch)
+			if len(ch.Diff.Hunks) > 0 {
+				fmt.Fprint(w, ch.Diff.String())
+			}
+		}
+	}
+	fmt.Fprintf(w, "\n%s\n", PlanLine(plans))
 }
 
 func count(changes []fsutil.Change) [4]int {

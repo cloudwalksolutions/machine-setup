@@ -280,19 +280,28 @@ type SequentialPuller struct {
 // Record collects a change made by the component being pulled or previewed.
 func (p *SequentialPuller) Record(ch fsutil.Change) { p.changes = append(p.changes, ch) }
 
+// Plans runs the previews and returns one plan per component that would change.
+func (p *SequentialPuller) Plans() ([]components.Plan, error) {
+	var plans []components.Plan
+	for _, preview := range p.Previews {
+		p.changes = nil
+		if err := preview.Pull(); err != nil {
+			return nil, err
+		}
+		if len(p.changes) > 0 {
+			plans = append(plans, components.Plan{Component: preview.Name(), Changes: p.changes})
+		}
+	}
+	return plans, nil
+}
+
 // PullAll pulls every component, continuing past failures and returning them joined.
 func (p *SequentialPuller) PullAll() error {
 	accepted := map[string]bool{}
 	if p.Review != nil {
-		var plans []components.Plan
-		for _, preview := range p.Previews {
-			p.changes = nil
-			if err := preview.Pull(); err != nil {
-				return err
-			}
-			if len(p.changes) > 0 {
-				plans = append(plans, components.Plan{Component: preview.Name(), Changes: p.changes})
-			}
+		plans, err := p.Plans()
+		if err != nil {
+			return err
 		}
 		names, err := p.Review.Review(plans)
 		if err != nil {

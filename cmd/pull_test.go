@@ -104,6 +104,17 @@ var _ = Describe("SequentialPuller.PullAll with a Reviewer", func() {
 		Expect(applied).To(Equal([]string{"vim", "zsh"}))
 	})
 
+	It("exposes the plans on their own, for --diff, without pulling anything", func() {
+		component("vim")
+		component("zsh", fsutil.Change{Path: "/h/.zshrc", Kind: fsutil.Create})
+
+		plans, err := puller.Plans()
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(names(plans)).To(Equal([]string{"zsh"}))
+		Expect(applied).To(BeEmpty())
+	})
+
 	It("applies nothing when the review is aborted", func() {
 		reviewer.err = errors.New("user aborted")
 		component("zsh", fsutil.Change{Path: "/h/.zshrc", Kind: fsutil.Create})

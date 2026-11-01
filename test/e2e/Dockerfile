@@ -69,10 +69,14 @@ RUN tars pull \
 # --diff shows a local edit as a unified diff and writes nothing; a headless pull then restores it.
 RUN echo 'local edit' >> "$HOME/.zshrc" \
  && tars pull --diff > /tmp/diff.txt \
+ && grep -q '^== zsh (1 modify)$' /tmp/diff.txt \
  && grep -q '^-local edit$' /tmp/diff.txt \
+ && grep -q '^Plan: 1 to modify' /tmp/diff.txt \
  && tail -n1 "$HOME/.zshrc" | grep -q '^local edit$' \
  && ! grep -q 'unchanged' /tmp/diff.txt \
- && tars pull \
+ && tars pull > /tmp/pull.txt \
+ && grep -q 'overwrote  /home/usera/.zshrc (backup v' /tmp/pull.txt \
+ && grep -q '^Pull complete: 1 overwritten, ' /tmp/pull.txt \
  && ! grep -q '^local edit$' "$HOME/.zshrc"
 
 # Machine-local settings survive the merge; the hook entry is added exactly once.
