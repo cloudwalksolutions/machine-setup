@@ -36,7 +36,9 @@ RUN test -f "$HOME/.vimrc" \
  && test -f "$HOME/.byobu/.tmux.conf" \
  && test -f "$HOME/.byobu/status.disable" \
  && test -x "$HOME/.byobu/bin/1_git" \
- && test -d "$HOME/.config/nvim" \
+ && test -f "$HOME/.config/nvim/init.lua" \
+ && test ! -e "$HOME/.config/nvim/CLAUDE.md" \
+ && test ! -e "$HOME/.config/nvim/tests" \
  && ls "$HOME/.local/share/fonts/"*.ttf >/dev/null \
  && test -x "$HOME/.claude/hooks/block-unreviewable-edits.sh" \
  && test -f "$HOME/.claude/CLAUDE.md" \

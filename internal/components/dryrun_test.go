@@ -89,6 +89,22 @@ var _ = Describe("dry-run pull", func() {
 		Expect(string(b)).To(Equal("MINE"))
 	})
 
+	It("never mentions nvim's runtime state or the repo's docs in a diff run", func() {
+		write("nvim/README.md", "DOC")
+		undo := filepath.Join(home, ".config", "nvim", ".undo", "%h%f")
+		Expect(os.MkdirAll(filepath.Dir(undo), 0o755)).To(Succeed())
+		Expect(os.WriteFile(undo, []byte("U"), 0o644)).To(Succeed())
+		Expect(os.WriteFile(filepath.Join(home, ".config", "nvim", "init.lua"), []byte("OLD"), 0o644)).To(Succeed())
+		opts := newOpts(true)
+		opts.Diff = true
+
+		Expect(components.NewNvim(opts).Pull()).To(Succeed())
+
+		Expect(log.String()).To(ContainSubstring("-OLD"))
+		Expect(log.String()).NotTo(ContainSubstring(".undo"))
+		Expect(log.String()).NotTo(ContainSubstring("README.md"))
+	})
+
 	It("does not install fonts", func() {
 		write("fonts/Hack Regular.ttf", "FONT_A")
 		localDir := filepath.Join(tmp, "installed-fonts")

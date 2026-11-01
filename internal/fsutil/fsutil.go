@@ -26,7 +26,7 @@ type Copier struct {
 	Log    io.Writer
 }
 
-func (c Copier) diff(src, dst string) error {
+func (c Copier) diff(src, dst string, exclude []string) error {
 	if !c.Diff || c.Log == nil {
 		return nil
 	}
@@ -39,7 +39,7 @@ func (c Copier) diff(src, dst string) error {
 	}
 	files := map[string]bool{}
 	for _, root := range []string{src, dst} {
-		entries, err := treeEntries(root)
+		entries, err := treeEntries(root, exclude)
 		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
@@ -139,7 +139,7 @@ func (c Copier) SafeCopy(src, dst, component, backupRoot string) error {
 		}
 		if c.DryRun {
 			c.report("    would overwrite  %s (backup %s)", dst, filepath.Base(version))
-			return c.diff(src, dst)
+			return c.diff(src, dst, nil)
 		}
 	} else if !os.IsNotExist(err) {
 		return err
@@ -169,6 +169,79 @@ func (c Copier) SafeWrite(content []byte, mode os.FileMode, dst, component, back
 		return err
 	}
 	return c.SafeCopy(src, dst, component, backupRoot)
+}
+
+// Replace makes dst mirror src after backing dst up; excluded entries are
+// neither copied from src nor removed from dst.
+func (c Copier) Replace(src, dst string, exclude []string, component, backupRoot string) error {
+	version, err := c.Backup(dst, component, backupRoot)
+	if err != nil {
+		return err
+	}
+	if c.DryRun {
+		c.report("    would overwrite  %s (backup %s)", dst, filepath.Base(version))
+		return c.diff(src, dst, exclude)
+	}
+	if err := removeTree(dst, exclude); err != nil {
+		return err
+	}
+	return copyTree(src, dst, exclude)
+}
+
+func removeTree(root string, exclude []string) error {
+	entries, err := treeEntries(root, exclude)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	for _, rel := range slices.Sorted(maps.Keys(entries)) {
+		if !entries[rel] {
+			if err := os.Remove(filepath.Join(root, rel)); err != nil {
+				return err
+			}
+		}
+	}
+	dirs := slices.Sorted(maps.Keys(entries))
+	slices.Reverse(dirs)
+	for _, rel := range dirs {
+		if !entries[rel] {
+			continue
+		}
+		left, err := os.ReadDir(filepath.Join(root, rel))
+		if err != nil {
+			return err
+		}
+		if len(left) == 0 {
+			if err := os.Remove(filepath.Join(root, rel)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func copyTree(src, dst string, exclude []string) error {
+	entries, err := treeEntries(src, exclude)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(dst, 0o755); err != nil {
+		return err
+	}
+	for _, rel := range slices.Sorted(maps.Keys(entries)) {
+		if entries[rel] {
+			if err := os.MkdirAll(filepath.Join(dst, rel), 0o755); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := copyFile(filepath.Join(src, rel), filepath.Join(dst, rel)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // RemoveAll deletes path, or reports the intent when in dry-run mode.
@@ -220,7 +293,7 @@ func SameContent(src, dst string) (bool, error) {
 // SameTree reports whether src and dst are directories containing identical
 // trees: the same relative entries, the same file bytes, the same exec bits.
 // A missing or non-directory dst reports false without error.
-func SameTree(src, dst string) (bool, error) {
+func SameTree(src, dst string, exclude ...string) (bool, error) {
 	di, err := os.Stat(dst)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -232,11 +305,11 @@ func SameTree(src, dst string) (bool, error) {
 		return false, nil
 	}
 
-	srcEntries, err := treeEntries(src)
+	srcEntries, err := treeEntries(src, exclude)
 	if err != nil {
 		return false, err
 	}
-	dstEntries, err := treeEntries(dst)
+	dstEntries, err := treeEntries(dst, exclude)
 	if err != nil {
 		return false, err
 	}
@@ -265,8 +338,9 @@ func SameTree(src, dst string) (bool, error) {
 	return true, nil
 }
 
-// treeEntries maps each relative path under root to whether it is a directory.
-func treeEntries(root string) (map[string]bool, error) {
+// treeEntries maps each relative path under root to whether it is a directory,
+// skipping entries whose relative path or base name matches an exclude glob.
+func treeEntries(root string, exclude []string) (map[string]bool, error) {
 	entries := map[string]bool{}
 	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -279,10 +353,28 @@ func treeEntries(root string) (map[string]bool, error) {
 		if err != nil {
 			return err
 		}
+		if excluded(rel, exclude) {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
 		entries[rel] = d.IsDir()
 		return nil
 	})
 	return entries, err
+}
+
+func excluded(rel string, patterns []string) bool {
+	for _, p := range patterns {
+		if ok, _ := filepath.Match(p, rel); ok {
+			return true
+		}
+		if ok, _ := filepath.Match(p, filepath.Base(rel)); ok {
+			return true
+		}
+	}
+	return false
 }
 
 func execBit(path string) bool {
