@@ -136,6 +136,24 @@ var _ = Describe("Review", func() {
 		Expect(h.view()).To(ContainSubstring("/h/.zshrc_aliases · create"))
 	})
 
+	It("scrolls the diff with the wheel and selects a row on click", func() {
+		old := "a1\na2\na3\na4\na5\na6\na7\na8\na9\na10\na11\na12\n"
+		new := "b1\na2\na3\na4\na5\na6\na7\na8\na9\na10\na11\nb12\n"
+		h = &harness[tui.Review]{model: tui.NewReview([]components.Plan{
+			{Component: "zsh", Changes: []fsutil.Change{
+				{Path: "/h/.zshrc", Kind: fsutil.Overwrite, Diff: diffOf("/h/.zshrc", old, new)},
+				{Path: "/h/.zshrc_aliases", Kind: fsutil.Create},
+			}},
+		})}
+		h.send(tea.WindowSizeMsg{Width: 120, Height: 12}, tea.MouseWheelMsg{Button: tea.MouseWheelDown})
+
+		Expect(h.view()).NotTo(ContainSubstring("--- /h/.zshrc"))
+
+		h.run(h.model.View().OnMouse(tea.MouseClickMsg{X: 4, Y: 3, Button: tea.MouseLeft}))
+
+		Expect(h.view()).To(ContainSubstring("/h/.zshrc_aliases · create"))
+	})
+
 	It("fits the terminal, and says so when it is too small to split", func() {
 		for _, size := range []tea.WindowSizeMsg{{Width: 80, Height: 20}, {Width: 60, Height: 12}} {
 			h.send(size)

@@ -89,6 +89,11 @@ func (r Review) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.BackgroundColorMsg:
 		r.dark = msg.IsDark()
 		r.showSelected()
+	case tea.MouseWheelMsg:
+		r.diff, _ = r.diff.Update(msg)
+	case selectRowMsg:
+		r.cursor = int(msg)
+		r.showSelected()
 	case tea.KeyPressMsg:
 		if msg.String() == "ctrl+c" || key.Matches(msg, abortKey) {
 			r.aborted = true
@@ -238,7 +243,26 @@ func (r Review) View() tea.View {
 	}
 	v := tea.NewView(r.screen())
 	v.AltScreen = true
+	v.MouseMode = tea.MouseModeCellMotion
+	v.OnMouse = r.onMouse
 	return v
+}
+
+// selectRowMsg selects the left-pane row clicked on.
+type selectRowMsg int
+
+// onMouse turns a click on a left-pane row into its selection.
+func (r Review) onMouse(msg tea.MouseMsg) tea.Cmd {
+	click, ok := msg.(tea.MouseClickMsg)
+	if !ok || click.Button != tea.MouseLeft {
+		return nil
+	}
+	leftW, _ := r.paneWidths()
+	row := click.Y - 1
+	if click.X >= leftW || row < 0 || row >= len(r.rows) {
+		return nil
+	}
+	return func() tea.Msg { return selectRowMsg(row) }
 }
 
 func (r Review) screen() string {
