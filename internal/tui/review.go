@@ -299,11 +299,11 @@ func (r Review) screen() string {
 func (r Review) leftPane(width int) string {
 	lines := make([]string, 0, len(r.rows))
 	for i, row := range r.rows {
-		text := r.rowText(row)
+		pointer := " "
 		if i == r.cursor {
-			text = lipgloss.NewStyle().Bold(true).Background(dim).Width(width).Render(text)
+			pointer = lipgloss.NewStyle().Foreground(accent).Render("▶")
 		}
-		lines = append(lines, text)
+		lines = append(lines, lipgloss.NewStyle().MaxWidth(width).Render(pointer+" "+r.rowText(row)))
 	}
 	return strings.Join(lines, "\n")
 }

@@ -58,11 +58,13 @@ var _ = Describe("Review", func() {
 		))
 	})
 
-	It("moves the selection down and up and shows the selected change on the right", func() {
+	It("moves the pointer down and up and shows the selected change on the right", func() {
+		Expect(h.view()).To(ContainSubstring("▶ ✓ zsh"))
+
 		h.send(tea.KeyPressMsg{Code: tea.KeyDown}, tea.KeyPressMsg{Code: 'j', Text: "j"})
 
-		Expect(h.view()).To(SatisfyAll(ContainSubstring("/h/.zshrc_aliases · create"), ContainSubstring("new file")))
-		Expect(h.view()).NotTo(ContainSubstring("-old"))
+		Expect(h.view()).To(SatisfyAll(ContainSubstring("▶   + /h/.zshrc_aliases"), ContainSubstring("/h/.zshrc_aliases · create"), ContainSubstring("new file")))
+		Expect(h.view()).NotTo(SatisfyAny(ContainSubstring("-old"), ContainSubstring("▶ ✓ zsh")))
 
 		h.send(tea.KeyPressMsg{Code: 'k', Text: "k"})
 

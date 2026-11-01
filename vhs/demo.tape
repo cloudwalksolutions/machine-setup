@@ -38,7 +38,7 @@ Show
 
 Type "tars pull -y"
 Enter
-Wait+Screen@60s /Pull complete/
+Wait@60s
 Sleep 2s
 
 Hide
@@ -57,7 +57,7 @@ Sleep 1.5s
 Space
 Sleep 1s
 Enter
-Wait+Screen@60s /Pull complete/
+Wait@60s
 Sleep 2s
 
 Hide
