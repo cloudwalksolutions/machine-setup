@@ -19,24 +19,26 @@ import (
 var versionRe = regexp.MustCompile(`^v(\d+)$`)
 
 // Copier performs backup-before-overwrite copies. With DryRun set it reports
-// each intended action to Log and writes nothing; Diff adds a unified diff per change.
+// each intended action to Log and Record and writes nothing; Diff adds a unified diff per change.
 type Copier struct {
 	DryRun bool
 	Diff   bool
 	Log    io.Writer
+	Record func(Change)
 }
 
-func (c Copier) diff(src, dst string, exclude []string) error {
-	if !c.Diff || c.Log == nil {
-		return nil
+func (c Copier) announce(ch Change) {
+	if c.Record != nil {
+		c.Record(ch)
 	}
-	info, err := os.Stat(src)
-	if err != nil {
-		return err
+	c.report("%s", ch)
+	if len(ch.Diff.Hunks) > 0 && c.Log != nil {
+		_, _ = io.WriteString(c.Log, ch.Diff.String())
 	}
-	if !info.IsDir() {
-		return c.diffFile(src, dst)
-	}
+}
+
+// announceTree announces each file src would create, overwrite or remove under dst.
+func (c Copier) announceTree(src, dst string, exclude []string, backup string) error {
 	files := map[string]bool{}
 	for _, root := range []string{src, dst} {
 		entries, err := treeEntries(root, exclude)
@@ -50,36 +52,19 @@ func (c Copier) diff(src, dst string, exclude []string) error {
 		}
 	}
 	for _, rel := range slices.Sorted(maps.Keys(files)) {
-		if err := c.diffFile(filepath.Join(src, rel), filepath.Join(dst, rel)); err != nil {
+		ch, changed, err := classify(filepath.Join(src, rel), filepath.Join(dst, rel))
+		if err != nil {
 			return err
+		}
+		if changed {
+			ch.Backup = backup
+			if !c.Diff {
+				ch.Diff = udiff.UnifiedDiff{}
+			}
+			c.announce(ch)
 		}
 	}
 	return nil
-}
-
-func (c Copier) diffFile(src, dst string) error {
-	want, err := os.ReadFile(src)
-	if os.IsNotExist(err) {
-		c.report("    would remove  %s", dst)
-		return nil
-	} else if err != nil {
-		return err
-	}
-	have, err := os.ReadFile(dst)
-	if os.IsNotExist(err) {
-		c.report("    would create  %s", dst)
-		return nil
-	} else if err != nil {
-		return err
-	}
-	if bytes.Equal(want, have) {
-		return nil
-	}
-	if bytes.IndexByte(want, 0) >= 0 || bytes.IndexByte(have, 0) >= 0 {
-		return nil
-	}
-	_, err = io.WriteString(c.Log, udiff.Unified(dst, dst, string(have), string(want)))
-	return err
 }
 
 func (c Copier) report(format string, args ...any) {
@@ -138,19 +123,39 @@ func (c Copier) SafeCopy(src, dst, component, backupRoot string) error {
 			return err
 		}
 		if c.DryRun {
-			c.report("    would overwrite  %s (backup %s)", dst, filepath.Base(version))
-			return c.diff(src, dst, nil)
+			return c.announceOverwrite(src, dst, filepath.Base(version))
 		}
 	} else if !os.IsNotExist(err) {
 		return err
 	} else if c.DryRun {
-		c.report("    would create  %s", dst)
+		c.announce(Change{Path: dst, Kind: Create})
 		return nil
 	}
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
 	}
 	return copyPath(src, dst)
+}
+
+// announceOverwrite reports dst being replaced by src: a tree per file, a file
+// with its diff when Diff is on.
+func (c Copier) announceOverwrite(src, dst, backup string) error {
+	info, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+	if info.IsDir() {
+		return c.announceTree(src, dst, nil, backup)
+	}
+	ch := Change{Path: dst, Kind: Overwrite, Backup: backup}
+	if c.Diff {
+		if ch, _, err = classify(src, dst); err != nil {
+			return err
+		}
+		ch.Backup = backup
+	}
+	c.announce(ch)
+	return nil
 }
 
 // SafeWrite stages content in a temp file with mode, then SafeCopies it to dst so
@@ -179,8 +184,7 @@ func (c Copier) Replace(src, dst string, exclude []string, component, backupRoot
 		return err
 	}
 	if c.DryRun {
-		c.report("    would overwrite  %s (backup %s)", dst, filepath.Base(version))
-		return c.diff(src, dst, exclude)
+		return c.announceTree(src, dst, exclude, filepath.Base(version))
 	}
 	if err := removeTree(dst, exclude); err != nil {
 		return err
@@ -248,7 +252,7 @@ func copyTree(src, dst string, exclude []string) error {
 func (c Copier) RemoveAll(path string) error {
 	if c.DryRun {
 		if _, err := os.Stat(path); err == nil {
-			c.report("    would remove  %s", path)
+			c.announce(Change{Path: path, Kind: Remove})
 		}
 		return nil
 	}

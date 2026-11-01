@@ -89,6 +89,20 @@ var _ = Describe("dry-run pull", func() {
 		Expect(string(b)).To(Equal("MINE"))
 	})
 
+	It("lists an nvim tree change file by file, without diffs unless asked", func() {
+		Expect(os.MkdirAll(filepath.Join(home, ".config", "nvim"), 0o755)).To(Succeed())
+		Expect(os.WriteFile(filepath.Join(home, ".config", "nvim", "init.lua"), []byte("OLD"), 0o644)).To(Succeed())
+		Expect(os.WriteFile(filepath.Join(home, ".config", "nvim", "stale.lua"), []byte("STALE"), 0o644)).To(Succeed())
+
+		Expect(components.NewNvim(newOpts(true)).Pull()).To(Succeed())
+
+		nvim := filepath.Join(home, ".config", "nvim")
+		Expect(log.String()).To(ContainSubstring("would overwrite  " + filepath.Join(nvim, "init.lua") + " (backup v1)\n"))
+		Expect(log.String()).To(ContainSubstring("would remove  " + filepath.Join(nvim, "stale.lua") + "\n"))
+		Expect(log.String()).NotTo(ContainSubstring("would overwrite  " + nvim + " "))
+		Expect(log.String()).NotTo(ContainSubstring("-OLD"))
+	})
+
 	It("never mentions nvim's runtime state or the repo's docs in a diff run", func() {
 		write("nvim/README.md", "DOC")
 		undo := filepath.Join(home, ".config", "nvim", ".undo", "%h%f")
