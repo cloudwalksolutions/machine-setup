@@ -154,6 +154,25 @@ var _ = Describe("Review", func() {
 		Expect(h.view()).To(ContainSubstring("/h/.zshrc_aliases · create"))
 	})
 
+	It("pages and jumps through the diff with pgdn/pgup and G/g from either pane", func() {
+		old := "a1\na2\na3\na4\na5\na6\na7\na8\na9\na10\na11\na12\n"
+		new := "b1\na2\na3\na4\na5\na6\na7\na8\na9\na10\na11\nb12\n"
+		h = &harness[tui.Review]{model: tui.NewReview([]components.Plan{
+			{Component: "zsh", Changes: []fsutil.Change{{Path: "/h/.zshrc", Kind: fsutil.Overwrite, Diff: diffOf("/h/.zshrc", old, new)}}},
+		})}
+		h.send(tea.WindowSizeMsg{Width: 120, Height: 12}, tea.KeyPressMsg{Code: 'G', Text: "G"})
+		Expect(h.view()).To(SatisfyAll(ContainSubstring("+b12"), Not(ContainSubstring("--- /h/.zshrc"))))
+
+		h.send(tea.KeyPressMsg{Code: 'g', Text: "g"})
+		Expect(h.view()).To(ContainSubstring("--- /h/.zshrc"))
+
+		h.send(tea.KeyPressMsg{Code: tea.KeyPgDown})
+		Expect(h.view()).NotTo(ContainSubstring("--- /h/.zshrc"))
+
+		h.send(tea.KeyPressMsg{Code: tea.KeyPgUp})
+		Expect(h.view()).To(ContainSubstring("--- /h/.zshrc"))
+	})
+
 	It("fits the terminal, and says so when it is too small to split", func() {
 		for _, size := range []tea.WindowSizeMsg{{Width: 80, Height: 20}, {Width: 60, Height: 12}} {
 			h.send(size)

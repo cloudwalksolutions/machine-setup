@@ -22,10 +22,11 @@ var (
 	skipAll    = key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "skip all"))
 	hunkKeys   = key.NewBinding(key.WithKeys("n", "N"), key.WithHelp("n/N", "hunk"))
 	fileKeys   = key.NewBinding(key.WithKeys("]", "["), key.WithHelp("]/[", "file"))
+	pageKeys   = key.NewBinding(key.WithKeys("pgdown", "pgup", "G", "g"), key.WithHelp("pgdn/pgup", "page"))
 	paneKey    = key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "pane"))
 	applyKey   = key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "apply"))
 	abortKey   = key.NewBinding(key.WithKeys("q", "esc"), key.WithHelp("q", "quit"))
-	reviewKeys = []key.Binding{moveKeys, toggleKey, acceptAll, skipAll, hunkKeys, fileKeys, paneKey, applyKey, abortKey}
+	reviewKeys = []key.Binding{moveKeys, toggleKey, acceptAll, skipAll, hunkKeys, fileKeys, pageKeys, paneKey, applyKey, abortKey}
 )
 
 // reviewRow is one line of the left pane: a component (change -1) or one of its changes.
@@ -131,6 +132,18 @@ func (r Review) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if key.Matches(msg, hunkKeys) {
 			r.jumpHunk(msg.String() == "n")
+		}
+		if key.Matches(msg, pageKeys) {
+			switch msg.String() {
+			case "pgdown":
+				r.diff.PageDown()
+			case "pgup":
+				r.diff.PageUp()
+			case "G":
+				r.diff.GotoBottom()
+			default:
+				r.diff.GotoTop()
+			}
 		}
 		if key.Matches(msg, fileKeys) {
 			r.jumpFile(msg.String() == "]")
