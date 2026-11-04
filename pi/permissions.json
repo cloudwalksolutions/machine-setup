@@ -5,8 +5,6 @@
       "*": "allow",
       "rm -rf /*": "deny",
       "rm -rf ~*": "deny",
-      "git push --force*": "deny",
-      "git push -f*": "deny",
       "git reset --hard*": "deny"
     },
     "path_read": {
