@@ -43,7 +43,7 @@ uninstalls anything.
 | `prompts/tdd.md`, `plan.md`, `pr.md` | `pi/prompts/` — `/tdd`, `/plan`, `/pr` |
 | `extensions/block-unreviewable-edits.ts` | `pi/extensions/` — evaluates the edit-guard table: denies `sed -i`, interpreter writes, redirects onto source files |
 | `edit-guard.json` | `agents/edit-guard.json` — the denied-command patterns, shared with Claude Code's hook |
-| `extensions/pi-permission-system/config.json` | `pi/permissions.json` — deny `rm -rf /`, force-push, writes to `~/.ssh`, `*.env` |
+| `extensions/pi-permission-system/config.json` | `pi/permissions.json` — deny `rm -rf /`, `git reset --hard`, writes to `~/.ssh`, `*.env` |
 | `keybindings.json` | merge: `pi/keybindings.json` actions overwrite (`[]` unbinds), your other bindings stay |
 | `AGENTS.md` | rendered from `agents/rules/*.md`, minus the rules skipped in `tars init agents` |
 | `settings.json` | merge: `packages` unioned (fragment first), `defaultThinkingLevel: off`, your default ollama model |
