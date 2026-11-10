@@ -1,5 +1,5 @@
 # GoReleaser config (schema v2). Docs: https://goreleaser.com
-# Test locally without a tag:  HOMEBREW_TAP_TOKEN=x goreleaser release --snapshot --clean
+# Test locally without a tag:  goreleaser release --snapshot --clean
 version: 2
 
 project_name: tars
@@ -45,14 +45,14 @@ changelog:
       - "^ci:"
 
 # Publishes a Homebrew cask to cloudwalksolutions/homebrew-tap.
-# Requires a HOMEBREW_TAP_TOKEN secret (a PAT with write access to the tap repo);
-# the default GITHUB_TOKEN cannot push to a different repo.
 homebrew_casks:
   - name: tars
     repository:
       owner: cloudwalksolutions
       name: homebrew-tap
-      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+      git:
+        url: git@github.com:cloudwalksolutions/homebrew-tap.git
+        private_key: "{{ .Env.HOMEBREW_TAP_DEPLOY_KEY }}"
     # Skip the tap push for snapshots/prereleases (so local snapshot builds and
     # pre-1.0 prereleases don't need the tap). Full releases push normally.
     skip_upload: auto
@@ -71,3 +71,4 @@ homebrew_casks:
 release:
   draft: false
   prerelease: auto
+  target_commitish: "{{ .FullCommit }}"
