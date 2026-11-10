@@ -4,8 +4,9 @@ Every merge to `main` is a release. `.github/workflows/release.yml` computes the
 next patch tag from the latest `v*` tag, runs GoReleaser (darwin/linux ×
 amd64/arm64 archives + checksums, a GitHub Release, the `tars` cask in
 `cloudwalksolutions/homebrew-tap`), refreshes the coverage badge, and pushes the
-tag only after the release succeeded, so a failed run leaves nothing behind and
-can simply be re-run (also available via `workflow_dispatch`).
+tag. A run that fails after GoReleaser published the GitHub Release deletes that
+release and its tag, so it can simply be re-run (also available via
+`workflow_dispatch`).
 
 Merges that only touch Markdown, `docs/`, or `vhs/` do not release.
 
@@ -18,11 +19,9 @@ git tag v0.2.0 && git push origin v0.2.0   # no workflow runs on tags; the next 
 
 Notes:
 
-- The tap push authenticates with the `HOMEBREW_TAP_TOKEN` Actions secret — a
-  fine-grained PAT scoped to `homebrew-tap` (Contents: read/write). To rotate,
-  mint a new PAT and `gh secret set HOMEBREW_TAP_TOKEN -R cloudwalksolutions/machine-setup`.
-- The tap repo itself is Terraform-managed in `devops-admin`
-  (`terraform/terraform.auto.tfvars`, `open_source_repos`).
+- The tap push uses `HOMEBREW_TAP_DEPLOY_KEY`, a write deploy key on `homebrew-tap`
+  that `devops-admin`'s Terraform creates for every repo in its `cli_tools`. To
+  rotate, taint its `tls_private_key.homebrew_tap["machine-setup"]` there.
 - `skip_upload: auto` in `.goreleaser.yaml` means snapshots and prerelease tags
   skip the tap push — only full releases update `brew`.
 - GoReleaser cannot overwrite existing release assets: to redo a release, delete
@@ -32,5 +31,5 @@ Notes:
 Test the config locally without tagging (builds into `./dist`):
 
 ```bash
-HOMEBREW_TAP_TOKEN=x goreleaser release --snapshot --clean
+goreleaser release --snapshot --clean
 ```

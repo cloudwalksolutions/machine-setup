@@ -52,8 +52,13 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          HOMEBREW_TAP_DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
 
-      # Pushed last so a failed release leaves no tag behind and a rerun starts clean.
       - name: Push ${{ steps.tag.outputs.next }}
         run: git push origin "${{ steps.tag.outputs.next }}"
+
+      - name: Remove the half-published ${{ steps.tag.outputs.next }}
+        if: failure() && steps.tag.outputs.next != ''
+        run: gh release delete "${{ steps.tag.outputs.next }}" --yes --cleanup-tag || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
