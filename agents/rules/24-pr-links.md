@@ -1,0 +1,2 @@
+## PR links
+The PR link is how the user finds the work, so give it plainly: the full URL on its own line, every time you report on a PR, when it is opened, when its checks finish, when you pause, and when you hand back. Before sending any PR link, check the PR's live state with `gh pr view <n> --json state,url` and write that state next to the link. Never send a link to a merged or closed PR as if it were open, never ask the user to review or merge what is already merged, and if the work moved to a new PR, send the new link and say what happened to the old one.
