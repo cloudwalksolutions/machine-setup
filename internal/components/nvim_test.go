@@ -65,6 +65,26 @@ var _ = Describe("Nvim.Pull", func() {
 		}
 	})
 
+	It("keeps nvim's runtime state and leaves repo docs behind, then has nothing left to do", func() {
+		undo := filepath.Join(home, ".config", "nvim", ".undo", "%Users%me%notes.md")
+		Expect(os.MkdirAll(filepath.Dir(undo), 0o755)).To(Succeed())
+		Expect(os.WriteFile(undo, []byte("UNDO"), 0o644)).To(Succeed())
+		for _, doc := range []string{"CLAUDE.md", "README.md", "tests/smoke_test.lua"} {
+			p := filepath.Join(repoRoot, "nvim", doc)
+			Expect(os.MkdirAll(filepath.Dir(p), 0o755)).To(Succeed())
+			Expect(os.WriteFile(p, []byte("DOC"), 0o644)).To(Succeed())
+		}
+
+		Expect(components.NewNvim(opts).Pull()).To(Succeed())
+		Expect(components.NewNvim(opts).Pull()).To(Succeed())
+
+		Expect(undo).To(BeAnExistingFile())
+		for _, doc := range []string{"CLAUDE.md", "README.md", "tests"} {
+			Expect(filepath.Join(home, ".config", "nvim", doc)).NotTo(BeAnExistingFile())
+		}
+		Expect(backupVersions(opts.BackupRoot, "nvim")).To(Equal(1))
+	})
+
 	It("replaces (not merges) the local nvim dir so stale files are removed", func() {
 		// Seed a stale plugin/file that's NOT in the repo tree.
 		stale := filepath.Join(home, ".config", "nvim", "stale", "leftover.lua")

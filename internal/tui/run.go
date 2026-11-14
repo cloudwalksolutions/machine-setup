@@ -5,7 +5,9 @@ import (
 	"io"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/huh/v2"
 
+	"tars/internal/components"
 	"tars/internal/forms"
 	"tars/internal/report"
 )
@@ -27,6 +29,24 @@ func Run(headless bool, stdout, stderr io.Writer, flow Flow) error {
 		return err
 	}
 	return final.(Model).Err()
+}
+
+// Reviewer runs the pull review on the terminal; it is cmd's Reviewer.
+type Reviewer struct{}
+
+// Review shows the plans and returns the components the user accepted, or
+// huh.ErrUserAborted when they quit. Like Run, it needs a real terminal;
+// Review itself is proven with teatest.
+func (Reviewer) Review(plans []components.Plan) ([]string, error) {
+	final, err := tea.NewProgram(NewReview(plans)).Run()
+	if err != nil {
+		return nil, err
+	}
+	review := final.(Review)
+	if review.Aborted() {
+		return nil, huh.ErrUserAborted
+	}
+	return review.Accepted(), nil
 }
 
 // RunSessions runs the sessions manager on the terminal and returns what the user chose to open.

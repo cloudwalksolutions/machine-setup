@@ -1,7 +1,6 @@
 package components
 
 import (
-	"os"
 	"path/filepath"
 
 	"tars/internal/fsutil"
@@ -26,18 +25,12 @@ func (n *Nvim) Name() string { return "nvim" }
 // monokai theme into the packer plugin path.
 func (n *Nvim) Pull() error {
 	// Idempotent: an unchanged local tree needs no backup, wipe, or copy.
-	same, err := fsutil.SameTree(n.p.Repo, n.p.Local)
+	same, err := fsutil.SameTree(n.p.Repo, n.p.Local, n.p.Exclude...)
 	if err != nil {
 		return err
 	}
 	if !same {
-		if _, err := n.opts.copier().Backup(n.p.Local, n.Name(), n.opts.BackupRoot); err != nil {
-			return err
-		}
-		if err := n.opts.copier().RemoveAll(n.p.Local); err != nil {
-			return err
-		}
-		if err := n.opts.copier().SafeCopy(n.p.Repo, n.p.Local, n.Name(), n.opts.BackupRoot); err != nil {
+		if err := n.opts.copier().Replace(n.p.Repo, n.p.Local, n.p.Exclude, n.Name(), n.opts.BackupRoot); err != nil {
 			return err
 		}
 	}
@@ -48,15 +41,5 @@ func (n *Nvim) Pull() error {
 // Push replaces the repo's nvim/ tree with ~/.config/nvim, archiving the old
 // repo tree under "nvim-repo" (clean replace, mirroring Pull).
 func (n *Nvim) Push() error {
-	comp := n.Name() + "-repo"
-	if _, err := n.opts.copier().Backup(n.p.Repo, comp, n.opts.BackupRoot); err != nil {
-		return err
-	}
-	if err := n.opts.copier().RemoveAll(n.p.Repo); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Dir(n.p.Repo), 0o755); err != nil {
-		return err
-	}
-	return n.opts.copier().SafeCopy(n.p.Local, n.p.Repo, comp, n.opts.BackupRoot)
+	return n.opts.copier().Replace(n.p.Local, n.p.Repo, n.p.Exclude, n.Name()+"-repo", n.opts.BackupRoot)
 }

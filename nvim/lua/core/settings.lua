@@ -19,7 +19,6 @@ vim.opt.hidden = true             -- Switch buffers without saving
 
 vim.opt.clipboard = "unnamedplus"
 vim.opt.undofile = true
-vim.opt.undodir = vim.fn.stdpath("config") .. "/.undo"
 
 -- Use English as main language
 vim.cmd [[language en_US.UTF-8]]
