@@ -42,25 +42,6 @@ Wait@60s
 Sleep 2s
 
 Hide
-Type "echo 'alias gs=git-status' >> ~/.zshrc && clear"
-Enter
-Show
-
-# A local edit: pull opens the review with the diff it would undo; space skips
-# a component, enter applies what is accepted
-Type "tars pull"
-Enter
-Wait+Screen@60s /Review pull/
-Sleep 3s
-Space
-Sleep 1.5s
-Space
-Sleep 1s
-Enter
-Wait@60s
-Sleep 2s
-
-Hide
 Type "clear"
 Enter
 Show

@@ -104,6 +104,16 @@ var _ = Describe("SequentialPuller.PullAll with a Reviewer", func() {
 		Expect(applied).To(Equal([]string{"vim", "zsh"}))
 	})
 
+	It("skips the review when nothing would change, and still pulls every component", func() {
+		component("vim")
+		component("zsh")
+		reviewer.err = errors.New("review opened with nothing to review")
+
+		Expect(puller.PullAll()).To(Succeed())
+
+		Expect(applied).To(Equal([]string{"vim", "zsh"}))
+	})
+
 	It("exposes the plans on their own, for --diff, without pulling anything", func() {
 		component("vim")
 		component("zsh", fsutil.Change{Path: "/h/.zshrc", Kind: fsutil.Create})

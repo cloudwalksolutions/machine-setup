@@ -245,6 +245,9 @@ jump between hunks and files, `tab` moves the keyboard to the diff, `enter`
 applies the accepted components and `q` quits with nothing written. Every write
 is then listed as it happens and the run ends with
 `Pull complete: N created, N overwritten, N removed, N components unchanged.`
+When nothing would change, the review is skipped and only that line is printed.
+
+![tars pull review](vhs/pull.gif)
 
 `-y/--yes`, `TARS_NO_FORM=1` or no terminal skips the review and applies
 everything. `tars pull --diff` prints a header per changed component, its

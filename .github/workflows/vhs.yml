@@ -49,6 +49,10 @@ jobs:
       - uses: charmbracelet/vhs-action@v2
         with:
           version: v0.10.0
+          path: vhs/pull.tape
+      - uses: charmbracelet/vhs-action@v2
+        with:
+          version: v0.10.0
           path: vhs/init.tape
       - uses: charmbracelet/vhs-action@v2
         with:
@@ -90,7 +94,7 @@ jobs:
           {
             echo "### What this PR looks like"
             echo "Recorded from ${HEAD::7} with the tapes under \`vhs/\`."
-            for t in demo init sessions profiles; do
+            for t in demo pull init sessions profiles; do
               printf '\n<details open><summary><code>%s</code></summary>\n\n![%s](%s/%s.gif)\n\n</details>\n' "$t" "$t" "$base" "$t"
             done
           } > "$RUNNER_TEMP/comment.md"

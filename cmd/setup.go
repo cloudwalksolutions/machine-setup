@@ -303,12 +303,14 @@ func (p *SequentialPuller) PullAll() error {
 		if err != nil {
 			return err
 		}
-		names, err := p.Review.Review(plans)
-		if err != nil {
-			return err
-		}
-		for _, plan := range plans {
-			accepted[plan.Component] = slices.Contains(names, plan.Component)
+		if len(plans) > 0 {
+			names, err := p.Review.Review(plans)
+			if err != nil {
+				return err
+			}
+			for _, plan := range plans {
+				accepted[plan.Component] = slices.Contains(names, plan.Component)
+			}
 		}
 	}
 	return runComponents(p.Components, components.Component.Name, func(c components.Component) error {
