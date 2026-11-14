@@ -18,7 +18,7 @@ Hide
 Type "rm -rf /tmp/tars-pull && mkdir -p /tmp/tars-pull && cd /tmp/tars-pull && tars pull -y >/dev/null"
 Enter
 Wait@60s
-Type "printf '\nalias gs=git-status\nexport EDITOR=nvim\n' >> ~/.zshrc && echo 'set relativenumber' >> ~/.vimrc"
+Type "{ echo '# work laptop'; echo 'export AWS_PROFILE=dev'; cat ~/.zshrc; echo 'alias gs=git-status'; } > /tmp/zshrc && mv /tmp/zshrc ~/.zshrc && echo 'set relativenumber' >> ~/.vimrc"
 Enter
 Type "rm ~/.byobu/datetime.tmux && echo 'return {}' > ~/.config/nvim/lua/scratch.lua && clear"
 Enter
