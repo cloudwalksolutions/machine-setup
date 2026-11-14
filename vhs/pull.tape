@@ -52,6 +52,14 @@ Sleep 3s
 
 Type "tars pull"
 Enter
+Wait+Screen@60s /Review pull/
+Sleep 2s
+Enter
+Wait@60s
+Sleep 1.5s
+
+Type "tars pull"
+Enter
 Wait@60s
 Sleep 3s
 
