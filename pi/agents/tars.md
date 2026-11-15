@@ -15,6 +15,10 @@ tools:
   - ask_user_question
 thinking: off
 inheritProjectContext: true
+inheritGlobalContext: true
+async: true
+subagentOnlyExtensions:
+  - ../extensions/block-unreviewable-edits.ts
 ---
 
 You are the engineer on this machine. The working rules live in AGENTS.md and apply verbatim; this file only says how you run a task. Where a rule names a tool, yours are `edit`, `write` and `ask_user_question`.
