@@ -9,6 +9,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"gopkg.in/yaml.v3"
 )
 
 func repoRoot() string {
@@ -68,6 +69,25 @@ var _ = Describe("shipped terminal font", func() {
 
 		Expect(strings.Split(string(out), "\n")).To(ContainElement(name),
 			"terminal/font names %q but fonts/ provides:\n%s", name, out)
+	})
+})
+
+var _ = Describe("shipped pi agent", func() {
+	It("hands its subagents the global rules and the edit guard", func() {
+		agentFile := filepath.Join(repoRoot(), "pi", "agents", "tars.md")
+		parts := strings.SplitN(read(agentFile), "---\n", 3)
+		Expect(parts).To(HaveLen(3))
+		var frontmatter struct {
+			InheritGlobalContext   bool     `yaml:"inheritGlobalContext"`
+			Async                  bool     `yaml:"async"`
+			SubagentOnlyExtensions []string `yaml:"subagentOnlyExtensions"`
+		}
+		Expect(yaml.Unmarshal([]byte(parts[1]), &frontmatter)).To(Succeed())
+
+		Expect(frontmatter.InheritGlobalContext).To(BeTrue())
+		Expect(frontmatter.Async).To(BeTrue())
+		Expect(frontmatter.SubagentOnlyExtensions).To(ConsistOf("../extensions/block-unreviewable-edits.ts"))
+		Expect(filepath.Join(filepath.Dir(agentFile), frontmatter.SubagentOnlyExtensions[0])).To(BeARegularFile())
 	})
 })
 
