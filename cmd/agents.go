@@ -75,10 +75,10 @@ func NewAgentsInit(r report.Reporter, ask AgentsAsker) (*AgentsInit, error) {
 		Rules:  rules,
 		Pull: func(a config.AgentsConfig) error {
 			opts.Agents = a
-			return SequentialPuller{
+			return (&SequentialPuller{
 				Components: []components.Component{components.NewClaude(opts), components.NewPi(opts)},
 				Report:     r,
-			}.PullAll()
+			}).PullAll()
 		},
 		Report: r,
 	}, nil

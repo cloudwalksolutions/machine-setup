@@ -36,7 +36,9 @@ RUN test -f "$HOME/.vimrc" \
  && test -f "$HOME/.byobu/.tmux.conf" \
  && test -f "$HOME/.byobu/status.disable" \
  && test -x "$HOME/.byobu/bin/1_git" \
- && test -d "$HOME/.config/nvim" \
+ && test -f "$HOME/.config/nvim/init.lua" \
+ && test ! -e "$HOME/.config/nvim/CLAUDE.md" \
+ && test ! -e "$HOME/.config/nvim/tests" \
  && ls "$HOME/.local/share/fonts/"*.ttf >/dev/null \
  && test -x "$HOME/.claude/hooks/block-unreviewable-edits.sh" \
  && test -f "$HOME/.claude/CLAUDE.md" \
@@ -67,10 +69,14 @@ RUN tars pull \
 # --diff shows a local edit as a unified diff and writes nothing; a headless pull then restores it.
 RUN echo 'local edit' >> "$HOME/.zshrc" \
  && tars pull --diff > /tmp/diff.txt \
+ && grep -q '^== zsh (1 modify)$' /tmp/diff.txt \
  && grep -q '^-local edit$' /tmp/diff.txt \
+ && grep -q '^Plan: 1 to modify' /tmp/diff.txt \
  && tail -n1 "$HOME/.zshrc" | grep -q '^local edit$' \
  && ! grep -q 'unchanged' /tmp/diff.txt \
- && tars pull \
+ && tars pull > /tmp/pull.txt \
+ && grep -q 'overwrote  /home/usera/.zshrc (backup v' /tmp/pull.txt \
+ && grep -q '^Pull complete: 1 overwritten, ' /tmp/pull.txt \
  && ! grep -q '^local edit$' "$HOME/.zshrc"
 
 # Machine-local settings survive the merge; the hook entry is added exactly once.

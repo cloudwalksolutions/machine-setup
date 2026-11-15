@@ -77,8 +77,9 @@ func (t *Terminal) Pull() error {
 }
 
 func (t *Terminal) setItermFont(cur, want string) error {
+	change := fsutil.Change{Path: "terminal font", Kind: fsutil.Set, Detail: cur + " → " + want}
 	if t.opts.DryRun {
-		fmt.Fprintf(t.opts.Stdout, "    would set terminal font  %s → %s\n", cur, want)
+		t.opts.copier().Announce(change)
 		return nil
 	}
 	if err := t.archiveFont(cur, "terminal"); err != nil {
@@ -87,6 +88,7 @@ func (t *Terminal) setItermFont(cur, want string) error {
 	if err := t.SetFontFn(want); err != nil {
 		return err
 	}
+	t.opts.copier().Announce(change)
 	if t.IsRunningFn != nil && t.IsRunningFn() {
 		fmt.Fprintln(t.opts.Stderr,
 			"  terminal: iTerm2 is running — quit and reopen it for the font change to stick")
@@ -98,11 +100,16 @@ func (t *Terminal) importTerminalAppProfile() error {
 	if current, err := t.DefaultProfileFn(); err == nil && current == terminalProfileName {
 		return nil
 	}
+	change := fsutil.Change{Path: "Terminal.app profile", Kind: fsutil.Set, Detail: terminalProfileName}
 	if t.opts.DryRun {
-		fmt.Fprintf(t.opts.Stdout, "    would import Terminal.app profile  %s\n", terminalProfileName)
+		t.opts.copier().Announce(change)
 		return nil
 	}
-	return t.ApplyFn(t.p.ProfileRepo, terminalProfileName)
+	if err := t.ApplyFn(t.p.ProfileRepo, terminalProfileName); err != nil {
+		return err
+	}
+	t.opts.copier().Announce(change)
+	return nil
 }
 
 // Push captures the live terminal font settings back into the repo.

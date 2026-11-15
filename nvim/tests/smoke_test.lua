@@ -86,6 +86,11 @@ test("Plugin configurations are valid", function()
   assert(#errors == 0, "Found " .. #errors .. " configuration errors: " .. table.concat(errors, "; "))
 end)
 
+test("Undo history lives in the state dir, not the managed config tree", function()
+  assert(vim.o.undofile, "undofile is off")
+  assert(vim.startswith(vim.o.undodir, vim.fn.stdpath("state")), "undodir is " .. vim.o.undodir)
+end)
+
 test("Markdown code fences parse their injected language", function()
   local buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "# Install", "", "```bash", "brew install tars", "```" })

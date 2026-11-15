@@ -1,6 +1,7 @@
 package fsutil_test
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 
@@ -190,6 +191,13 @@ var _ = Describe("SameTree", func() {
 		Expect(fsutil.SameTree(filepath.Join(tmp, "a"), filepath.Join(tmp, "b"))).To(BeFalse())
 	})
 
+	It("ignores excluded entries on either side, including whole directories and globs", func() {
+		writeTree(filepath.Join(tmp, "a"), map[string]string{"lua/x.lua": "X", "README.md": "repo doc"})
+		writeTree(filepath.Join(tmp, "b"), map[string]string{"lua/x.lua": "X", ".undo/%home%f": "U", "lua/.x.lua.swp": "S"})
+
+		Expect(fsutil.SameTree(filepath.Join(tmp, "a"), filepath.Join(tmp, "b"), ".undo", "*.swp", "README.md")).To(BeTrue())
+	})
+
 	It("reports false when a file's content differs", func() {
 		writeTree(filepath.Join(tmp, "a"), map[string]string{"x.txt": "X"})
 		writeTree(filepath.Join(tmp, "b"), map[string]string{"x.txt": "CHANGED"})
@@ -235,6 +243,40 @@ var _ = Describe("SameTree", func() {
 	})
 })
 
+var _ = Describe("Replace", func() {
+	var tmp, src, dst, backupRoot string
+
+	writeTree := func(root string, files map[string]string) {
+		for rel, content := range files {
+			path := filepath.Join(root, rel)
+			Expect(os.MkdirAll(filepath.Dir(path), 0o755)).To(Succeed())
+			Expect(os.WriteFile(path, []byte(content), 0o644)).To(Succeed())
+		}
+	}
+	read := func(path string) string {
+		b, err := os.ReadFile(path)
+		Expect(err).NotTo(HaveOccurred(), path)
+		return string(b)
+	}
+
+	BeforeEach(func() {
+		tmp = GinkgoT().TempDir()
+		src, dst, backupRoot = filepath.Join(tmp, "src"), filepath.Join(tmp, "dst"), filepath.Join(tmp, "backups")
+		writeTree(src, map[string]string{"init.lua": "NEW", "README.md": "repo doc"})
+		writeTree(dst, map[string]string{"init.lua": "OLD", "stale.lua": "STALE", ".undo/%h%f": "U"})
+	})
+
+	It("replaces dst with src's tree, keeping excluded entries on both sides, after a backup", func() {
+		Expect(fsutil.Copier{}.Replace(src, dst, []string{".undo", "README.md"}, "nvim", backupRoot)).To(Succeed())
+
+		Expect(read(filepath.Join(dst, "init.lua"))).To(Equal("NEW"))
+		Expect(filepath.Join(dst, "stale.lua")).NotTo(BeAnExistingFile())
+		Expect(read(filepath.Join(dst, ".undo", "%h%f"))).To(Equal("U"))
+		Expect(filepath.Join(dst, "README.md")).NotTo(BeAnExistingFile())
+		Expect(read(filepath.Join(backupRoot, "nvim", "v1", "dst", "stale.lua"))).To(Equal("STALE"))
+	})
+})
+
 var _ = Describe("SafeCopy", func() {
 	var (
 		tmp        string
@@ -255,6 +297,25 @@ var _ = Describe("SafeCopy", func() {
 		b, err := os.ReadFile(dst)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(string(b)).To(Equal("payload"))
+	})
+
+	It("records what it wrote, in the past tense, and nothing for an unchanged file", func() {
+		var got []fsutil.Change
+		log := &bytes.Buffer{}
+		copier := fsutil.Copier{Log: log, Record: func(ch fsutil.Change) { got = append(got, ch) }}
+		src, dst, fresh := filepath.Join(tmp, "src.txt"), filepath.Join(tmp, "dst.txt"), filepath.Join(tmp, "fresh.txt")
+		Expect(os.WriteFile(src, []byte("NEW"), 0o644)).To(Succeed())
+		Expect(os.WriteFile(dst, []byte("OLD"), 0o644)).To(Succeed())
+
+		Expect(copier.SafeCopy(src, dst, "zsh", backupRoot)).To(Succeed())
+		Expect(copier.SafeCopy(src, fresh, "zsh", backupRoot)).To(Succeed())
+		Expect(copier.SafeCopy(src, fresh, "zsh", backupRoot)).To(Succeed())
+
+		Expect(got).To(Equal([]fsutil.Change{
+			{Path: dst, Kind: fsutil.Overwrite, Backup: "v1"},
+			{Path: fresh, Kind: fsutil.Create},
+		}))
+		Expect(log.String()).To(Equal("    overwrote  " + dst + " (backup v1)\n    created  " + fresh + "\n"))
 	})
 
 	It("backs up the existing dst before overwriting", func() {

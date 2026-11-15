@@ -107,6 +107,17 @@ var _ = Describe("Component Push (local → repo, archiving the repo copy)", fun
 		Expect(read(filepath.Join(opts.BackupRoot, "nvim-repo", "v1", "nvim", "init.lua"))).To(Equal("OLD"))
 	})
 
+	It("nvim push keeps the repo's docs and tests, which never lived in ~/.config/nvim", func() {
+		write(filepath.Join(repoRoot, "nvim", "README.md"), "DOC")
+		write(filepath.Join(repoRoot, "nvim", "tests", "smoke_test.lua"), "TEST")
+		write(filepath.Join(home, ".config", "nvim", "init.lua"), "NEW")
+
+		Expect(components.NewNvim(opts).Push()).To(Succeed())
+
+		Expect(read(filepath.Join(repoRoot, "nvim", "README.md"))).To(Equal("DOC"))
+		Expect(read(filepath.Join(repoRoot, "nvim", "tests", "smoke_test.lua"))).To(Equal("TEST"))
+	})
+
 	It("AllPushable lists vim, zsh, byobu, nvim, terminal, claude, pi (not fonts)", func() {
 		var names []string
 		for _, p := range components.AllPushable(opts) {

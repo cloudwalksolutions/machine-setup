@@ -84,12 +84,14 @@ type VimPaths struct {
 	ColorsLocal string
 }
 
-// NvimPaths holds the neovim repo→local mappings.
+// NvimPaths holds the neovim repo→local mappings; Exclude names the tree entries
+// that stay put on either side (runtime state locally, docs and tests in the repo).
 type NvimPaths struct {
 	Repo         string
 	Local        string
 	MonokaiRepo  string
 	MonokaiLocal string
+	Exclude      []string
 }
 
 // ZshPaths holds the zsh repo→local mappings, plus the two create-only
@@ -178,6 +180,7 @@ func ForOS(repoRoot, home, goos string) Paths {
 			Local:        filepath.Join(home, ".config", "nvim"),
 			MonokaiRepo:  filepath.Join(repoRoot, "monokai.lua"),
 			MonokaiLocal: filepath.Join(home, ".local", "share", "nvim", "site", "pack", "packer", "start", "monokai.nvim", "lua"),
+			Exclude:      []string{".undo", ".netrwhist", "*.swp", "CLAUDE.md", "README.md", "tests"},
 		},
 		Zsh: ZshPaths{
 			ZshrcRepo:            filepath.Join(repoRoot, "zsh", "zshrc"),

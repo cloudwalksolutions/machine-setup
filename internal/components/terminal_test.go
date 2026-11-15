@@ -10,6 +10,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"tars/internal/components"
+	"tars/internal/fsutil"
 )
 
 var _ = Describe("Terminal", func() {
@@ -127,18 +128,24 @@ var _ = Describe("Terminal", func() {
 		Expect(stderr.String()).To(BeEmpty())
 	})
 
-	It("dry-run reports the font change and profile import without calling the seams", func() {
+	It("dry-run records the font change and profile import without calling the seams", func() {
 		stdout := &bytes.Buffer{}
+		var got []fsutil.Change
 		opts.Stdout = stdout
 		opts.DryRun = true
+		opts.Record = func(ch fsutil.Change) { got = append(got, ch) }
 		t := newTerm()
 		t.SetFontFn = func(string) error { Fail("SetFontFn called in dry-run"); return nil }
 		t.ApplyFn = func(string, string) error { Fail("ApplyFn called in dry-run"); return nil }
 
 		Expect(t.Pull()).To(Succeed())
 
-		Expect(stdout.String()).To(ContainSubstring("would set terminal font  Monaco 12 → Hack Nerd Font 13"))
-		Expect(stdout.String()).To(ContainSubstring("would import Terminal.app profile  tars"))
+		Expect(got).To(Equal([]fsutil.Change{
+			{Path: "terminal font", Kind: fsutil.Set, Detail: "Monaco 12 → Hack Nerd Font 13"},
+			{Path: "Terminal.app profile", Kind: fsutil.Set, Detail: "tars"},
+		}))
+		Expect(stdout.String()).To(ContainSubstring("would set  terminal font  Monaco 12 → Hack Nerd Font 13"))
+		Expect(stdout.String()).To(ContainSubstring("would set  Terminal.app profile  tars"))
 		_, err := os.Stat(filepath.Join(opts.BackupRoot, "terminal"))
 		Expect(os.IsNotExist(err)).To(BeTrue(), "no backup in dry-run")
 	})
