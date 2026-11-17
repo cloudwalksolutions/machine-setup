@@ -270,9 +270,10 @@ source files, so every change is a reviewable edit), and both Claude Code's hook
 pi's extension evaluate that one table. Claude Code blocks the command if the hook itself
 fails to run.
 
-Claude Code also gets a Stop hook: when the current branch has an open PR, a turn can't end
-until the reply contains that PR's link. It asks once per turn, and lets the stop through
-when `gh` is missing or the branch has no open PR.
+Claude Code also gets a Stop hook. It reads the session's transcript for every PR that
+`gh pr create` opened, in any repo or worktree. If one of those PRs is still open, the turn
+can't end until the reply contains its link. PRs that only came up in a lookup don't count.
+It asks once per turn, and lets the stop through when `gh` is missing or can't reach GitHub.
 
 `tars init claude` asks two things in a form: install the hooks and merge the shared
 settings fragment. Choices are saved under `claude:` and honored by every later
