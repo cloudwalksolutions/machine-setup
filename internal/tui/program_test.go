@@ -11,6 +11,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/teatest/v2"
+	"github.com/charmbracelet/x/vt"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -56,5 +57,38 @@ var _ = Describe("Start under a real program", func() {
 		Expect(text).To(ContainSubstring("Installing packages"))
 		Expect(text).To(ContainSubstring("✓ jq"))
 		Expect(text).To(ContainSubstring("Setup complete."))
+	})
+
+	It("clears an answered form off the screen even when the pane redraws before the next line prints", func() {
+		model := tui.New()
+		tm := teatest.NewTestModel(GinkgoTB(), model, teatest.WithInitialTermSize(100, 40))
+		flow := func(r report.Reporter, ask tui.Asker) error {
+			if err := ask.Welcome(); err != nil {
+				return err
+			}
+			time.Sleep(100 * time.Millisecond)
+			r.Note("Checking installed tools")
+			return nil
+		}
+
+		tui.Start(context.Background(), tm.Send, model, flow)
+
+		var output bytes.Buffer
+		teatest.WaitFor(GinkgoTB(), io.TeeReader(tm.Output(), &output), func(b []byte) bool {
+			return strings.Contains(ansi.Strip(string(b)), "Welcome to tars")
+		}, teatest.WithDuration(5*time.Second))
+		tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
+		tm.WaitFinished(GinkgoTB(), teatest.WithFinalTimeout(5*time.Second))
+		_, err := io.Copy(&output, tm.FinalOutput(GinkgoTB()))
+		Expect(err).NotTo(HaveOccurred())
+
+		terminal := vt.NewSafeEmulator(100, 40)
+		go func() { _, _ = io.Copy(io.Discard, terminal) }()
+		_, err = terminal.Write(output.Bytes())
+		Expect(err).NotTo(HaveOccurred())
+
+		screen := terminal.String()
+		Expect(screen).To(ContainSubstring("Checking installed tools"))
+		Expect(screen).NotTo(ContainSubstring("Welcome to tars"))
 	})
 })
