@@ -98,16 +98,16 @@ var _ = Describe("tars init agents (headless, temp HOME)", func() {
 		GinkgoT().Setenv("TARS_NO_FORM", "1")
 	})
 
-	It("renders every rule into CLAUDE.md and AGENTS.md and records the choice", func() {
+	It("copies every rule into ~/.claude/rules/tars, renders them into AGENTS.md, and records the choice", func() {
 		orig := os.Args
 		DeferCleanup(func() { os.Args = orig })
 		os.Args = []string{"tars", "init", "agents"}
 
 		Expect(cmd.Execute()).To(Succeed())
 
-		claudeMD, err := os.ReadFile(filepath.Join(home, ".claude", "CLAUDE.md"))
+		claudeRule, err := os.ReadFile(filepath.Join(home, ".claude", "rules", "tars", "20-prs-and-ci.md"))
 		Expect(err).NotTo(HaveOccurred())
-		Expect(string(claudeMD)).To(ContainSubstring("## Pull requests and CI"))
+		Expect(string(claudeRule)).To(ContainSubstring("## Pull requests and CI"))
 		agentsMD, err := os.ReadFile(filepath.Join(home, ".pi", "agent", "AGENTS.md"))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(string(agentsMD)).To(ContainSubstring("## Pull requests and CI"))

@@ -1,15 +1,18 @@
 package components
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 
 	"tars/internal/config"
 	"tars/internal/paths"
 )
 
 // Claude provisions Claude Code: the edit-blocking hook, the shareable
-// settings fragment, and a global CLAUDE.md rendered from the repo's rule files.
+// settings fragment, and the repo's rule files as user-level rules.
 type Claude struct {
 	opts Options
 	cfg  config.ClaudeConfig
@@ -111,7 +114,65 @@ func (c *Claude) pullSettings() error {
 const claudeMDHeader = "# Global Claude Code rules\n\nManaged by `tars init agents`; edit the rule files under agents/rules in the machine-setup repo, not this file.\n\n"
 
 func (c *Claude) pullRules() error {
-	return pullRules(c.opts, c.Name(), claudeMDHeader, c.p.ClaudeMDLocal)
+	dir := paths.For(c.opts.RepoRoot, c.opts.Home).Agents.RulesRepo
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	wanted := map[string]bool{}
+	for _, e := range entries {
+		if slices.Contains(c.opts.Agents.SkipRules, strings.TrimSuffix(e.Name(), ".md")) {
+			continue
+		}
+		wanted[e.Name()] = true
+		if err := c.opts.copier().SafeCopy(filepath.Join(dir, e.Name()), filepath.Join(c.p.RulesLocal, e.Name()), c.Name(), c.opts.BackupRoot); err != nil {
+			return err
+		}
+	}
+	if err := c.removeStaleRules(wanted); err != nil {
+		return err
+	}
+	return c.removeRenderedClaudeMD()
+}
+
+func (c *Claude) removeRenderedClaudeMD() error {
+	content, err := os.ReadFile(c.p.ClaudeMDLocal)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if !bytes.HasPrefix(content, []byte(claudeMDHeader)) {
+		return nil
+	}
+	if _, err := c.opts.copier().Backup(c.p.ClaudeMDLocal, c.Name(), c.opts.BackupRoot); err != nil {
+		return err
+	}
+	return c.opts.copier().RemoveAll(c.p.ClaudeMDLocal)
+}
+
+func (c *Claude) removeStaleRules(wanted map[string]bool) error {
+	copied, err := os.ReadDir(c.p.RulesLocal)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	for _, e := range copied {
+		if wanted[e.Name()] {
+			continue
+		}
+		stale := filepath.Join(c.p.RulesLocal, e.Name())
+		if _, err := c.opts.copier().Backup(stale, c.Name(), c.opts.BackupRoot); err != nil {
+			return err
+		}
+		if err := c.opts.copier().RemoveAll(stale); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // enabled treats an unset toggle as on.
