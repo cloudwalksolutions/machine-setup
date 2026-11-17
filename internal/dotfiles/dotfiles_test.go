@@ -118,6 +118,36 @@ var _ = Describe("shipped pi settings", func() {
 	})
 })
 
+var _ = Describe("shipped claude settings", func() {
+	type hook struct {
+		Command   string `json:"command"`
+		OnFailure string `json:"onFailure"`
+	}
+	type group struct {
+		Matcher string `json:"matcher"`
+		Hooks   []hook `json:"hooks"`
+	}
+	var settings struct {
+		Hooks map[string][]group `json:"hooks"`
+	}
+
+	BeforeEach(func() {
+		Expect(json.Unmarshal([]byte(read(filepath.Join(repoRoot(), "claude", "settings.json"))), &settings)).To(Succeed())
+	})
+
+	It("block Bash when the edit guard itself fails, instead of letting the command through", func() {
+		Expect(settings.Hooks["PreToolUse"]).To(ContainElement(group{Matcher: "Bash", Hooks: []hook{{
+			Command:   "$HOME/.claude/hooks/block-unreviewable-edits.sh",
+			OnFailure: "block",
+		}}}))
+	})
+
+	It("run the PR-link check, which ships beside the edit guard, on every stop", func() {
+		Expect(settings.Hooks["Stop"]).To(ContainElement(group{Hooks: []hook{{Command: "$HOME/.claude/hooks/require-pr-link.sh"}}}))
+		Expect(filepath.Join(repoRoot(), "claude", "hooks", "require-pr-link.sh")).To(BeARegularFile())
+	})
+})
+
 var _ = Describe("shipped zsh dotfiles", func() {
 	It("export EDITOR, which the vim aliases interpolate at source time", func() {
 		Expect(read(filepath.Join(repoRoot(), "zsh", "profile"))).

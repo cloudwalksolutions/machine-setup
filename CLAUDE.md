@@ -65,7 +65,7 @@ sessions, one per project (git repo under `projects_dir`). The user-facing CLI i
 ├── nvim/  zsh/  byobu/  vim/     # the dotfiles tars manages
 ├── monokai.lua                  # nvim colorscheme shipped at root (also embedded)
 ├── agents/                      # shared by every coding agent: rules/ (→ CLAUDE.md + AGENTS.md), edit-guard.json, templates/AGENTS.project.md
-├── claude/                      # Claude Code: settings fragment, hooks/ (the edit guard that evaluates agents/edit-guard.json)
+├── claude/                      # Claude Code: settings fragment, hooks/ (the edit guard over agents/edit-guard.json, the PR-link Stop hook)
 ├── pi/                          # pi coding agent: settings fragment, agents/, prompts/, extensions/ (same guard, pi API), permissions.json
 ├── fonts/                       # Hack Nerd Font files
 ├── terminal/                    # font string + Terminal.app profile (iTerm2/Terminal.app)

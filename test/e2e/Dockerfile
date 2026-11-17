@@ -41,11 +41,16 @@ RUN test -f "$HOME/.vimrc" \
  && test ! -e "$HOME/.config/nvim/tests" \
  && ls "$HOME/.local/share/fonts/"*.ttf >/dev/null \
  && test -x "$HOME/.claude/hooks/block-unreviewable-edits.sh" \
+ && test -x "$HOME/.claude/hooks/require-pr-link.sh" \
  && test -f "$HOME/.claude/CLAUDE.md" \
- && grep -q 'block-unreviewable-edits.sh' "$HOME/.claude/settings.json"
+ && grep -q 'block-unreviewable-edits.sh' "$HOME/.claude/settings.json" \
+ && grep -q 'require-pr-link.sh' "$HOME/.claude/settings.json"
 
 RUN echo '{"tool_input":{"command":"sed -i s/a/b/ main.go"}}' | "$HOME/.claude/hooks/block-unreviewable-edits.sh" | grep -q '"deny"' \
  && test -z "$(echo '{"tool_input":{"command":"sed -n 1p main.go"}}' | "$HOME/.claude/hooks/block-unreviewable-edits.sh")"
+
+# With no gh installed the PR-link Stop hook lets every stop through.
+RUN echo '{"last_assistant_message":"done"}' | "$HOME/.claude/hooks/require-pr-link.sh"
 
 # The pulled shell configs must actually parse on Linux.
 RUN zsh -ic 'exit'

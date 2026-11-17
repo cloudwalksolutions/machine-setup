@@ -10,12 +10,25 @@
         "hooks": [
           {
             "command": "$HOME/.claude/hooks/block-unreviewable-edits.sh",
+            "onFailure": "block",
             "statusMessage": "Checking for unreviewable file edits",
             "timeout": 10,
             "type": "command"
           }
         ],
         "matcher": "Bash"
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "command": "$HOME/.claude/hooks/require-pr-link.sh",
+            "statusMessage": "Checking the open PR's link is in the reply",
+            "timeout": 15,
+            "type": "command"
+          }
+        ]
       }
     ]
   },
