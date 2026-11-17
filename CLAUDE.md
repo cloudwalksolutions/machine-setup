@@ -65,7 +65,7 @@ sessions, one per project (git repo under `projects_dir`). The user-facing CLI i
 ├── nvim/  zsh/  byobu/  vim/     # the dotfiles tars manages
 ├── monokai.lua                  # nvim colorscheme shipped at root (also embedded)
 ├── agents/                      # shared by every coding agent: rules/ (→ CLAUDE.md + AGENTS.md), edit-guard.json, templates/AGENTS.project.md
-├── claude/                      # Claude Code: settings fragment, hooks/ (the edit guard that evaluates agents/edit-guard.json)
+├── claude/                      # Claude Code: settings fragment, hooks/ (the edit guard over agents/edit-guard.json, the PR-link Stop hook)
 ├── pi/                          # pi coding agent: settings fragment, agents/, prompts/, extensions/ (same guard, pi API), permissions.json
 ├── fonts/                       # Hack Nerd Font files
 ├── terminal/                    # font string + Terminal.app profile (iTerm2/Terminal.app)
@@ -125,6 +125,12 @@ Tests are layered:
    user's `$HOME`, re-pulls are idempotent (incl. nvim), and a failing pull exits
    non-zero. Assertions are `RUN` lines, so a failure fails `docker build`. Runs in CI
    on every PR on amd64 and arm64.
+
+**What specs cover.** Specs prove tars's own mechanics: what gets copied, merged, versioned,
+backed up and skipped. They don't pin the contents of shipped agent config (pi agent
+frontmatter, `settings.json` hook entries, package lists). Those only restate the file, and
+what they do to Claude or pi can't be unit-tested, so such a change is proven by the PR's
+manual QA plan. Scripts tars ships, like the hooks, are still code and get specs that run them.
 
 **The seam pattern (critical).** Unit tests must never touch the real system (plists,
 network, package managers, PATH lookups). Anything that does is injected behind a seam so a

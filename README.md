@@ -78,7 +78,7 @@ The installer verifies the release checksum; override the directory with
 | `tars sessions` | `s`, `by` | Manage live byobu sessions; start one per project from its template (`-i` for a full-screen manager) |
 | `tars profiles` | `p` | Switch git, GitHub and SSH identity per project dir |
 | `tars init agents` | `i a` | Pick which shared rules every coding agent renders (`CLAUDE.md`, `AGENTS.md`) |
-| `tars init claude` | `i c` | Pick and apply Claude Code pieces: edit-blocking hook, settings |
+| `tars init claude` | `i c` | Pick and apply Claude Code pieces: hooks, settings |
 | `tars init pi` | `i pi` | Set up the pi coding agent: packages, local ollama models, baseline agent |
 | `tars init project [dir]` | `i p` | Scaffold a project `AGENTS.md` plus `CLAUDE.md`/`GEMINI.md` pointers for the agents you pick (`--force` to replace) |
 
@@ -100,8 +100,8 @@ Every file below is archived to `~/.local/state/tars/backups/<component>/vN`
 - macOS only: the iTerm2 and Terminal.app font and profile
 - With profiles configured: the managed block in `~/.gitconfig` and `~/.config/tars/profiles/<alias>.gitconfig`
 - `~/.claude/`: the `block-unreviewable-edits.sh` hook with its `edit-guard.json` rule
-  table, a `CLAUDE.md` rendered from `agents/rules/`, and a merge of `claude/settings.json`
-  into `settings.json`. Machine-local keys such as `autoMode` and `permissions` are left
+  table, the `require-pr-link.sh` Stop hook, a `CLAUDE.md` rendered from `agents/rules/`,
+  and a merge of `claude/settings.json` into `settings.json`. Machine-local keys such as `autoMode` and `permissions` are left
   alone; `~/.claude.json` is never touched
 
 Never overwritten, seeded once when absent: `~/.zshrc_secret`, `~/.zprofile_local`,
@@ -222,8 +222,9 @@ For each account (example: name `cloudwalk`, alias `cws`):
 - With a profiles config: the managed block in `~/.gitconfig` and
   `~/.config/tars/profiles/<alias>.gitconfig`
 - `~/.claude/`: the `block-unreviewable-edits.sh` hook with its `edit-guard.json` rule
-  table, a `CLAUDE.md` rendered from `agents/rules/`, and a merge of `claude/settings.json`
-  (model, theme, plugins, the hook entry) into `settings.json`. Machine-local keys such as
+  table, the `require-pr-link.sh` Stop hook, a `CLAUDE.md` rendered from `agents/rules/`,
+  and a merge of `claude/settings.json` (model, theme, plugins, the hook entries) into
+  `settings.json`. Machine-local keys such as
   `autoMode` and `permissions` are left alone; `~/.claude.json` is never touched.
 - `~/.pi/agent/`: the `tars` agent, `/tdd` `/plan` `/pr` prompts, the edit-guard
   extension over the same `edit-guard.json` table, a permission baseline, `AGENTS.md`
@@ -266,9 +267,15 @@ dropping a short `NN-slug.md` into `agents/rules/`.
 The edit guard is shared the same way: `agents/edit-guard.json` lists the command
 patterns that are denied (`sed -i`, heredoc and interpreter writes, redirects onto
 source files, so every change is a reviewable edit), and both Claude Code's hook and
-pi's extension evaluate that one table.
+pi's extension evaluate that one table. Claude Code blocks the command if the hook itself
+fails to run.
 
-`tars init claude` asks two things in a form: install the hook and merge the shared
+Claude Code also gets a Stop hook. It reads the session's transcript for every PR that
+`gh pr create` opened, in any repo or worktree. If one of those PRs is still open, the turn
+can't end until the reply contains its link. PRs that only came up in a lookup don't count.
+It asks once per turn, and lets the stop through when `gh` is missing or can't reach GitHub.
+
+`tars init claude` asks two things in a form: install the hooks and merge the shared
 settings fragment. Choices are saved under `claude:` and honored by every later
 `tars pull`; `tars push` carries hook edits and the shareable settings keys back
 into the repo.

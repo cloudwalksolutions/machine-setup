@@ -1,7 +1,6 @@
 package dotfiles_test
 
 import (
-	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -10,7 +9,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"gopkg.in/yaml.v3"
 )
 
 func repoRoot() string {
@@ -70,51 +68,6 @@ var _ = Describe("shipped terminal font", func() {
 
 		Expect(strings.Split(string(out), "\n")).To(ContainElement(name),
 			"terminal/font names %q but fonts/ provides:\n%s", name, out)
-	})
-})
-
-type piAgentFrontmatter struct {
-	Tools                  []string `yaml:"tools"`
-	InheritGlobalContext   bool     `yaml:"inheritGlobalContext"`
-	Async                  bool     `yaml:"async"`
-	SubagentOnlyExtensions []string `yaml:"subagentOnlyExtensions"`
-}
-
-func readPiAgent(agentFile string) piAgentFrontmatter {
-	parts := strings.SplitN(read(agentFile), "---\n", 3)
-	Expect(parts).To(HaveLen(3))
-	var frontmatter piAgentFrontmatter
-	Expect(yaml.Unmarshal([]byte(parts[1]), &frontmatter)).To(Succeed())
-	return frontmatter
-}
-
-var _ = Describe("shipped pi agent", func() {
-	agentFile := filepath.Join(repoRoot(), "pi", "agents", "tars.md")
-
-	It("hands its subagents the global rules and the edit guard", func() {
-		frontmatter := readPiAgent(agentFile)
-
-		Expect(frontmatter.InheritGlobalContext).To(BeTrue())
-		Expect(frontmatter.Async).To(BeTrue())
-		Expect(frontmatter.SubagentOnlyExtensions).To(ConsistOf("../extensions/block-unreviewable-edits.ts"))
-		Expect(filepath.Join(filepath.Dir(agentFile), frontmatter.SubagentOnlyExtensions[0])).To(BeARegularFile())
-	})
-
-	It("allows no mcp tool, since no shipped package provides one", func() {
-		Expect(readPiAgent(agentFile).Tools).NotTo(ContainElement("mcp"))
-	})
-})
-
-var _ = Describe("shipped pi settings", func() {
-	It("install no MCP adapter or skills pack, and pin the background tasks package", func() {
-		var settings struct {
-			Packages []string `json:"packages"`
-		}
-		Expect(json.Unmarshal([]byte(read(filepath.Join(repoRoot(), "pi", "settings.json"))), &settings)).To(Succeed())
-
-		Expect(settings.Packages).NotTo(ContainElement("npm:pi-mcp-adapter"))
-		Expect(settings.Packages).NotTo(ContainElement("npm:bigpowers"))
-		Expect(settings.Packages).To(ContainElement("npm:pi-background-tasks@2.6.9"))
 	})
 })
 

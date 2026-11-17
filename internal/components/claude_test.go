@@ -73,6 +73,16 @@ var _ = Describe("Claude.Pull", func() {
 		Expect(string(b)).To(Equal(`[{"reason":"r","match":"m"}]`))
 	})
 
+	It("copies every hook the repo ships, each kept executable", func() {
+		Expect(os.WriteFile(filepath.Join(repoRoot, "claude", "hooks", "require-pr-link.sh"), []byte("#!/bin/sh\nexit 0\n"), 0o755)).To(Succeed())
+
+		Expect(components.NewClaude(opts).Pull()).To(Succeed())
+
+		info, err := os.Stat(filepath.Join(home, ".claude", "hooks", "require-pr-link.sh"))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(info.Mode().Perm() & 0o111).NotTo(BeZero())
+	})
+
 	It("renders every rule file, in name order, into ~/.claude/CLAUDE.md by default", func() {
 		Expect(components.NewClaude(opts).Pull()).To(Succeed())
 
@@ -136,6 +146,19 @@ var _ = Describe("Claude.Pull", func() {
 		Expect(filepath.Join(home, ".claude", "hooks", "block-unreviewable-edits.sh")).NotTo(BeAnExistingFile())
 		Expect(filepath.Join(home, ".claude", "settings.json")).NotTo(BeAnExistingFile())
 		Expect(filepath.Join(home, ".claude", "CLAUDE.md")).To(BeARegularFile())
+	})
+
+	It("leaves the hook entries out of settings.json when the hooks are disabled, so none points at a missing script", func() {
+		off := false
+		opts.Claude = config.ClaudeConfig{Hook: &off}
+		Expect(components.NewClaude(opts).Pull()).To(Succeed())
+
+		b, err := os.ReadFile(filepath.Join(home, ".claude", "settings.json"))
+		Expect(err).NotTo(HaveOccurred())
+		var got map[string]any
+		Expect(json.Unmarshal(b, &got)).To(Succeed())
+		Expect(got).To(HaveKeyWithValue("model", "m"))
+		Expect(got).NotTo(HaveKey("hooks"))
 	})
 
 	It("fails on an unparseable local settings.json instead of overwriting it", func() {

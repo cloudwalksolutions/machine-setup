@@ -51,8 +51,8 @@ type PiPaths struct {
 type ClaudePaths struct {
 	SettingsRepo   string
 	SettingsLocal  string
-	HookRepo       string
-	HookLocal      string
+	HooksRepo      string
+	HooksLocal     string
 	ClaudeMDLocal  string
 	EditGuardLocal string
 }
@@ -229,8 +229,8 @@ func ForOS(repoRoot, home, goos string) Paths {
 		Claude: ClaudePaths{
 			SettingsRepo:   filepath.Join(repoRoot, "claude", "settings.json"),
 			SettingsLocal:  filepath.Join(home, ".claude", "settings.json"),
-			HookRepo:       filepath.Join(repoRoot, "claude", "hooks", "block-unreviewable-edits.sh"),
-			HookLocal:      filepath.Join(home, ".claude", "hooks", "block-unreviewable-edits.sh"),
+			HooksRepo:      filepath.Join(repoRoot, "claude", "hooks"),
+			HooksLocal:     filepath.Join(home, ".claude", "hooks"),
 			ClaudeMDLocal:  filepath.Join(home, ".claude", "CLAUDE.md"),
 			EditGuardLocal: filepath.Join(home, ".claude", "edit-guard.json"),
 		},

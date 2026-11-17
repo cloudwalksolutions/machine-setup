@@ -2,6 +2,7 @@ package components
 
 import (
 	"os"
+	"path/filepath"
 
 	"tars/internal/config"
 	"tars/internal/paths"
@@ -25,7 +26,7 @@ func (c *Claude) Name() string { return "claude" }
 // Pull applies the repo's Claude config to ~/.claude.
 func (c *Claude) Pull() error {
 	if enabled(c.cfg.Hook) {
-		if err := c.opts.copier().SafeCopy(c.p.HookRepo, c.p.HookLocal, c.Name(), c.opts.BackupRoot); err != nil {
+		if err := c.copyHooks(c.p.HooksRepo, c.p.HooksLocal, c.Name()); err != nil {
 			return err
 		}
 		if err := pullEditGuard(c.opts, c.Name(), c.p.EditGuardLocal); err != nil {
@@ -44,7 +45,7 @@ func (c *Claude) Pull() error {
 // archiving the repo copies under "claude-repo".
 func (c *Claude) Push() error {
 	comp := c.Name() + "-repo"
-	if err := c.opts.copier().SafeCopy(c.p.HookLocal, c.p.HookRepo, comp, c.opts.BackupRoot); err != nil {
+	if err := c.copyHooks(c.p.HooksLocal, c.p.HooksRepo, comp); err != nil {
 		return err
 	}
 	local, err := loadSettings(c.p.SettingsLocal)
@@ -69,6 +70,20 @@ func (c *Claude) Push() error {
 	return fragment.save(c.opts.copier(), c.p.SettingsRepo, comp, c.opts.BackupRoot)
 }
 
+// copyHooks copies the hooks the repo ships, never machine-only hooks.
+func (c *Claude) copyHooks(src, dst, component string) error {
+	shipped, err := os.ReadDir(c.p.HooksRepo)
+	if err != nil {
+		return err
+	}
+	for _, e := range shipped {
+		if err := c.opts.copier().SafeCopy(filepath.Join(src, e.Name()), filepath.Join(dst, e.Name()), component, c.opts.BackupRoot); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // pullSettings merges the fragment into ~/.claude/settings.json: shareable keys
 // are overwritten, hook groups upserted by command, everything else kept.
 func (c *Claude) pullSettings() error {
@@ -85,8 +100,10 @@ func (c *Claude) pullSettings() error {
 			local[k] = v
 		}
 	}
-	for _, event := range fragment.events() {
-		local.setHooks(event, upsert(local.hooks(event), fragment.hooks(event)))
+	if enabled(c.cfg.Hook) {
+		for _, event := range fragment.events() {
+			local.setHooks(event, upsert(local.hooks(event), fragment.hooks(event)))
+		}
 	}
 	return local.save(c.opts.copier(), c.p.SettingsLocal, c.Name(), c.opts.BackupRoot)
 }
