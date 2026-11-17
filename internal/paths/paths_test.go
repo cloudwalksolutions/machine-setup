@@ -120,6 +120,7 @@ var _ = Describe("ForOS Claude", func() {
 		Expect(p.Claude.HooksRepo).To(Equal(filepath.Join(repoRoot, "claude", "hooks")))
 		Expect(p.Claude.HooksLocal).To(Equal(filepath.Join(home, ".claude", "hooks")))
 		Expect(p.Claude.ClaudeMDLocal).To(Equal(filepath.Join(home, ".claude", "CLAUDE.md")))
+		Expect(p.Claude.RulesLocal).To(Equal(filepath.Join(home, ".claude", "rules", "tars")))
 		Expect(p.Claude.EditGuardLocal).To(Equal(filepath.Join(home, ".claude", "edit-guard.json")))
 	})
 })

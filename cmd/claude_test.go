@@ -147,7 +147,7 @@ var _ = Describe("tars claude (headless, temp HOME)", func() {
 
 		Expect(filepath.Join(home, ".claude", "hooks", "block-unreviewable-edits.sh")).To(BeARegularFile())
 		Expect(filepath.Join(home, ".claude", "settings.json")).To(BeARegularFile())
-		Expect(filepath.Join(home, ".claude", "CLAUDE.md")).To(BeARegularFile())
+		Expect(filepath.Join(home, ".claude", "rules", "tars")).To(BeADirectory())
 		cfg, err := os.ReadFile(filepath.Join(home, "config.yaml"))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(string(cfg)).To(ContainSubstring("claude:\n    hook: true\n    settings: true"))

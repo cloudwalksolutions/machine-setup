@@ -83,23 +83,67 @@ var _ = Describe("Claude.Pull", func() {
 		Expect(info.Mode().Perm() & 0o111).NotTo(BeZero())
 	})
 
-	It("renders every rule file, in name order, into ~/.claude/CLAUDE.md by default", func() {
+	It("copies every rule file into ~/.claude/rules/tars by default", func() {
 		Expect(components.NewClaude(opts).Pull()).To(Succeed())
 
-		b, err := os.ReadFile(filepath.Join(home, ".claude", "CLAUDE.md"))
+		rules := filepath.Join(home, ".claude", "rules", "tars")
+		b, err := os.ReadFile(filepath.Join(rules, "10-tdd.md"))
 		Expect(err).NotTo(HaveOccurred())
-		Expect(string(b)).To(HavePrefix("# Global Claude Code rules"))
-		Expect(string(b)).To(MatchRegexp(`(?s)## TDD\nred first\n.*## Simple\nyagni\n`))
+		Expect(string(b)).To(Equal("## TDD\nred first\n"))
+		Expect(filepath.Join(rules, "60-simplicity.md")).To(BeARegularFile())
 	})
 
-	It("renders every rule except the skipped ones, so new rule files show up without re-init", func() {
+	It("copies every rule except the skipped ones, so new rule files show up without re-init", func() {
 		opts.Agents = config.AgentsConfig{SkipRules: []string{"10-tdd"}}
 		Expect(components.NewClaude(opts).Pull()).To(Succeed())
 
-		b, err := os.ReadFile(filepath.Join(home, ".claude", "CLAUDE.md"))
+		rules := filepath.Join(home, ".claude", "rules", "tars")
+		Expect(filepath.Join(rules, "60-simplicity.md")).To(BeARegularFile())
+		Expect(filepath.Join(rules, "10-tdd.md")).NotTo(BeAnExistingFile())
+	})
+
+	It("removes a rule it copied earlier once that rule is skipped, backing it up first", func() {
+		Expect(components.NewClaude(opts).Pull()).To(Succeed())
+		opts.Agents = config.AgentsConfig{SkipRules: []string{"10-tdd"}}
+
+		Expect(components.NewClaude(opts).Pull()).To(Succeed())
+
+		Expect(filepath.Join(home, ".claude", "rules", "tars", "10-tdd.md")).NotTo(BeAnExistingFile())
+		b, err := os.ReadFile(filepath.Join(opts.BackupRoot, "claude", "v1", "10-tdd.md"))
 		Expect(err).NotTo(HaveOccurred())
-		Expect(string(b)).To(ContainSubstring("## Simple"))
-		Expect(string(b)).NotTo(ContainSubstring("## TDD"))
+		Expect(string(b)).To(Equal("## TDD\nred first\n"))
+	})
+
+	Describe("an existing ~/.claude/CLAUDE.md", func() {
+		var claudeMD string
+
+		BeforeEach(func() {
+			claudeMD = filepath.Join(home, ".claude", "CLAUDE.md")
+			Expect(os.MkdirAll(filepath.Dir(claudeMD), 0o755)).To(Succeed())
+		})
+
+		It("is backed up and removed when tars rendered it, so the rules are not loaded twice", func() {
+			rendered := "# Global Claude Code rules\n\nManaged by `tars init agents`; edit the rule files under agents/rules in the machine-setup repo, not this file.\n\n## TDD\nred first\n"
+			Expect(os.WriteFile(claudeMD, []byte(rendered), 0o644)).To(Succeed())
+
+			Expect(components.NewClaude(opts).Pull()).To(Succeed())
+
+			Expect(claudeMD).NotTo(BeAnExistingFile())
+			b, err := os.ReadFile(filepath.Join(opts.BackupRoot, "claude", "v1", "CLAUDE.md"))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(string(b)).To(Equal(rendered))
+		})
+
+		It("is left untouched when the user wrote it", func() {
+			Expect(os.WriteFile(claudeMD, []byte("# My own notes\n"), 0o644)).To(Succeed())
+
+			Expect(components.NewClaude(opts).Pull()).To(Succeed())
+
+			b, err := os.ReadFile(claudeMD)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(string(b)).To(Equal("# My own notes\n"))
+			Expect(filepath.Join(opts.BackupRoot, "claude")).NotTo(BeADirectory())
+		})
 	})
 
 	It("merges the settings fragment into an existing settings.json, keeping local-only keys", func() {
@@ -145,7 +189,7 @@ var _ = Describe("Claude.Pull", func() {
 
 		Expect(filepath.Join(home, ".claude", "hooks", "block-unreviewable-edits.sh")).NotTo(BeAnExistingFile())
 		Expect(filepath.Join(home, ".claude", "settings.json")).NotTo(BeAnExistingFile())
-		Expect(filepath.Join(home, ".claude", "CLAUDE.md")).To(BeARegularFile())
+		Expect(filepath.Join(home, ".claude", "rules", "tars", "10-tdd.md")).To(BeARegularFile())
 	})
 
 	It("leaves the hook entries out of settings.json when the hooks are disabled, so none points at a missing script", func() {

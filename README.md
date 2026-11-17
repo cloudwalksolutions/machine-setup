@@ -100,8 +100,8 @@ Every file below is archived to `~/.local/state/tars/backups/<component>/vN`
 - macOS only: the iTerm2 and Terminal.app font and profile
 - With profiles configured: the managed block in `~/.gitconfig` and `~/.config/tars/profiles/<alias>.gitconfig`
 - `~/.claude/`: the `block-unreviewable-edits.sh` hook with its `edit-guard.json` rule
-  table, the `require-pr-link.sh` Stop hook, a `CLAUDE.md` rendered from `agents/rules/`,
-  and a merge of `claude/settings.json` into `settings.json`. Machine-local keys such as `autoMode` and `permissions` are left
+  table, the `require-pr-link.sh` Stop hook, the rules from `agents/rules/` under
+  `rules/tars/`, and a merge of `claude/settings.json` into `settings.json`. Machine-local keys such as `autoMode` and `permissions` are left
   alone; `~/.claude.json` is never touched
 
 Never overwritten, seeded once when absent: `~/.zshrc_secret`, `~/.zprofile_local`,
@@ -222,8 +222,8 @@ For each account (example: name `cloudwalk`, alias `cws`):
 - With a profiles config: the managed block in `~/.gitconfig` and
   `~/.config/tars/profiles/<alias>.gitconfig`
 - `~/.claude/`: the `block-unreviewable-edits.sh` hook with its `edit-guard.json` rule
-  table, the `require-pr-link.sh` Stop hook, a `CLAUDE.md` rendered from `agents/rules/`,
-  and a merge of `claude/settings.json` (model, theme, plugins, the hook entries) into
+  table, the `require-pr-link.sh` Stop hook, the rules from `agents/rules/` under
+  `rules/tars/`, and a merge of `claude/settings.json` (model, theme, plugins, the hook entries) into
   `settings.json`. Machine-local keys such as
   `autoMode` and `permissions` are left alone; `~/.claude.json` is never touched.
 - `~/.pi/agent/`: the `tars` agent, `/tdd` `/plan` `/pr` prompts, the edit-guard
@@ -260,8 +260,11 @@ lists the writes only.
 
 The rules every agent works by live once, in `agents/rules/`. `tars init agents`
 asks which of them to render; the choice is saved under `agents:` in the tars
-config, and every later `tars pull` renders the selection into `~/.claude/CLAUDE.md`
-and `~/.pi/agent/AGENTS.md`, picking up newly added rules as it goes. Add a rule by
+config. Every later `tars pull` copies the selection into `~/.claude/rules/tars/`, one
+file per rule, and renders it into `~/.pi/agent/AGENTS.md`, picking up newly added rules as
+it goes. A rule you skip later is backed up and removed from `~/.claude/rules/tars/`. Your
+own files in `~/.claude/rules/` are never touched. A `~/.claude/CLAUDE.md` that tars wrote
+before rules moved there is backed up and removed, and one you wrote yourself is left as is. Add a rule by
 dropping a short `NN-slug.md` into `agents/rules/`.
 
 The edit guard is shared the same way: `agents/edit-guard.json` lists the command

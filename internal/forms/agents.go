@@ -19,7 +19,7 @@ func AgentsForm(rules []string) (*huh.Form, func() config.AgentsConfig) {
 		huh.NewGroup(
 			huh.NewMultiSelect[string]().
 				Title("Global rules to render for every agent").
-				Description("Rendered into ~/.claude/CLAUDE.md and ~/.pi/agent/AGENTS.md.").
+				Description("Copied into ~/.claude/rules/tars/ and rendered into ~/.pi/agent/AGENTS.md.").
 				Options(options...).
 				Value(&selected),
 		),

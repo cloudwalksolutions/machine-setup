@@ -235,11 +235,11 @@ without running anything. Run every gate as its own command, never piped into `t
 4. `gofmt`, then `go test ./... && golangci-lint run ./...` green.
 
 **Adding a global agent rule**: drop a short `NN-slug.md` (a `##` heading plus a few
-lines) into `agents/rules/`; the embed picks it up on the next build. Rules are agent-neutral: the shared
-`pullRules` in `components/agents.go` renders every rule not under `agents.skip_rules`
-(chosen by `tars init agents`), and each agent component is an adapter that calls it with
-its own header and destination (`~/.claude/CLAUDE.md`, `~/.pi/agent/AGENTS.md`), so a new
-rule lands on the next `tars pull` with no re-init. The edit guard works the same way:
+lines) into `agents/rules/`; the embed picks it up on the next build. Rules are agent-neutral:
+every rule not under `agents.skip_rules` (chosen by `tars init agents`) lands on the next
+`tars pull` with no re-init. Claude Code gets one file per rule in `~/.claude/rules/tars/`,
+a folder tars owns, so skipped rules can be removed without touching the user's own rules.
+pi gets them rendered into `~/.pi/agent/AGENTS.md` by `pullRules` in `components/agents.go`. The edit guard works the same way:
 `agents/edit-guard.json` is the one table of denied-command patterns (`match`, optional `and`
 and `unless`, each a regex in the subset POSIX ERE and JavaScript share, so no `\s` or
 `[[:space:]]`), `pullEditGuard` copies it next to each agent's guard
