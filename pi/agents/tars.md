@@ -9,7 +9,6 @@ tools:
   - write
   - bash
   - subagent
-  - mcp
   - web_search
   - fetch_content
   - ask_user_question

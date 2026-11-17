@@ -127,7 +127,7 @@ func (c *Pi) pullSettings() error {
 			local[k] = v
 		}
 	}
-	local["packages"] = unionStrings(fragment.strings("packages"), local.strings("packages"))
+	local["packages"] = unionPackages(fragment.strings("packages"), local.strings("packages"))
 	if c.cfg.DefaultModel != "" {
 		local["defaultProvider"] = "ollama"
 		local["defaultModel"] = c.cfg.DefaultModel
@@ -160,16 +160,24 @@ func (c *Pi) pullModels() error {
 	return models.save(c.opts.copier(), c.p.ModelsLocal, c.Name(), c.opts.BackupRoot)
 }
 
-func unionStrings(first, second []string) []any {
+func unionPackages(first, second []string) []any {
 	out := make([]any, 0, len(first)+len(second))
 	seen := map[string]bool{}
 	for _, s := range append(append([]string{}, first...), second...) {
-		if !seen[s] {
-			seen[s] = true
+		if name := packageName(s); !seen[name] {
+			seen[name] = true
 			out = append(out, s)
 		}
 	}
 	return out
+}
+
+func packageName(source string) string {
+	spec, isNpm := strings.CutPrefix(source, "npm:")
+	if at := strings.LastIndex(spec, "@"); isNpm && at > 0 {
+		return "npm:" + spec[:at]
+	}
+	return source
 }
 
 const agentsMDHeader = "# Working rules\n\nManaged by `tars init agents`; edit the rule files under agents/rules in the machine-setup repo, not this file.\n\n"
@@ -210,8 +218,12 @@ func (c *Pi) InstallPackages(selected []string) error {
 	if err != nil {
 		return fmt.Errorf("pi list: %w", err)
 	}
+	installed := map[string]bool{}
+	for line := range strings.SplitSeq(listed, "\n") {
+		installed[strings.TrimSpace(line)] = true
+	}
 	for _, src := range selected {
-		if strings.Contains(listed, src) {
+		if installed[src] {
 			continue
 		}
 		fmt.Fprintf(c.opts.Stdout, "  installing %s\n", src)

@@ -121,6 +121,19 @@ var _ = Describe("Pi.Pull", func() {
 		Expect(got["packages"]).To(Equal([]any{"npm:pi-subagents", "npm:bigpowers", "npm:pi-llama-cpp"}))
 	})
 
+	It("keeps one entry per package in the merge, the fragment's version winning", func() {
+		write("pi/settings.json", `{"packages":["npm:pi-background-tasks@2.6.9","npm:@gotgenes/pi-permission-system"]}`)
+		local := filepath.Join(agent, "settings.json")
+		Expect(os.MkdirAll(agent, 0o755)).To(Succeed())
+		Expect(os.WriteFile(local, []byte(`{"packages":["npm:pi-background-tasks","npm:@gotgenes/pi-permission-system@1.0.0","npm:pi-llama-cpp"]}`), 0o644)).To(Succeed())
+
+		Expect(components.NewPi(opts).Pull()).To(Succeed())
+
+		var got map[string]any
+		Expect(json.Unmarshal([]byte(read(local)), &got)).To(Succeed())
+		Expect(got["packages"]).To(Equal([]any{"npm:pi-background-tasks@2.6.9", "npm:@gotgenes/pi-permission-system", "npm:pi-llama-cpp"}))
+	})
+
 	It("renders the ollama provider from config into models.json and pins the default model, keeping other providers", func() {
 		Expect(os.MkdirAll(agent, 0o755)).To(Succeed())
 		Expect(os.WriteFile(filepath.Join(agent, "models.json"), []byte(`{"providers":{"other":{"baseUrl":"http://x/v1"}}}`), 0o644)).To(Succeed())
@@ -175,6 +188,22 @@ var _ = Describe("Pi.Pull", func() {
 			}
 
 			Expect(pi.InstallPackages([]string{"npm:pi-subagents", "npm:bigpowers"})).To(Succeed())
+
+			Expect(calls).To(Equal([]string{"pi list", "pi install npm:pi-subagents"}))
+		})
+
+		It("matches whole sources, so a pinned or longer-named package does not hide another", func() {
+			var calls []string
+			pi := components.NewPi(opts)
+			pi.Run = func(name string, args ...string) (string, error) {
+				calls = append(calls, name+" "+strings.Join(args, " "))
+				if args[0] == "list" {
+					return "User packages:\n  npm:pi-subagents-extra\n    /x/node_modules/pi-subagents-extra\n  npm:pi-background-tasks@2.6.9\n    /x/node_modules/pi-background-tasks\n", nil
+				}
+				return "", nil
+			}
+
+			Expect(pi.InstallPackages([]string{"npm:pi-subagents", "npm:pi-background-tasks@2.6.9"})).To(Succeed())
 
 			Expect(calls).To(Equal([]string{"pi list", "pi install npm:pi-subagents"}))
 		})
