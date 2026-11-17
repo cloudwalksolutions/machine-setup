@@ -6,8 +6,7 @@
 ## What init does
 
 1. Asks which packages to install (all pre-checked): `pi-subagents` (agent files + the
-   `subagent` tool), `pi-mcp-adapter` (MCP servers), `pi-web-access` (`web_search`,
-   `fetch_content`), `bigpowers` (skills pack), `@gotgenes/pi-permission-system`,
+   `subagent` tool), `pi-web-access` (`web_search`, `fetch_content`), `@gotgenes/pi-permission-system`,
    `@plannotator/pi-extension` (plan mode with browser-side plan approval, `/plannotator-review`
    code review and markdown annotation UIs), `@juicesharp/rpiv-todo` (a `todo` tool and a
    live task overlay that survives `/reload` and compaction; `/todos` lists them),
@@ -19,7 +18,7 @@
    fragment unbinds pi's built-in `app.clipboard.pasteImage` so the two do not collide),
    `context-mode` (sandboxes tool output and indexes it into a searchable store so large
    results do not flood the context window; `/ctx-stats`, `/ctx-search`, `/ctx-doctor`),
-   `pi-background-tasks` (long shell commands run as tracked background tasks instead of
+   `pi-background-tasks@2.6.9` (pinned; long shell commands run as tracked background tasks instead of
    blocking the agent; a task dock on Shift+Down, tuned with `PI_BG_FEATURES` and
    `PI_BG_DOCK_SHORTCUT`).
 2. If a local `ollama` is installed, asks which of its models (`ollama list`) to expose to
@@ -55,8 +54,8 @@ either direction.
 
 ## Adding MCP servers
 
-`pi-mcp-adapter` reads `~/.pi/agent/mcp.json` (global) and a project's `.mcp.json`
-(Claude-compatible). Example:
+pi has MCP built in (since 0.99) and reads servers from `~/.pi/agent/mcp.json`, so no
+adapter package is installed. Example:
 
 ```json
 { "mcpServers": { "github": { "url": "https://api.githubcopilot.com/mcp",
