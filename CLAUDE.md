@@ -126,6 +126,12 @@ Tests are layered:
    non-zero. Assertions are `RUN` lines, so a failure fails `docker build`. Runs in CI
    on every PR on amd64 and arm64.
 
+**What specs cover.** Specs prove tars's own mechanics: what gets copied, merged, versioned,
+backed up and skipped. They don't pin the contents of shipped agent config (pi agent
+frontmatter, `settings.json` hook entries, package lists). Those only restate the file, and
+what they do to Claude or pi can't be unit-tested, so such a change is proven by the PR's
+manual QA plan. Scripts tars ships, like the hooks, are still code and get specs that run them.
+
 **The seam pattern (critical).** Unit tests must never touch the real system (plists,
 network, package managers, PATH lookups). Anything that does is injected behind a seam so a
 spec can drive a fake and still fail red-first:
