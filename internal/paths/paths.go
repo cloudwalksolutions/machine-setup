@@ -53,6 +53,8 @@ type ClaudePaths struct {
 	SettingsLocal  string
 	HooksRepo      string
 	HooksLocal     string
+	SkillsRepo     string
+	SkillsLocal    string
 	ClaudeMDLocal  string
 	RulesLocal     string
 	EditGuardLocal string
@@ -232,6 +234,8 @@ func ForOS(repoRoot, home, goos string) Paths {
 			SettingsLocal:  filepath.Join(home, ".claude", "settings.json"),
 			HooksRepo:      filepath.Join(repoRoot, "claude", "hooks"),
 			HooksLocal:     filepath.Join(home, ".claude", "hooks"),
+			SkillsRepo:     filepath.Join(repoRoot, "claude", "skills"),
+			SkillsLocal:    filepath.Join(home, ".claude", "skills"),
 			ClaudeMDLocal:  filepath.Join(home, ".claude", "CLAUDE.md"),
 			RulesLocal:     filepath.Join(home, ".claude", "rules", "tars"),
 			EditGuardLocal: filepath.Join(home, ".claude", "edit-guard.json"),

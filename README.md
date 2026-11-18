@@ -101,7 +101,7 @@ Every file below is archived to `~/.local/state/tars/backups/<component>/vN`
 - With profiles configured: the managed block in `~/.gitconfig` and `~/.config/tars/profiles/<alias>.gitconfig`
 - `~/.claude/`: the `block-unreviewable-edits.sh` hook with its `edit-guard.json` rule
   table, the `require-pr-link.sh` Stop hook, the `block-secret-reads.sh` and
-  `ask-before-tickets.sh` hooks, the rules from `agents/rules/` under
+  `ask-before-tickets.sh` hooks, the `/tdd` and `/pr` skills, the rules from `agents/rules/` under
   `rules/tars/`, and a merge of `claude/settings.json` into `settings.json`. Machine-local keys such as `autoMode` and `permissions` are left
   alone; `~/.claude.json` is never touched
 
@@ -224,7 +224,7 @@ For each account (example: name `cloudwalk`, alias `cws`):
   `~/.config/tars/profiles/<alias>.gitconfig`
 - `~/.claude/`: the `block-unreviewable-edits.sh` hook with its `edit-guard.json` rule
   table, the `require-pr-link.sh` Stop hook, the `block-secret-reads.sh` and
-  `ask-before-tickets.sh` hooks, the rules from `agents/rules/` under
+  `ask-before-tickets.sh` hooks, the `/tdd` and `/pr` skills, the rules from `agents/rules/` under
   `rules/tars/`, and a merge of `claude/settings.json` (model, theme, plugins, the hook entries) into
   `settings.json`. Machine-local keys such as
   `autoMode` and `permissions` are left alone; `~/.claude.json` is never touched.
