@@ -100,7 +100,8 @@ Every file below is archived to `~/.local/state/tars/backups/<component>/vN`
 - macOS only: the iTerm2 and Terminal.app font and profile
 - With profiles configured: the managed block in `~/.gitconfig` and `~/.config/tars/profiles/<alias>.gitconfig`
 - `~/.claude/`: the `block-unreviewable-edits.sh` hook with its `edit-guard.json` rule
-  table, the `require-pr-link.sh` Stop hook, the rules from `agents/rules/` under
+  table, the `require-pr-link.sh` Stop hook, the `block-secret-reads.sh` and
+  `ask-before-tickets.sh` hooks, the rules from `agents/rules/` under
   `rules/tars/`, and a merge of `claude/settings.json` into `settings.json`. Machine-local keys such as `autoMode` and `permissions` are left
   alone; `~/.claude.json` is never touched
 
@@ -222,7 +223,8 @@ For each account (example: name `cloudwalk`, alias `cws`):
 - With a profiles config: the managed block in `~/.gitconfig` and
   `~/.config/tars/profiles/<alias>.gitconfig`
 - `~/.claude/`: the `block-unreviewable-edits.sh` hook with its `edit-guard.json` rule
-  table, the `require-pr-link.sh` Stop hook, the rules from `agents/rules/` under
+  table, the `require-pr-link.sh` Stop hook, the `block-secret-reads.sh` and
+  `ask-before-tickets.sh` hooks, the rules from `agents/rules/` under
   `rules/tars/`, and a merge of `claude/settings.json` (model, theme, plugins, the hook entries) into
   `settings.json`. Machine-local keys such as
   `autoMode` and `permissions` are left alone; `~/.claude.json` is never touched.
@@ -277,6 +279,12 @@ Claude Code also gets a Stop hook. It reads the session's transcript for every P
 `gh pr create` opened, in any repo or worktree. If one of those PRs is still open, the turn
 can't end until the reply contains its link. PRs that only came up in a lookup don't count.
 It asks once per turn, and lets the stop through when `gh` is missing or can't reach GitHub.
+
+Two more hooks back the secrets and tracker rules. `block-secret-reads.sh` denies any
+read, edit, grep or command that names a local secret file (`.env`, `.env.*` except
+`.env.example`, `.envs/`, `secrets/`, `*-creds.json`, `*credentials*.json`).
+`ask-before-tickets.sh` makes Claude Code ask you before it files a ticket with
+`twg`/`acli jira workitem create`, `gh issue create`, or a tracker MCP tool.
 
 `tars init claude` asks two things in a form: install the hooks and merge the shared
 settings fragment. Choices are saved under `claude:` and honored by every later

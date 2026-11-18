@@ -1,2 +1,2 @@
 ## Secrets
-No secrets, passwords, or tokens in code, tests, or commits; they come from the environment or git-ignored local files. Never read production credentials.
+No secrets, passwords, or tokens in code, tests, or commits; they come from the environment or git-ignored local files. Never read production credentials. Never read local env or credential files (`.env`, `.env.*`, `.envs/*`, `secrets/*`, service-account key JSON) with any tool, not even for one variable: learn the config from the code that reads it. When such a file needs a change, give the user the exact lines and let them edit it.
