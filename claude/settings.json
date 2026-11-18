@@ -1,6 +1,7 @@
 {
   "enabledPlugins": {
     "gopls-lsp@claude-plugins-official": true,
+    "lua-lsp@claude-plugins-official": true,
     "pyright-lsp@claude-plugins-official": true,
     "swift-lsp@claude-plugins-official": true
   },
@@ -17,6 +18,29 @@
           }
         ],
         "matcher": "Bash"
+      },
+      {
+        "hooks": [
+          {
+            "command": "$HOME/.claude/hooks/block-secret-reads.sh",
+            "onFailure": "block",
+            "statusMessage": "Checking for local secret files",
+            "timeout": 10,
+            "type": "command"
+          }
+        ],
+        "matcher": "Read|Edit|Write|Grep|Bash"
+      },
+      {
+        "hooks": [
+          {
+            "command": "$HOME/.claude/hooks/ask-before-tickets.sh",
+            "statusMessage": "Checking for ticket filing",
+            "timeout": 10,
+            "type": "command"
+          }
+        ],
+        "matcher": "Bash|mcp__.*"
       }
     ],
     "Stop": [

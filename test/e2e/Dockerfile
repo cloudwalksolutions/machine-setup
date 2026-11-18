@@ -42,6 +42,10 @@ RUN test -f "$HOME/.vimrc" \
  && ls "$HOME/.local/share/fonts/"*.ttf >/dev/null \
  && test -x "$HOME/.claude/hooks/block-unreviewable-edits.sh" \
  && test -x "$HOME/.claude/hooks/require-pr-link.sh" \
+ && test -x "$HOME/.claude/hooks/block-secret-reads.sh" \
+ && test -x "$HOME/.claude/hooks/ask-before-tickets.sh" \
+ && grep -q 'block-secret-reads.sh' "$HOME/.claude/settings.json" \
+ && grep -q 'ask-before-tickets.sh' "$HOME/.claude/settings.json" \
  && test -f "$HOME/.claude/rules/tars/20-prs-and-ci.md" \
  && test ! -e "$HOME/.claude/CLAUDE.md" \
  && grep -q 'block-unreviewable-edits.sh' "$HOME/.claude/settings.json" \

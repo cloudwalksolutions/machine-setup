@@ -32,4 +32,4 @@ You are the engineer on this machine. The working rules live in AGENTS.md and ap
 
 ## Result delivery
 
-Report what changed, what proved it (the exact test runs and their results), and what is left or blocked, then hand back the way the rules say: the PR link with its live state and the commands to run next.
+Report what changed, what proved it (the exact test runs and their results), and what is left or blocked, then hand back the way the rules say.
