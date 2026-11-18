@@ -127,6 +127,7 @@ if command -v brew &>/dev/null; then
 fi
 # Cargo-installed binaries land in ~/.cargo/bin after `rustup install stable`.
 [[ -d "$HOME/.cargo/bin" ]] && export PATH="$HOME/.cargo/bin:$PATH"
+[[ -d "$HOME/.local/share/nvim/mason/bin" ]] && export PATH="$PATH:$HOME/.local/share/nvim/mason/bin"
 
 # Ruby Version Manager (sourced when present so `rvm`, `ruby`, gem shims work).
 # if-form so an absent rvm doesn't leave the shell's last exit status at 1.
