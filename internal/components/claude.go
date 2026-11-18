@@ -41,7 +41,25 @@ func (c *Claude) Pull() error {
 			return err
 		}
 	}
+	if err := c.pullSkills(); err != nil {
+		return err
+	}
 	return c.pullRules()
+}
+
+// pullSkills copies each skill folder the repo ships into ~/.claude/skills,
+// next to the user's own skills.
+func (c *Claude) pullSkills() error {
+	return filepath.WalkDir(c.p.SkillsRepo, func(src string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		rel, err := filepath.Rel(c.p.SkillsRepo, src)
+		if err != nil {
+			return err
+		}
+		return c.opts.copier().SafeCopy(src, filepath.Join(c.p.SkillsLocal, rel), c.Name(), c.opts.BackupRoot)
+	})
 }
 
 // Push copies the local hook and the shareable settings keys back to the repo,

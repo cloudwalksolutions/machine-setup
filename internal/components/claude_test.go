@@ -26,7 +26,9 @@ var _ = Describe("Claude.Pull", func() {
 		repoRoot = filepath.Join(tmp, "repo")
 		home = filepath.Join(tmp, "home")
 		Expect(os.MkdirAll(filepath.Join(repoRoot, "claude", "hooks"), 0o755)).To(Succeed())
+		Expect(os.MkdirAll(filepath.Join(repoRoot, "claude", "skills", "tdd"), 0o755)).To(Succeed())
 		Expect(os.MkdirAll(filepath.Join(repoRoot, "agents", "rules"), 0o755)).To(Succeed())
+		Expect(os.WriteFile(filepath.Join(repoRoot, "claude", "skills", "tdd", "SKILL.md"), []byte("tdd skill\n"), 0o644)).To(Succeed())
 		Expect(os.WriteFile(filepath.Join(repoRoot, "claude", "hooks", "block-unreviewable-edits.sh"), []byte("#!/bin/sh\nexit 0\n"), 0o755)).To(Succeed())
 		Expect(os.WriteFile(filepath.Join(repoRoot, "claude", "settings.json"), []byte(`{"model":"m","hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"$HOME/.claude/hooks/block-unreviewable-edits.sh"}]}]}}`), 0o644)).To(Succeed())
 		Expect(os.WriteFile(filepath.Join(repoRoot, "agents", "rules", "10-tdd.md"), []byte("## TDD\nred first\n"), 0o644)).To(Succeed())
@@ -81,6 +83,19 @@ var _ = Describe("Claude.Pull", func() {
 		info, err := os.Stat(filepath.Join(home, ".claude", "hooks", "require-pr-link.sh"))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(info.Mode().Perm() & 0o111).NotTo(BeZero())
+	})
+
+	It("copies every skill the repo ships into ~/.claude/skills, leaving the user's own skills alone", func() {
+		own := filepath.Join(home, ".claude", "skills", "mine", "SKILL.md")
+		Expect(os.MkdirAll(filepath.Dir(own), 0o755)).To(Succeed())
+		Expect(os.WriteFile(own, []byte("mine\n"), 0o644)).To(Succeed())
+
+		Expect(components.NewClaude(opts).Pull()).To(Succeed())
+
+		b, err := os.ReadFile(filepath.Join(home, ".claude", "skills", "tdd", "SKILL.md"))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(string(b)).To(Equal("tdd skill\n"))
+		Expect(own).To(BeARegularFile())
 	})
 
 	It("copies every rule file into ~/.claude/rules/tars by default", func() {

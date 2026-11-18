@@ -47,6 +47,8 @@ RUN test -f "$HOME/.vimrc" \
  && grep -q 'block-secret-reads.sh' "$HOME/.claude/settings.json" \
  && grep -q 'ask-before-tickets.sh' "$HOME/.claude/settings.json" \
  && test -f "$HOME/.claude/rules/tars/20-prs-and-ci.md" \
+ && test -f "$HOME/.claude/skills/tdd/SKILL.md" \
+ && test -f "$HOME/.claude/skills/pr/SKILL.md" \
  && test ! -e "$HOME/.claude/CLAUDE.md" \
  && grep -q 'block-unreviewable-edits.sh' "$HOME/.claude/settings.json" \
  && grep -q 'require-pr-link.sh' "$HOME/.claude/settings.json"
